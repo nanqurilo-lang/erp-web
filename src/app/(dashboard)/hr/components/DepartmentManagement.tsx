@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -14,19 +14,45 @@ interface Department {
   parentDepartment: string
 }
 
-const departments: Department[] = [
-  { id: 1, name: "Sales", parentDepartment: "--" },
-  { id: 2, name: "Research", parentDepartment: "--" },
-  { id: 3, name: "Marketing", parentDepartment: "--" },
-  { id: 4, name: "Human Resources", parentDepartment: "--" },
-  { id: 5, name: "Finance", parentDepartment: "--" },
-]
-
 export function DepartmentManagement() {
+  const [departments, setDepartments] = useState<Department[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
+  const [loading, setLoading] = useState(true)
 
-  const filteredDepartments = departments.filter((dept) => dept.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const accessToken = localStorage.getItem("accessToken")
+        if (!accessToken) {
+          throw new Error("No access token found")
+        }
+        const res = await fetch("/api/department/hr", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        })
+        
+      
+
+
+        if (!res.ok) throw new Error("Failed to fetch departments")
+        const data: Department[] = await res.json()
+        setDepartments(data)
+      } catch (error) {
+        console.error("Error fetching departments:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDepartments()
+  }, [])
+
+  const filteredDepartments = departments.filter((dept) =>
+    dept.name.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -71,37 +97,49 @@ export function DepartmentManagement() {
 
       {/* Table */}
       <Card className="border-2 border-blue-200">
-        <Table>
-          <TableHeader className="bg-blue-50">
-            <TableRow>
-              <TableHead className="font-medium text-gray-700">Name</TableHead>
-              <TableHead className="font-medium text-gray-700">Parent Department</TableHead>
-              <TableHead className="font-medium text-gray-700">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredDepartments.map((department) => (
-              <TableRow key={department.id} className="hover:bg-gray-50">
-                <TableCell className="font-medium">{department.name}</TableCell>
-                <TableCell className="text-gray-500">{department.parentDepartment}</TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+        {loading ? (
+          <div className="p-6 text-center text-gray-500">Loading departments...</div>
+        ) : (
+          <Table>
+            <TableHeader className="bg-blue-50">
+              <TableRow>
+                <TableHead className="font-medium text-gray-700">Name</TableHead>
+                <TableHead className="font-medium text-gray-700">Parent Department</TableHead>
+                <TableHead className="font-medium text-gray-700">Action</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredDepartments.length > 0 ? (
+                filteredDepartments.map((department) => (
+                  <TableRow key={department.id} className="hover:bg-gray-50">
+                    <TableCell className="font-medium">{department.name}</TableCell>
+                    <TableCell className="text-gray-500">{department.parentDepartment}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>Edit</DropdownMenuItem>
+                          <DropdownMenuItem>View Details</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center text-gray-500 py-6">
+                    No departments found
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
       </Card>
 
       {/* Footer */}

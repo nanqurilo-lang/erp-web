@@ -1,10 +1,16 @@
-import { DepartmentManagement } from "./components/DepartmentManagement";
+import React from 'react';
+import Link from 'next/link';
 
-
-export default function Home() {
+const Hr = () => {
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <DepartmentManagement />
+    <div>
+      <Link href="/hr/department">
+        <button>
+          Click here
+        </button>
+      </Link>
     </div>
-  )
-}
+  );
+};
+
+export default Hr;
