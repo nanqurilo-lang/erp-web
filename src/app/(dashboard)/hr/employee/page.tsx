@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 interface Employee {
   employeeId: string;
@@ -72,18 +73,20 @@ export default function EmployeePage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
 
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-         const token = localStorage.getItem('accessToken');
-      if (!token) throw new Error('No access token found');
+        const token = localStorage.getItem('accessToken');
+        if (!token) throw new Error('No access token found');
         const response = await fetch('/api/hr/employee', {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      });
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
 
         if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Unauthorized: Invalid or missing token');
+          }
           throw new Error('Failed to fetch employees');
         }
         const data: ApiResponse = await response.json();
@@ -126,7 +129,15 @@ export default function EmployeePage() {
           <tbody>
             {employees.map((employee) => (
               <tr key={employee.employeeId} className="hover:bg-gray-50">
-                <td className="py-2 px-4 border-b">{employee.employeeId}</td>
+                <td className="py-2 px-4 border-b">
+                  <Link
+                    href={`/hr/employee/${employee.employeeId}`}
+                    className="text-blue-500 hover:underline"
+                  >
+                    
+                    {employee.employeeId}
+                  </Link>
+                </td>
                 <td className="py-2 px-4 border-b">{employee.name}</td>
                 <td className="py-2 px-4 border-b">{employee.email}</td>
                 <td className="py-2 px-4 border-b">{employee.departmentName || 'N/A'}</td>
