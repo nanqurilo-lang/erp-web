@@ -64,6 +64,7 @@ export default function EmployeeEmergencyContactsPage() {
   const tabs = [
     { id: "profile", label: "Profile", href: `/hr/employee/${id}` },
     { id: "emergency", label: "Emergency Contact", href: `/hr/employee/${id}/emergency-contacts` },
+    { id: "promotions", label: "Promotions", href: `/hr/employee/${id}/promotions` },
   ]
 
   return (

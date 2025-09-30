@@ -4,8 +4,8 @@ const API_BASE = "https://6jnqmj85-8080.inc1.devtunnels.ms/employee"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const id = params.id
-    const url = `${API_BASE}/${encodeURIComponent(id)}`
+
+    const url = `${API_BASE}/${encodeURIComponent(params.id)}`
 
     const res = await fetch(url, {
       headers: {

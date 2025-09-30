@@ -26,3 +26,35 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
+
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const authHeader = request.headers.get("authorization") || undefined
+    const body = await request.text()
+    const id = params.id
+    const url = `${API_BASE}/employee/${encodeURIComponent(id)}/emergency-contacts`
+
+    const upstream = await fetch(url, {
+      method: "POST",
+      headers: {
+        ...(authHeader ? { authorization: authHeader } : {}),
+        "content-type": "application/json",
+      },
+      body,
+      cache: "no-store",
+    })
+
+    const responseBody = await upstream.text()
+    const contentType = upstream.headers.get("content-type") || "application/json"
+
+    return new Response(responseBody, {
+      status: upstream.status,
+      headers: { "content-type": contentType },
+    })
+  } catch (e) {
+    return new Response(JSON.stringify({ error: "Failed to create emergency contact" }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    })
+  }
+}
