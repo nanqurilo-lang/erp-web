@@ -19,13 +19,15 @@ export default function HolidayPage() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [search, setSearch] = useState("");
+  const [editingHoliday, setEditingHoliday] = useState<Holiday | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const fetchHolidays = async (filter = false) => {
     try {
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem("accessToken")
+      const token = localStorage.getItem("accessToken");
       if (!token) {
         setError("No token found in localStorage");
         setLoading(false);
@@ -46,7 +48,7 @@ export default function HolidayPage() {
 
       const data: Holiday[] = await res.json();
       setHolidays(data);
-      setFilteredHolidays(data); // reset filtered list
+      setFilteredHolidays(data);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -54,12 +56,43 @@ export default function HolidayPage() {
     }
   };
 
-  // Load all holidays initially
+  const handleUpdate = async () => {
+    if (!editingHoliday) return;
+    try {
+      setSaving(true);
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        setError("No token found in localStorage");
+        return;
+      }
+
+      const res = await fetch(`/api/hr/holidays/${editingHoliday.id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          date: editingHoliday.date,
+          occasion: editingHoliday.occasion,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update holiday");
+
+      await fetchHolidays(); // refresh list
+      setEditingHoliday(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   useEffect(() => {
     fetchHolidays();
   }, []);
 
-  // Client-side search filter
   useEffect(() => {
     if (!search.trim()) {
       setFilteredHolidays(holidays);
@@ -78,7 +111,7 @@ export default function HolidayPage() {
     <div className="p-6">
       <h1 className="text-xl font-bold mb-4">Holiday List</h1>
 
-      {/* Filter Form */}
+      {/* Filters */}
       <div className="mb-4 flex flex-wrap gap-2 items-center">
         <input
           type="number"
@@ -110,8 +143,6 @@ export default function HolidayPage() {
         >
           Reset
         </button>
-
-        {/* Search Box */}
         <input
           type="text"
           value={search}
@@ -129,23 +160,76 @@ export default function HolidayPage() {
             <th className="border p-2">Day</th>
             <th className="border p-2">Occasion</th>
             <th className="border p-2">Weekly</th>
+            <th className="border p-2">Actions</th>
           </tr>
         </thead>
         <tbody>
           {filteredHolidays.length > 0 ? (
             filteredHolidays.map((holiday) => (
               <tr key={holiday.id} className="text-center">
-                <td className="border p-2">{holiday.date}</td>
+                <td className="border p-2">
+                  {editingHoliday?.id === holiday.id ? (
+                    <input
+                      type="date"
+                      value={editingHoliday.date}
+                      onChange={(e) =>
+                        setEditingHoliday({ ...editingHoliday, date: e.target.value })
+                      }
+                      className="border p-1 rounded"
+                    />
+                  ) : (
+                    holiday.date
+                  )}
+                </td>
                 <td className="border p-2">{holiday.day}</td>
-                <td className="border p-2">{holiday.occasion}</td>
+                <td className="border p-2">
+                  {editingHoliday?.id === holiday.id ? (
+                    <input
+                      type="text"
+                      value={editingHoliday.occasion}
+                      onChange={(e) =>
+                        setEditingHoliday({ ...editingHoliday, occasion: e.target.value })
+                      }
+                      className="border p-1 rounded w-full"
+                    />
+                  ) : (
+                    holiday.occasion
+                  )}
+                </td>
                 <td className="border p-2">
                   {holiday.isDefaultWeekly ? "Yes" : "No"}
+                </td>
+                <td className="border p-2">
+                  {editingHoliday?.id === holiday.id ? (
+                    <div className="flex gap-2 justify-center">
+                      <button
+                        onClick={handleUpdate}
+                        disabled={saving}
+                        className="bg-green-500 text-white px-3 py-1 rounded"
+                      >
+                        {saving ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        onClick={() => setEditingHoliday(null)}
+                        className="bg-gray-400 text-white px-3 py-1 rounded"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditingHoliday(holiday)}
+                      className="bg-blue-500 text-white px-3 py-1 rounded"
+                    >
+                      Edit
+                    </button>
+                  )}
                 </td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan={4} className="p-4 text-center text-gray-500">
+              <td colSpan={5} className="p-4 text-center text-gray-500">
                 No holidays found
               </td>
             </tr>
