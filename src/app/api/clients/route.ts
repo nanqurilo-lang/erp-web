@@ -8,7 +8,32 @@ export async function GET(request: Request) {
     }
 
     const accessToken = authHeader.split(" ")[1]
-    const response = await fetch("https://6jnqmj85-8080.inc1.devtunnels.ms/clients", {
+
+    const { searchParams } = new URL(request.url)
+    const page = searchParams.get("page") || "1"
+    const limit = searchParams.get("limit") || "10"
+    const search = searchParams.get("search")
+    const status = searchParams.get("status")
+    const category = searchParams.get("category")
+
+    const backendParams = new URLSearchParams({
+      page,
+      limit,
+    })
+
+    if (search) {
+      backendParams.append("search", search)
+    }
+
+    if (status && status !== "all") {
+      backendParams.append("status", status)
+    }
+
+    if (category && category !== "all") {
+      backendParams.append("category", category)
+    }
+
+    const response = await fetch(`https://6jnqmj85-8080.inc1.devtunnels.ms/clients?${backendParams.toString()}`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
@@ -25,7 +50,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-
 
 
 

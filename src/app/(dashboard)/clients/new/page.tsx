@@ -87,6 +87,7 @@ export default function NewClientPage() {
 
       setMessage("✅ Client created successfully!")
       console.log("✅ Client Response:", data)
+      
     } catch (err: any) {
       setMessage(`❌ ${err.message}`)
     }
