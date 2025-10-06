@@ -54,7 +54,7 @@ export default function CompanyForm() {
       const res = await fetch("/api/company/company-settings", {
         method: isExisting ? "PUT" : "POST",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
+          Authorization: `Bearer ${token}`, // ✅ send token
         },
         body: formData,
       });

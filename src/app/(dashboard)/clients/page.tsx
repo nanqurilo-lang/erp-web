@@ -1,215 +1,209 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import {
-  MoreVertical,
-  Edit,
-  Eye,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
-import Link from "next/link";
+import { useEffect, useState } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 
 
-type Client = {
-  id: number;
-  name: string;
-  email: string;
-  mobile: string;
-  category: string;
-  status: "Active" | "Inactive" | "Pending";
-  created: string;
-};
-
-const clients: Client[] = Array.from({ length: 23 }, (_, i) => ({
-  id: i + 1,
-  name: "John Doe",
-  email: "example@qurilo.com",
-  mobile: "+91 9999999999",
-  category: "------",
-  status: i % 3 === 0 ? "Active" : i % 3 === 1 ? "Pending" : "Inactive",
-  created: "27/08/2025",
-}));
-
-export default function ClientsPage() {
-  const [openMenu, setOpenMenu] = useState<number | null>(null);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(9);
-
-  // Filter search
-  const filteredClients = clients.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase()) ||
-      c.mobile.includes(search)
-  );
-
-  // Pagination
-  const totalPages = Math.ceil(filteredClients.length / perPage);
-  const startIndex = (page - 1) * perPage;
-  const paginatedClients = filteredClients.slice(
-    startIndex,
-    startIndex + perPage
-  );
-
-  return (
-    <div className="">
-      {/* Top Title */}
-      <h1 className="text-2xl font-semibold mb-4">Clients</h1>
-
-      {/* Filter Bar */}
-      <div className="flex flex-wrap gap-3 items-center mb-6 bg-white shadow-sm p-4 rounded-xl">
-        <input type="date" className="border rounded-lg px-3 py-2" />
-        <input type="date" className="border rounded-lg px-3 py-2" />
-        <select className="border rounded-lg px-3 py-2">
-          <option value="all">Client: All</option>
-        </select>
-        <select className="border rounded-lg px-3 py-2">
-          <option value="all">Category: All</option>
-        </select>
-        <button className="ml-auto border px-4 py-2 rounded-lg bg-gray-100">
-          Filters
-        </button>
-      </div>
-
-      {/* Add Client + Search */}
-      <div className="flex justify-between items-center mb-4">
-        
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow">
-          + Add Client
-        </button>
-        <input
-          type="text"
-          placeholder="Search..."
-          className="border rounded-lg px-3 py-2 w-64"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-        />
-      </div>
-
-      {/* Table */}
-      <div className="bg-white shadow rounded-xl">
-        {/* Scrollable Table Container */}
-        <div className="max-h-[500px] overflow-y-auto">
-          <table className="w-full border-collapse">
-            <thead className="sticky top-0 bg-gray-100 z-10">
-              <tr className="text-left text-sm text-gray-600">
-                <th className="p-3">Name</th>
-                <th className="p-3">Email</th>
-                <th className="p-3">Mobile</th>
-                <th className="p-3">Category</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Created</th>
-                <th className="p-3">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedClients.map((client) => (
-                <tr key={client.id} className="border-t hover:bg-gray-50">
-                  <td className="p-3">{client.name}</td>
-                  <td className="p-3">{client.email}</td>
-                  <td className="p-3">{client.mobile}</td>
-                  <td className="p-3">{client.category}</td>
-                  <td className="p-3">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium
-                      ${
-                        client.status === "Active"
-                          ? "bg-green-100 text-green-600"
-                          : client.status === "Pending"
-                          ? "bg-yellow-100 text-yellow-600"
-                          : "bg-gray-200 text-gray-600"
-                      }`}
-                    >
-                      {client.status}
-                    </span>
-                  </td>
-                  <td className="p-3">{client.created}</td>
-                  <td className="p-3 relative">
-                    <button
-                      onClick={() =>
-                        setOpenMenu(openMenu === client.id ? null : client.id)
-                      }
-                      className="p-2 hover:bg-gray-100 rounded-full"
-                    >
-                      <MoreVertical size={18} />
-                    </button>
-
-                    {/* Action Dropdown */}
-                    {openMenu === client.id && (
-                      <div
-                        className="absolute right-0 mt-2 w-36 bg-white shadow-lg rounded-lg z-10"
-                        onMouseLeave={() => setOpenMenu(null)}
-                      >
-                        <Link href={`/clients/${client.id}`}>
-  <button className="flex items-center gap-2 px-4 py-2 w-full hover:bg-gray-100">
-    <Eye size={16} /> View
-  </button>
-</Link>
-
-                       <Link href={`/clients/${client.id}/edit`}>
-  <button className="flex items-center gap-2 px-4 py-2 w-full hover:bg-gray-100">
-    <Edit size={16} /> Edit
-  </button>
-</Link>
-
-                        <button className="flex items-center gap-2 px-4 py-2 w-full text-red-600 hover:bg-gray-100">
-                          <Trash2 size={16} /> Delete
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Pagination */}
-      <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
-        <div className="flex items-center gap-2">
-          <span>Results per page:</span>
-          <select
-            value={perPage}
-            onChange={(e) => {
-              setPerPage(Number(e.target.value));
-              setPage(1);
-            }}
-            className="border rounded-lg px-2 py-1"
-          >
-            <option value={5}>5</option>
-            <option value={9}>9</option>
-            <option value={15}>15</option>
-          </select>
-        </div>
-        <div>
-          Page {page} of {totalPages}
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="p-2 rounded disabled:opacity-50"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="p-2 rounded disabled:opacity-50"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+// Define interfaces for type safety
+interface Company {
+  companyName: string
+  city?: string
+  state?: string
 }
 
+interface Client {
+  id: string
+  name: string
+  clientId: string
+  profilePictureUrl?: string
+  email: string
+  mobile?: string
+  country?: string
+  category?: string
+  subCategory?: string
+  company?: Company
+  companyLogoUrl?: string
+  status: "ACTIVE" | "INACTIVE" | string
+  addedBy: string
+}
+
+export default function ClientsPage() {
+  const [clients, setClients] = useState<Client[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  async function fetchClients() {
+    setLoading(true)
+    try {
+      const response = await fetch("/api/clients", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
+        },
+      })
+      if (!response.ok) {
+        throw new Error("Failed to fetch clients")
+      }
+      const data = await response.json()
+      setClients(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchClients()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading clients...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-destructive">Error</CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container mx-auto py-8 px-4">
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">Clients</h1>
+          <p className="text-muted-foreground">Manage and view all your clients in one place</p>
+          <h1 className="text-3xl font-bold">
+        <Link href="/clients/new">
+        <Button variant="ghost" size="sm">Create New Client
+        </Button>
+        </Link>
+        </h1>
+        </div>
+       
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All Clients ({clients.length})</CardTitle>
+          <CardDescription>A comprehensive list of all registered clients</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Added By</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {clients.map((client) => (
+                  <TableRow key={client.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage src={client.profilePictureUrl || "/placeholder.svg"} alt={client.name} />
+                          <AvatarFallback>
+                            {client.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">{client.name}</div>
+                          <div className="text-sm text-muted-foreground">{client.clientId}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="text-sm">{client.email}</div>
+                        <div className="text-sm text-muted-foreground">{client.mobile ?? "—"}</div>
+                        {client.country && <div className="text-xs text-muted-foreground">{client.country}</div>}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {client.category ? (
+                        <div className="space-y-1">
+                          <Badge variant="secondary">{client.category}</Badge>
+                          {client.subCategory && (
+                            <div className="text-xs text-muted-foreground">{client.subCategory}</div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {client.company ? (
+                        <div className="flex items-center gap-2">
+                          {client.companyLogoUrl && (
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage
+                                src={client.companyLogoUrl || "/placeholder.svg"}
+                                alt={client.company.companyName}
+                              />
+                              <AvatarFallback className="text-xs">{client.company.companyName[0]}</AvatarFallback>
+                            </Avatar>
+                          )}
+                          <div>
+                            <div className="font-medium text-sm">{client.company.companyName}</div>
+                            {client.company.city && (
+                              <div className="text-xs text-muted-foreground">
+                                {client.company.city}
+                                {client.company.state ? `, ${client.company.state}` : ""}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={client.status === "ACTIVE" ? "default" : "secondary"}
+                        className={client.status === "ACTIVE" ? "bg-green-500 hover:bg-green-600" : ""}
+                      >
+                        {client.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">{client.addedBy}</span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
