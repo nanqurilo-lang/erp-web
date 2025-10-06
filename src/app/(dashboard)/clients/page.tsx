@@ -257,8 +257,10 @@ export default function ClientsPage() {
                   </TableRow>
                 ) : (
                   paginatedClients.map((client) => (
+                  
                     <TableRow key={client.id}>
                       <TableCell>
+                      <Link href={`/clients/${client.id}`} key={client.id}>
                         <div className="flex items-center gap-3">
                           <Avatar>
                             <AvatarImage src={client.profilePictureUrl || "/placeholder.svg"} alt={client.name} />
@@ -275,6 +277,7 @@ export default function ClientsPage() {
                             <div className="text-sm text-muted-foreground">{client.clientId}</div>
                           </div>
                         </div>
+                        </Link>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
