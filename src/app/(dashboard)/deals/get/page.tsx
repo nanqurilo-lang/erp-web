@@ -1,132 +1,206 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { Deal } from "@/types/deals";
+import { useEffect } from "react"
 
+import useSWR from "swr"
+import { useMemo, useState } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
+
+type Deal = {
+  id: string
+  title: string
+  value: number
+  dealStage: string
+  dealCategory: string
+  pipeline: string
+  dealAgent: string
+  dealAgentMeta?: {
+    name: string
+    profileUrl?: string
+  }
+  createdAt: string
+}
 
 export default function DealsPage() {
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null)
+  const [query, setQuery] = useState("")
+  const [stage, setStage] = useState<string>("all")
 
   useEffect(() => {
-    const fetchDeals = async () => {
-      try {
-        const token = localStorage.getItem("accessToken");
-        if (!token) {
-          setError("No access token found. Please log in.");
-          return;
-        }
-        const res = await fetch("/api/deals/get", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Failed to fetch deals");
-        const data: Deal[] = await res.json();
-        setDeals(data);
-      } catch (err) {
-        console.error(err);
-        setError("Failed to load deals. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
+    // only reading token; no data fetching here
+    const t = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null
+    setToken(t)
+  }, [])
 
-    fetchDeals();
-  }, []);
+  const fetcher = async (url: string) => {
+    if (!token) throw new Error("No access token found. Please log in.")
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) throw new Error("Failed to fetch deals")
+    return (await res.json()) as Deal[]
+  }
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen text-lg font-semibold">
-        Loading deals...
-      </div>
-    );
+  const { data: deals = [], error, isLoading } = useSWR(token ? "/api/deals/get" : null, fetcher)
+
+  const stages = useMemo(() => {
+    const s = new Set<string>()
+    for (const d of deals) {
+      if (d.dealStage) s.add(d.dealStage)
+    }
+    return Array.from(s.values()).sort()
+  }, [deals])
+
+  const filteredDeals = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return deals.filter((d) => {
+      const matchesStage = stage === "all" || (d.dealStage || "").toLowerCase() === stage.toLowerCase()
+      const hay = [d.title, d.dealAgentMeta?.name, d.dealAgent, d.dealCategory, d.pipeline, d.id]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+      const matchesQuery = q.length === 0 || hay.includes(q)
+      return matchesStage && matchesQuery
+    })
+  }, [deals, query, stage])
+
+  if (isLoading) {
+    return <div className="flex min-h-[60vh] items-center justify-center text-lg font-semibold">Loading deals...</div>
   }
 
   if (error) {
     return (
-      <div className="flex justify-center items-center min-h-screen text-lg font-semibold text-red-600">
-        {error}
+      <div className="flex min-h-[60vh] items-center justify-center text-lg font-semibold text-destructive">
+        {(error as Error).message || "Failed to load deals. Please try again later."}
       </div>
-    );
+    )
   }
 
   return (
     <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">Deals</h1>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {deals.map((deal) => (
-          <div
-            key={deal.id}
-            className="p-4 border rounded-2xl shadow-sm hover:shadow-md transition bg-white"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              {deal.dealAgentMeta?.profileUrl ? (
-                <Image
-                  src={deal.dealAgentMeta.profileUrl}
-                  alt={deal.dealAgentMeta.name}
-                  width={50}
-                  height={50}
-                  className="rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-[50px] h-[50px] bg-gray-200 rounded-full" />
-              )}
-              <div>
-                <h2 className="text-lg font-semibold">{deal.title}</h2>
-                <p className="text-sm text-gray-600">ID: {deal.id}</p>
-              </div>
-            </div>
-
-            <div className="space-y-1 text-sm text-gray-700">
-              <p>
-                <span className="font-medium">Value:</span>{" "}
-                ${deal.value.toLocaleString()}
-              </p>
-              <p>
-                <span className="font-medium">Stage:</span>{" "}
-                <span
-                  className={`px-2 py-0.5 rounded text-xs ${
-                    deal.dealStage.toUpperCase() === "WIN"
-                      ? "bg-green-100 text-green-800"
-                      : "bg-gray-200 text-gray-800"
-                  }`}
-                >
-                  {deal.dealStage}
-                </span>
-              </p>
-              <p>
-                <span className="font-medium">Category:</span>{" "}
-                {deal.dealCategory}
-              </p>
-              <p>
-                <span className="font-medium">Pipeline:</span> {deal.pipeline}
-              </p>
-              <p>
-                <span className="font-medium">Agent:</span>{" "}
-                {deal.dealAgentMeta?.name || deal.dealAgent}
-              </p>
-              <p>
-                <span className="font-medium">Created:</span>{" "}
-                {new Date(deal.createdAt).toLocaleDateString()}
-              </p>
-              <Link
-                href={`/deals/get/${deal.id}`}
-                className="text-blue-600 underline"
-              >
-                View Details
-              </Link>
-            </div>
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <h1 className="text-pretty text-3xl font-bold">Deals</h1>
+        <div className="flex w-full flex-col gap-3 md:max-w-2xl md:flex-row">
+          <div className="flex-1">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by title, agent, category, pipeline, or ID"
+              aria-label="Search deals"
+            />
           </div>
-        ))}
+          <Select value={stage} onValueChange={setStage}>
+            <SelectTrigger className="w-full md:w-48" aria-label="Filter by stage">
+              <SelectValue placeholder="Stage" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All stages</SelectItem>
+              {stages.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button asChild>
+            <Link href="/deals/create">Add Deals</Link>
+          </Button>
+        </div>
       </div>
+
+      <div className="overflow-x-auto rounded-xl border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-[220px]">Deal</TableHead>
+              <TableHead>Value</TableHead>
+              <TableHead>Stage</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Pipeline</TableHead>
+              <TableHead className="min-w-[180px]">Agent</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredDeals.map((deal) => (
+              <TableRow key={deal.id}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    {deal.dealAgentMeta?.profileUrl ? (
+                      <Image
+                        src={deal.dealAgentMeta.profileUrl || "/placeholder.svg"}
+                        alt={deal.dealAgentMeta.name}
+                        width={36}
+                        height={36}
+                        className="rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-9 w-9 rounded-full bg-muted" aria-hidden="true" />
+                    )}
+                    <div className="min-w-0">
+                      <Link href={`/deals/get/${deal.id}`} className="line-clamp-1 font-medium hover:underline">
+                        {deal.title}
+                      </Link>
+                      <div className="text-xs text-muted-foreground">ID: {deal.id}</div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>${deal.value.toLocaleString()}</TableCell>
+                <TableCell>
+                  <Badge variant={deal.dealStage?.toUpperCase() === "WIN" ? "default" : "secondary"}>
+                    {deal.dealStage}
+                  </Badge>
+                </TableCell>
+                <TableCell className="whitespace-nowrap">{deal.dealCategory}</TableCell>
+                <TableCell className="whitespace-nowrap">{deal.pipeline}</TableCell>
+                <TableCell className="min-w-[180px]">{deal.dealAgentMeta?.name || deal.dealAgent}</TableCell>
+                <TableCell className="whitespace-nowrap">{new Date(deal.createdAt).toLocaleDateString()}</TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="secondary" size="sm">
+                        :
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem asChild>
+                        <Link href={`/deals/get/${deal.id}`}>View</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/deals/edit/${deal.id}`}>Edit</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => console.log("[v0] Delete clicked for deal:", deal.id)}>
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+            {filteredDeals.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                  No deals found. Adjust your filters or search terms.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
       <div className="mt-4">
-        <Link href="/" className="text-blue-600 hover:underline">
+        <Link href="/" className="underline">
           Back to Home
         </Link>
       </div>
     </div>
-  );
+  )
 }

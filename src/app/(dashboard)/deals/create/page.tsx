@@ -1,22 +1,54 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Stage } from "@/types/stages";
 
 export default function CreateDealPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
     title: "",
     value: "",
-    dealStage: "OPEN",
+    dealStage: "",
     dealCategory: "",
     pipeline: "",
     description: "",
   });
+  const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [stagesLoading, setStagesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchStages = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+          setError("No access token found. Please log in.");
+          return;
+        }
+        const res = await fetch("/api/deals/stages", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to fetch stages");
+        const data: Stage[] = await res.json();
+        setStages(data);
+        // Set default dealStage to the first stage's name if available
+        if (data.length > 0) {
+          setFormData((prev) => ({ ...prev, dealStage: data[0].name }));
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load stages. Please try again later.");
+      } finally {
+        setStagesLoading(false);
+      }
+    };
+
+    fetchStages();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +81,7 @@ export default function CreateDealPage() {
       setFormData({
         title: "",
         value: "",
-        dealStage: "OPEN",
+        dealStage: stages.length > 0 ? stages[0].name : "",
         dealCategory: "",
         pipeline: "",
         description: "",
@@ -68,6 +100,22 @@ export default function CreateDealPage() {
   ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
+  if (stagesLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen text-lg font-semibold">
+        Loading stages...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center min-h-screen text-lg font-semibold text-red-600">
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -118,11 +166,14 @@ export default function CreateDealPage() {
               name="dealStage"
               value={formData.dealStage}
               onChange={handleChange}
+              required
               className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
             >
-              <option value="OPEN">Open</option>
-              <option value="WIN">Win</option>
-              <option value="LOSS">Loss</option>
+              {stages.map((stage) => (
+                <option key={stage.id} value={stage.name}>
+                  {stage.name}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -168,9 +219,9 @@ export default function CreateDealPage() {
         <div className="mt-6 flex gap-4">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || stages.length === 0}
             className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition ${
-              loading ? "opacity-50 cursor-not-allowed" : ""
+              loading || stages.length === 0 ? "opacity-50 cursor-not-allowed" : ""
             }`}
           >
             {loading ? "Creating..." : "Create Deal"}
