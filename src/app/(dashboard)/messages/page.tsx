@@ -1,11 +1,11 @@
 import ChatRoomsList from "./_components/ChatRoomsList";
 
 
-export default function ChatPage() {
+export default function MessagesIndexPage() {
   return (
-    <div className="max-w-lg mx-auto mt-6">
-      <h2 className="text-xl font-bold mb-4">Your Chats</h2>
+    <main className="max-w-3xl mx-auto py-6">
+      <h1 className="text-2xl font-semibold mb-4 text-foreground text-balance">Messages</h1>
       <ChatRoomsList />
-    </div>
-  );
+    </main>
+  )
 }

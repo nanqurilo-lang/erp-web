@@ -1,11 +1,34 @@
-// app/chats/[id]/page.tsx
+"use client"
 
-import ChatWindow from "../_components/ChatWindow";
+import { use, useEffect, useState } from "react"
+import ChatWindow from "../_components/ChatWindow"
 
+export default function ChatPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  // Unwrap promised params (Next.js App Router recent change)
+  const { id: receiverId } = use(params)
 
-export default function ChatPage({ params }: { params: { id: string } }) {
-  console.log("Route params:", params); // Debug the params
+  const [employeeId, setEmployeeId] = useState<string>("")
+
+  // Get logged-in employee ID from localStorage
+  useEffect(() => {
+    const id = localStorage.getItem("employeeId")
+    if (id) setEmployeeId(id)
+  }, [])
+
+  // Build chatRoomId dynamically (consistent naming)
+  const chatRoomId = employeeId && receiverId ? [employeeId, receiverId].sort().join("_") : ""
+
+  if (!employeeId) {
+    return <p className="text-center mt-8 text-muted-foreground">Loading chat...</p>
+  }
+
   return (
-    <ChatWindow receiverId={params.id} employeeid="EMP-009" />
-  );
+    <div className="h-[calc(100vh-4rem)] flex flex-col">
+      <ChatWindow chatRoomId={chatRoomId} employeeid={employeeId} receiverId={receiverId} />
+    </div>
+  )
 }
