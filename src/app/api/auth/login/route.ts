@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
     // Make request to external API
     const response = await fetch(
-      'https://6jnqmj85-8080.inc1.devtunnels.ms/auth/login',
+      'http://192.168.1.24/auth/login',
       {
         method: 'POST',
         headers: {
