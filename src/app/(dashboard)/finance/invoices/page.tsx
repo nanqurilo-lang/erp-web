@@ -229,7 +229,7 @@ export default function InvoiceList() {
                         size="icon"
                         className="h-8 w-8"
                         title="View Invoice"
-                        onClick={() => router.push(`/invoices/${inv.invoiceNumber}`)}
+                        onClick={() => router.push(`/finance/invoices/${inv.invoiceNumber}`)}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -246,7 +246,8 @@ export default function InvoiceList() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        title="Download Invoice"
+                        title="Payment"
+                        onClick={() => router.push(`/finance/invoices/payments?invoiceNumber=${inv.invoiceNumber}`)}
                       >
                         <Download className="h-4 w-4" />
                       </Button>
