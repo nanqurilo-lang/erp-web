@@ -8,7 +8,7 @@ export async function GET(request: Request, { params }: { params: { invoiceNumbe
     }
 
     const accessToken = authHeader.split(" ")[1];
-    const res = await fetch(`http://192.168.1.24/api/invoices/${params.invoiceNumber}`, {
+    const res = await fetch(`https://chat.swiftandgo.in/api/invoices/${params.invoiceNumber}`, {
       cache: "no-store",
       headers: {
         Authorization: `Bearer ${accessToken}`,

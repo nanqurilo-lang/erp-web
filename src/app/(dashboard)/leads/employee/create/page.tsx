@@ -155,7 +155,7 @@ export default function EmployeeCreatePage() {
       }
 
       await response.json();
-      router.push(`/employee/admin`);
+      router.push(`/leads/admin/get`);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {

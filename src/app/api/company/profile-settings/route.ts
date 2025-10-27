@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const BASE_URL = "http://192.168.1.24/employee/me";
+const BASE_URL = "https://chat.swiftandgo.in/employee/me";
 
 export async function GET(request: Request) {
   try {

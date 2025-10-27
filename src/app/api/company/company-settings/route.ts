@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const API_URL = "http://192.168.1.24/employee/company";
+const API_URL = "https://chat.swiftandgo.in/employee/company";
 
 export async function POST(req: NextRequest) {
   try {

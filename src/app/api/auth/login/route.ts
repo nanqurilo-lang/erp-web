@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
     // Make request to external API
     const response = await fetch(
-      'http://192.168.1.24/auth/login',
+      'https://chat.swiftandgo.in/auth/login',
       {
         method: 'POST',
         headers: {

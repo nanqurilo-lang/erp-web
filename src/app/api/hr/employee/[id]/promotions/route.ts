@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-const API_BASE = "https://6jnqmj85-8080.inc1.devtunnels.ms"
+const API_BASE = "https://chat.swiftandgo.in"
 
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {

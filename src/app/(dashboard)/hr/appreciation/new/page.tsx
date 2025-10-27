@@ -171,12 +171,12 @@ export default function AppreciationForm() {
         </button>
       </form>
 
-      {response && (
+      {/* {response && (
         <div className="mt-4 p-2 border rounded">
           <h3 className="font-bold">Response:</h3>
           <pre>{JSON.stringify(response, null, 2)}</pre>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

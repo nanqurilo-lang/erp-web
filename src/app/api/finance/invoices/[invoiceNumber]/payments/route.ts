@@ -1,3 +1,4 @@
+// api/finance/invoices/[invoiceNumber]/payments/route.ts 
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request, { params }: { params: { invoiceNumber: string } }) {
@@ -8,7 +9,7 @@ export async function GET(request: Request, { params }: { params: { invoiceNumbe
     }
 
     const accessToken = authHeader.split(" ")[1];
-    const res = await fetch(`http://192.168.1.24/api/payments/invoice/${params.invoiceNumber}`, {
+    const res = await fetch(`https://chat.swiftandgo.in/api/payments/invoice/${params.invoiceNumber}`, {
       cache: "no-store",
       headers: {
         Authorization: `Bearer ${accessToken}`,

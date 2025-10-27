@@ -73,6 +73,12 @@ export default function EmployeeEmergencyContactsPage() {
         <Link href="/hr/employee" className="text-sm text-primary underline">
           ← Back to Employees
         </Link>
+        <Link 
+          href={`/hr/employee/${id}/emergency-contacts/add`} 
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Add Emergency Contact
+        </Link>
       </div>
 
       <section className="rounded-lg border border-border bg-card p-4">

@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     }
 
     const accessToken = authHeader.split(" ")[1];
-    const res = await fetch("http://192.168.1.24/api/invoices", {
+    const res = await fetch("https://chat.swiftandgo.in/api/invoices", {
       // Corrected endpoint
       cache: "no-store",
       headers: {
@@ -44,3 +44,40 @@ export async function GET(request: Request) {
 
 
  
+export async function POST(request: Request) {
+  try {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const accessToken = authHeader.split(" ")[1];
+    const body = await request.json();
+
+    const res = await fetch(`https://chat.swiftandgo.in/api/invoices`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const contentType = res.headers.get("content-type");
+      const errorResponse = {
+        error: `Failed to create invoice: ${res.statusText}`,
+        status: res.status,
+        details: contentType?.includes("application/json") ? await res.json() : undefined,
+      };
+      return NextResponse.json(errorResponse, { status: res.status });
+    }
+
+    const newInvoice = await res.json();
+    return NextResponse.json(newInvoice, { status: 201 });
+  } catch (error: any) {
+    console.error("API Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

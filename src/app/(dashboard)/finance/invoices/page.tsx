@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Eye, Download, Mail, FileText } from "lucide-react";
+import { Eye, Download, Mail, FileText, MoreHorizontal, DollarSign } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,6 +14,13 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type Company = {
   companyName: string;
@@ -223,43 +230,42 @@ export default function InvoiceList() {
                   <TableCell>{formatDate(inv.invoiceDate)}</TableCell>
                   <TableCell>{getStatusBadge(inv.status)}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="View Invoice"
-                        onClick={() => router.push(`/finance/invoices/${inv.invoiceNumber}`)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="View Credit Notes"
-                        onClick={() => router.push(`/finance/invoices/credit-notes?invoiceNumber=${inv.invoiceNumber}`)}
-                      >
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Payment"
-                        onClick={() => router.push(`/finance/invoices/payments?invoiceNumber=${inv.invoiceNumber}`)}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Send Invoice"
-                      >
-                        <Mail className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem
+                          onClick={() => router.push(`/finance/invoices/${inv.invoiceNumber}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Invoice
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => router.push(`/finance/invoices/payments?invoiceNumber=${inv.invoiceNumber}`)}
+                        >
+                          <DollarSign className="h-4 w-4 mr-2" />
+                          Record Payment
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => router.push(`/finance/invoices/credit-notes?invoiceNumber=${inv.invoiceNumber}`)}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Credit Notes
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>
+                          <Download className="h-4 w-4 mr-2" />
+                          Download PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Mail className="h-4 w-4 mr-2" />
+                          Send Invoice
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
@@ -270,3 +276,4 @@ export default function InvoiceList() {
     </div>
   );
 }
+

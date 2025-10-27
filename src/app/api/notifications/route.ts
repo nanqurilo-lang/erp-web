@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const accessToken = authHeader.split(" ")[1];
     
 
-    const upstream = "http://192.168.1.24/employee/notifications/me"
+    const upstream = "https://chat.swiftandgo.in/employee/notifications/me"
     const res = await fetch(upstream, {
       // Ensure fresh data and avoid caching issues in Next.js
       cache: "no-store",

@@ -172,7 +172,7 @@ export default function InvoicePaymentsList() {
       <div className="mb-6">
         <Button
           variant="ghost"
-          onClick={() => router.push(`/invoices/${invoiceNumber}`)}
+          onClick={() => router.push(`/finance/invoices/${invoiceNumber}`)}
           className="mb-2"
         >
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Invoice

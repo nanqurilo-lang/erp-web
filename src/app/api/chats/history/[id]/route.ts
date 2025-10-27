@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const BASE_URL = "http://192.168.1.24/api/chat/history";
+const BASE_URL = "https://chat.swiftandgo.in/api/chat/history";
 
 export async function GET(
   request: Request,

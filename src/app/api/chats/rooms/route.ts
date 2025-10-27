@@ -1,7 +1,7 @@
 // app/api/chat/rooms/route.ts
 import { NextResponse } from "next/server";
 
-const BASE_URL = "http://192.168.1.24/api/chat/rooms";
+const BASE_URL = "https://chat.swiftandgo.in/api/chat/rooms";
 
 export async function GET(request: Request ) {
   try {

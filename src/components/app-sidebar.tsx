@@ -78,7 +78,7 @@ export function AppSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/client">
+                <a href="/clients">
                   <Building className="size-5" />
                   <span>Client</span>
                 </a>
