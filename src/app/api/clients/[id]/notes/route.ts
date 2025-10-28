@@ -16,7 +16,7 @@ export async function GET(
 
     // Fetch notes from external API
     const response = await fetch(
-      `https://6jnqmj85-8080.inc1.devtunnels.ms/clients/${id}/notes`,
+      `https://chat.swiftandgo.in/clients/${id}/notes`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -66,7 +66,7 @@ export async function POST(
   
       // Call external API to create the note
       const response = await fetch(
-        `https://6jnqmj85-8080.inc1.devtunnels.ms/clients/${id}/notes`,
+        `https://chat.swiftandgo.in/clients/${id}/notes`,
         {
           method: "POST",
           headers: {
@@ -115,7 +115,7 @@ export async function POST(
       const accessToken = authHeader.split(" ")[1];
   
       const response = await fetch(
-        `https://6jnqmj85-8080.inc1.devtunnels.ms/clients/${id}/notes/${noteId}`,
+        `https://chat.swiftandgo.in/clients/${id}/notes/${noteId}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${accessToken}` },

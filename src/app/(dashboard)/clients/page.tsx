@@ -9,7 +9,14 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Search, Filter } from "lucide-react"
+import { Search, Filter, MoreHorizontal, Eye, Edit, TrendingUp, Trash2 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface Company {
   companyName: string
@@ -72,6 +79,44 @@ export default function ClientsPage() {
   useEffect(() => {
     fetchClients()
   }, [])
+
+  // Action handlers
+  const handleView = (client: Client) => {
+    window.location.href = `/clients/${client.id}`
+  }
+
+  const handleEdit = (client: Client) => {
+    window.location.href = `/clients/${client.id}/edit`
+  }
+
+  const handleMoveToDeal = (client: Client) => {
+    // Implement move to deal logic
+    console.log("Moving to deal:", client)
+    // You can open a modal or navigate to deal creation page
+    window.location.href = `/deals/new?clientId=${client.id}`
+  }
+
+  const handleDelete = async (client: Client) => {
+    if (confirm(`Are you sure you want to delete ${client.name}?`)) {
+      try {
+        const response = await fetch(`/api/clients/${client.id}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
+          },
+        })
+        
+        if (!response.ok) {
+          throw new Error("Failed to delete client")
+        }
+        
+        // Refresh the clients list
+        fetchClients()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to delete client")
+      }
+    }
+  }
 
   // Filter and search logic
   useEffect(() => {
@@ -246,37 +291,37 @@ export default function ClientsPage() {
                   <TableHead>Company</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Added By</TableHead>
+                  <TableHead className="w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedClients.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No clients found matching your criteria
                     </TableCell>
                   </TableRow>
                 ) : (
                   paginatedClients.map((client) => (
-                  
                     <TableRow key={client.id}>
                       <TableCell>
-                      <Link href={`/clients/${client.id}`} key={client.id}>
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={client.profilePictureUrl || "/placeholder.svg"} alt={client.name} />
-                            <AvatarFallback>
-                              {client.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")
-                                .toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{client.name}</div>
-                            <div className="text-sm text-muted-foreground">{client.clientId}</div>
+                        <Link href={`/clients/${client.id}`}>
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarImage src={client.profilePictureUrl || "/placeholder.svg"} alt={client.name} />
+                              <AvatarFallback>
+                                {client.name
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")
+                                  .toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">{client.name}</div>
+                              <div className="text-sm text-muted-foreground">{client.clientId}</div>
+                            </div>
                           </div>
-                        </div>
                         </Link>
                       </TableCell>
                       <TableCell>
@@ -334,6 +379,38 @@ export default function ClientsPage() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">{client.addedBy}</span>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleView(client)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEdit(client)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleMoveToDeal(client)}>
+                              <TrendingUp className="h-4 w-4 mr-2" />
+                              Move to Deal
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleDelete(client)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))

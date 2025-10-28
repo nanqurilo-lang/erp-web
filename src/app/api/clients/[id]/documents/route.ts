@@ -18,7 +18,7 @@ export async function GET(
 
     // Fetch notes from external API
     const response = await fetch(
-      `https://6jnqmj85-8080.inc1.devtunnels.ms/clients/${id}/documents`,
+      `https://chat.swiftandgo.in/clients/${id}/documents`,
    
       {
         headers: {
@@ -68,7 +68,7 @@ export async function POST(
     const backendForm = new FormData();
     backendForm.append("file", file);
 
-    const backendRes = await fetch(`https://6jnqmj85-8080.inc1.devtunnels.ms/clients/${id}/documents`, {
+    const backendRes = await fetch(`https://chat.swiftandgo.in/clients/${id}/documents`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -111,7 +111,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "Missing Document-Id header" }, { status: 400 });
     }
 
-    const backendRes = await fetch(`https://6jnqmj85-8080.inc1.devtunnels.ms/clients/${id}/documents/${documentId}`, {
+    const backendRes = await fetch(`https://chat.swiftandgo.in/clients/${id}/documents/${documentId}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${accessToken}`,

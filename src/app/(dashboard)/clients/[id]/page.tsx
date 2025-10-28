@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, FileText, StickyNote } from "lucide-react"
 
 interface Company {
   companyName: string
@@ -104,6 +104,23 @@ export default function ClientDetailPage() {
             Back to Clients
           </Button>
         </Link>
+        
+        {/* Action Buttons */}
+        <div className="flex gap-2 mb-4">
+          <Link href={`/clients/${id}/documents`}>
+            <Button variant="outline" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Documents
+            </Button>
+          </Link>
+          <Link href={`/clients/${id}/notes`}>
+            <Button variant="outline" className="flex items-center gap-2">
+              <StickyNote className="h-4 w-4" />
+              Notes
+            </Button>
+          </Link>
+        </div>
+
         <h1 className="text-4xl font-bold mb-2">{client.name}</h1>
         <p className="text-muted-foreground">Client ID: {client.clientId}</p>
       </div>
