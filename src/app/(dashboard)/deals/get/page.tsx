@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { LayoutGrid, TableIcon } from "lucide-react"
 
 type Deal = {
   id: string
@@ -114,6 +116,26 @@ export default function DealsPage() {
           </Button>
         </div>
       </div>
+   {/* View Toggle */}
+<div className="mb-4 flex justify-end">
+  <Tabs className="w-auto" defaultValue="table">
+    <TabsList>
+      <TabsTrigger value="table" asChild>
+        <Link href="/deals/get" className="flex items-center gap-2">
+          <TableIcon className="h-4 w-4" />
+        </Link>
+      </TabsTrigger>
+
+      <TabsTrigger value="kanban" asChild>
+        <Link href="/deals/stages" className="flex items-center gap-2">
+          <LayoutGrid className="h-4 w-4" />
+        </Link>
+      </TabsTrigger>
+    </TabsList>
+  </Tabs>
+</div>
+
+
 
       <div className="overflow-x-auto rounded-xl border">
         <Table>

@@ -8,6 +8,8 @@ import type { Deal } from "@/types/deals"
 import AddStagePanel from "./_components/add-stages-panel"
 import KanbanBoard from "./_components/kanban-board"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { LayoutGrid, TableIcon } from "lucide-react"
 
 export default function StagesPage() {
   const [token, setToken] = useState<string | null>(null)
@@ -95,6 +97,25 @@ export default function StagesPage() {
               <Link href="/deals/create">Add Deals</Link>
             </Button>
           </div>
+            {/* View Toggle */}
+<div className="mb-4 flex justify-end">
+  <Tabs className="w-auto" defaultValue="table">
+    <TabsList>
+      <TabsTrigger value="table" asChild>
+        <Link href="/deals/get" className="flex items-center gap-2">
+          <TableIcon className="h-4 w-4" />
+        </Link>
+      </TabsTrigger>
+
+      <TabsTrigger value="kanban" asChild>
+        <Link href="/deals/stages" className="flex items-center gap-2">
+          <LayoutGrid className="h-4 w-4" />
+        </Link>
+      </TabsTrigger>
+    </TabsList>
+  </Tabs>
+</div>
+
         </header>
 
         <main className="flex-1 overflow-x-auto">
