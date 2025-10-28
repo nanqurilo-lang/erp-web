@@ -4,7 +4,18 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Award, Calendar, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Award, Calendar, Search, User, Plus } from 'lucide-react';
+import Link from 'next/link';
 
 interface Appreciation {
   id: number;
@@ -23,6 +34,8 @@ interface Appreciation {
 
 export default function AppreciationPage() {
   const [appreciations, setAppreciations] = useState<Appreciation[]>([]);
+  const [filteredAppreciations, setFilteredAppreciations] = useState<Appreciation[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,6 +56,7 @@ export default function AppreciationPage() {
         }
 
         setAppreciations(result);
+        setFilteredAppreciations(result);
         setLoading(false);
       } catch (err) {
         setError('Failed to load appreciations');
@@ -52,6 +66,16 @@ export default function AppreciationPage() {
 
     fetchAppreciations();
   }, []);
+
+  useEffect(() => {
+    const filtered = appreciations.filter(
+      (appreciation) =>
+        appreciation.givenToEmployeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        appreciation.awardTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        appreciation.summary.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredAppreciations(filtered);
+  }, [searchTerm, appreciations]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -68,6 +92,12 @@ export default function AppreciationPage() {
       .join('')
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const handleAddAppreciation = () => {
+    // TODO: Implement add appreciation functionality (e.g., open modal, navigate to form page)
+    console.log('Add appreciation clicked');
+    // Example: window.location.href = '/hr/appreciations/new';
   };
 
   if (loading) {
@@ -98,71 +128,101 @@ export default function AppreciationPage() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2 flex items-center gap-3">
-            <Award className="h-10 w-10 text-primary" />
-            Employee Appreciations
-          </h1>
-          <p className="text-muted-foreground text-lg">Celebrating outstanding achievements and contributions</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <div>
+              <h1 className="text-4xl font-bold text-foreground flex items-center gap-3">
+                <Award className="h-10 w-10 text-primary" />
+                Employee Appreciations
+              </h1>
+              <p className="text-muted-foreground text-lg">Celebrating outstanding achievements and contributions</p>
+            </div>
+            <Link href="/hr/appreciation/new">
+      <Button className="w-full sm:w-auto">
+        <Plus className="h-4 w-4 mr-2" />
+        Add Appreciation
+      </Button>
+    </Link>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search by name, award, or summary..."
+                className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            {/* TODO: Add filter dropdown (e.g., by date range, award type) */}
+            <div className="flex-0">
+              <Button variant="outline" size="sm">
+                Filters
+              </Button>
+            </div>
+          </div>
         </div>
 
-        {appreciations.length === 0 ? (
+        {filteredAppreciations.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <Award className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground text-lg">No appreciations found</p>
+              <p className="text-muted-foreground text-lg">
+                {searchTerm ? 'No appreciations match your search.' : 'No appreciations found'}
+              </p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {appreciations.map((appreciation) => (
-              <Card key={appreciation.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                {appreciation.photoUrl && (
-                  <div className="relative h-48 w-full overflow-hidden bg-muted">
-                    <img
-                      src={appreciation.photoUrl || '/placeholder.svg'}
-                      alt={`${appreciation.givenToEmployeeName} appreciation`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={appreciation.photoUrl || undefined} />
-                        <AvatarFallback className="bg-primary text-primary-foreground">
-                          {getInitials(appreciation.givenToEmployeeName)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <CardTitle className="text-lg">{appreciation.givenToEmployeeName}</CardTitle>
-                        <CardDescription className="flex items-center gap-1 text-sm">
-                          <User className="h-3 w-3" />
-                          {appreciation.givenToEmployeeId}
-                        </CardDescription>
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Employee</TableHead>
+                  <TableHead>Award</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Summary</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAppreciations.map((appreciation) => (
+                  <TableRow key={appreciation.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={appreciation.photoUrl || undefined} />
+                          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                            {getInitials(appreciation.givenToEmployeeName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div>{appreciation.givenToEmployeeName}</div>
+                          <div className="text-sm text-muted-foreground">
+                            <User className="h-3 w-3 inline mr-1" />
+                            {appreciation.givenToEmployeeId}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="space-y-4">
-                  <div>
-                    <Badge variant="secondary" className="mb-3">
-                      <Award className="h-3 w-3 mr-1" />
-                      {appreciation.awardTitle}
-                    </Badge>
-                    <p className="text-foreground leading-relaxed">{appreciation.summary}</p>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t">
-                    <Calendar className="h-4 w-4" />
-                    <span>{formatDate(appreciation.date)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        <Award className="h-3 w-3 mr-1" />
+                        {appreciation.awardTitle}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        <span>{formatDate(appreciation.date)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm max-w-md">
+                      <span className="line-clamp-2">{appreciation.summary}</span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
         )}
       </div>
     </div>
