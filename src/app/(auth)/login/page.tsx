@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 
-export default function EmployeeLogin() {
+export default function LoginPage() {
+  const [role, setRole] = useState<'employee' | 'admin'>('employee');
   const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,66 +23,73 @@ export default function EmployeeLogin() {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employeeId, password }),
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Login failed');
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-
-      // Store tokens (e.g., in localStorage or cookies)
+      // Store tokens and role
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('employeeId', data.employeeId);
       localStorage.setItem('role', data.role);
 
-      // Redirect based on role
+      // Redirect
       if (data.role === 'ROLE_ADMIN') {
         router.push('/dashboard');
       } else {
-        router.push('/emp-dashboard');
+        router.push('/employee');
       }
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('An error occurred during login');
-      }
+      setError(err instanceof Error ? err.message : 'An error occurred during login');
     } finally {
       setIsLoading(false);
     }
-    
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-blue-100">
       <Card className="w-full max-w-md shadow-lg rounded-2xl">
         <CardContent className="flex flex-col gap-6 p-8">
+          {/* Toggle between Admin and Employee */}
+          <div className="flex justify-center gap-4 mb-2">
+            <Button
+              type="button"
+              variant={role === 'employee' ? 'default' : 'outline'}
+              className="w-1/2 rounded-lg"
+              onClick={() => setRole('employee')}
+            >
+              Employee
+            </Button>
+            <Button
+              type="button"
+              variant={role === 'admin' ? 'default' : 'outline'}
+              className="w-1/2 rounded-lg"
+              onClick={() => setRole('admin')}
+            >
+              Admin
+            </Button>
+          </div>
+
           {/* Title */}
           <h2 className="text-2xl font-semibold text-center text-gray-800">
-            Employee Login
+            {role === 'employee' ? 'Employee Login' : 'Admin Login'}
           </h2>
 
           {/* Error Message */}
-          {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
-          )}
+          {error && <div className="text-red-500 text-sm text-center">{error}</div>}
 
-          {/* Form */}
+          {/* Login Form */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-            {/* Employee ID */}
             <div className="flex flex-col gap-2">
               <label className="text-gray-700 font-medium text-sm">
-                Employee ID
+                {role === 'employee' ? 'Employee ID' : 'Admin ID'}
               </label>
               <Input
                 type="text"
-                placeholder="Enter your Employee ID"
+                placeholder={`Enter your ${role === 'employee' ? 'Employee' : 'Admin'} ID`}
                 className="rounded-lg"
                 value={employeeId}
                 onChange={(e) => setEmployeeId(e.target.value)}
@@ -89,11 +97,8 @@ export default function EmployeeLogin() {
               />
             </div>
 
-            {/* Password */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 font-medium text-sm">
-                Password
-              </label>
+              <label className="text-gray-700 font-medium text-sm">Password</label>
               <Input
                 type="password"
                 placeholder="Enter your Password"
@@ -104,14 +109,12 @@ export default function EmployeeLogin() {
               />
             </div>
 
-            {/* Forgot Password */}
             <div className="text-right">
               <Link href="/forgot-password" className="text-blue-600 text-sm hover:underline">
                 Forgot Password?
               </Link>
             </div>
 
-            {/* Login Button */}
             <Button
               type="submit"
               className="w-full rounded-lg py-6 text-lg"

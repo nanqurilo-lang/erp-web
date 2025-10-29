@@ -17,14 +17,16 @@ export default function Home() {
 
         <div className="space-y-4">
           {/* Admin Button */}
-          <button className="w-full flex items-center justify-center space-x-3 bg-white border border-gray-300 rounded-xl py-3 hover:bg-gray-100 transition">
-            <img
-              src="https://img.icons8.com/office/40/conference-call.png"
-              alt="Admin Icon"
-              className="w-6 h-6"
-            />
-            <span className="text-gray-800 font-medium">Admin</span>
-          </button>
+          <Link href="/login" className="block">
+            <button className="w-full flex items-center justify-center space-x-3 bg-white border border-gray-300 rounded-xl py-3 hover:bg-gray-100 transition">
+              <img
+                src="https://img.icons8.com/office/40/conference-call.png"
+                alt="Employee Icon"
+                className="w-6 h-6"
+              />
+              <span className="text-gray-800 font-medium">Admin</span>
+            </button>
+          </Link>
 
           {/* Employee Button */}
           <Link href="/login" className="block">
