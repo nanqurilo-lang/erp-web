@@ -1,14 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(request: Request, { params }: { params: { invoiceNumber: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ invoiceNumber: string }> }
+) {
   try {
+    const { invoiceNumber } = await params;
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const accessToken = authHeader.split(" ")[1];
-    const res = await fetch(`https://chat.swiftandgo.in/api/invoices/${params.invoiceNumber}/credit-notes`, {
+    const res = await fetch(`https://chat.swiftandgo.in/api/invoices/${invoiceNumber}/credit-notes`, {
       cache: "no-store",
       headers: {
         Authorization: `Bearer ${accessToken}`,

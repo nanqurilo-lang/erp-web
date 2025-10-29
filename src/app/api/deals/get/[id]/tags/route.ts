@@ -24,9 +24,9 @@ async function refetchTags(dealId: string, accessToken: string) {
 /* -------------------------------------------------
 GET – fetch existing tags (unchanged)
 ------------------------------------------------- */
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const dealId = params.id
+    const { id: dealId } = await params
     const authHeader = request.headers.get("Authorization")
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -59,9 +59,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 /* -------------------------------------------------
 POST – add a tag (unchanged from your snippet)
 ------------------------------------------------- */
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const dealId = params.id
+    const { id: dealId } = await params
 
     // ---- 1. Auth ----
     const authHeader = request.headers.get("Authorization")
@@ -127,9 +127,9 @@ DELETE – remove a tag by name
 Body: { tagName: string }
 Mirrors POST pattern, then returns updated tags
 ------------------------------------------------- */
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const dealId = params.id
+    const { id: dealId } = await params
 
     // ---- 1. Auth ----
     const authHeader = request.headers.get("Authorization")

@@ -1,3 +1,6 @@
+"use client"
+
+import Link from "next/link"
 import {
   Sidebar,
   SidebarHeader,
@@ -22,7 +25,6 @@ import {
   CalendarDays,
   Award,
   MessageSquare,
-  Settings,
 } from "lucide-react"
 
 export function AppSidebar() {
@@ -40,10 +42,10 @@ export function AppSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/dashboard">
+                <Link href="/dashboard">
                   <LayoutDashboard className="size-5" />
                   <span>Dashboard</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -55,18 +57,18 @@ export function AppSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/leads/admin/get">
+                <Link href="/leads/admin/get">
                   <Users className="size-5" />
                   <span>Leads</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/deals/get">
+                <Link href="/deals/get">
                   <Briefcase className="size-5" />
                   <span>Deals</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -78,10 +80,10 @@ export function AppSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/clients">
+                <Link href="/clients">
                   <Building className="size-5" />
                   <span>Client</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -93,34 +95,34 @@ export function AppSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/work/project">
+                <Link href="/work/project">
                   <ClipboardList className="size-5" />
                   <span>Project</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/work/task">
+                <Link href="/work/task">
                   <ClipboardList className="size-5" />
                   <span>Task</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/work/timesheet">
+                <Link href="/work/timesheet">
                   <Clock className="size-5" />
                   <span>Timesheet</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/work/roadmap">
+                <Link href="/work/roadmap">
                   <Map className="size-5" />
                   <span>Project Roadmap</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -132,121 +134,119 @@ export function AppSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/hr/attendance">
-                  <CalendarCheck className="size-5" />
-                  <span>Attendance</span>
-                </a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="/hr/leave/admin">
+                <Link href="/hr/leave/admin">
                   <CalendarX className="size-5" />
                   <span>Leave</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/hr/awards">
-                  <CalendarX className="size-5" />
+                <Link href="/hr/awards">
+                  <Award className="size-5" />
                   <span>Awards</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-              <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="/hr/employee">
-                  <CalendarX className="size-5" />
-                  <span>Employee</span>
-                </a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="/hr/designation">
-                  <CalendarX className="size-5" />
-                  <span>Designation</span>
-                </a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/hr/holiday">
+                <Link href="/hr/employee">
+                  <Users className="size-5" />
+                  <span>Employee</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <Link href="/hr/designation">
+                  <Briefcase className="size-5" />
+                  <span>Designation</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <Link href="/hr/holiday">
                   <CalendarDays className="size-5" />
                   <span>Holiday</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/hr/appreciation">
+                <Link href="/hr/appreciation">
                   <Award className="size-5" />
                   <span>Appreciation</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
-        {/* Setting */}
+
+        {/* Finance */}
         <SidebarGroup>
           <SidebarGroupLabel>Finance</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/finance/invoices">
+                <Link href="/finance/invoices">
                   <CalendarCheck className="size-5" />
-                  <span> Invoices</span>
-                </a>
+                  <span>Invoices</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/finance/credit-notes">
+                <Link href="/finance/credit-notes">
                   <CalendarX className="size-5" />
                   <span>Credit Notes</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-           
           </SidebarMenu>
         </SidebarGroup>
 
-        {/* Message */}
+        {/* Messages */}
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/messages">
+                <Link href="/messages">
                   <MessageSquare className="size-5" />
                   <span>Message</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
 
-{/* Setting */}
+        {/* Settings */}
         <SidebarGroup>
           <SidebarGroupLabel>Settings</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/settings/company-settings">
+                <Link href="/settings/company-settings">
                   <CalendarCheck className="size-5" />
                   <span>Company Settings</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="/settings/profile-settings">
+                <Link href="/settings/profile-settings">
                   <CalendarX className="size-5" />
                   <span>Profile Settings</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-           
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>

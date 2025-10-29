@@ -1,12 +1,12 @@
 // app/api/deals/get/[id]/comments/route.ts
 import { type NextRequest, NextResponse } from "next/server"
 
-const BASE_URL = process.env.UPSTREAM_API_BASE_URL || "https://6jnqmj85-8080.inc1.devtunnels.ms"
+const BASE_URL = "https://chat.swiftandgo.in"
 
 // GET: Fetch all comments for a deal
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const dealId = params.id
+    const { id: dealId } = await params
     const authHeader = request.headers.get("Authorization")
 
     if (!authHeader?.startsWith("Bearer ")) {
@@ -39,9 +39,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // POST: Add a new comment
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const dealId = params.id
+    const { id: dealId } = await params
     const authHeader = request.headers.get("Authorization")
 
     if (!authHeader?.startsWith("Bearer ")) {
@@ -80,9 +80,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 }
 
 // DELETE: Remove a comment
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const dealId = params.id
+    const { id: dealId } = await params
     const authHeader = request.headers.get("Authorization")
 
     if (!authHeader?.startsWith("Bearer ")) {

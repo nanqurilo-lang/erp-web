@@ -1,19 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id; // just use it directly
-
+    const { id } = await params;
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
     const accessToken = authHeader.split(" ")[1];
-
     const response = await fetch(
       `https://chat.swiftandgo.in/clients/${id}`,
       {
@@ -22,14 +19,12 @@ export async function GET(
         },
       }
     );
-
     if (!response.ok) {
       return NextResponse.json(
         { error: "Failed to fetch client data" },
         { status: response.status }
       );
     }
-
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
