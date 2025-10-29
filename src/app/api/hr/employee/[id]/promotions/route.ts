@@ -3,11 +3,12 @@ import { type NextRequest, NextResponse } from "next/server"
 const API_BASE = "https://chat.swiftandgo.in"
 
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
     try {
       const authHeader = request.headers.get("authorization") || undefined
     
-      const url = `${API_BASE}/admin/api/promotions/employee/${params.id}`
+      const { id } = await context.params
+      const url = `${API_BASE}/admin/api/promotions/employee/${id}`
   
       const upstream = await fetch(url, {
         method: "GET",
@@ -34,9 +35,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
   
 
-  export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
     try {
-      if (!params?.id) {
+      const { id } = await context.params
+      if (!id) {
         return new Response(JSON.stringify({ error: "Missing employee ID" }), {
           status: 400,
           headers: { "content-type": "application/json" },
@@ -46,7 +48,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       const authHeader = request.headers.get("authorization") || undefined
       const body = await request.text()
   
-      const url = `${API_BASE}/admin/api/promotions/employee/${encodeURIComponent(params.id)}`
+      const url = `${API_BASE}/admin/api/promotions/employee/${encodeURIComponent(id)}`
   
       const upstream = await fetch(url, {
         method: "POST",

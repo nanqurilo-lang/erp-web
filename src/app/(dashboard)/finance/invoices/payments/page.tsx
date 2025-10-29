@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft, Download, Eye } from "lucide-react";
@@ -81,7 +81,7 @@ type Payment = {
   invoice: InvoiceSummary;
 };
 
-export default function InvoicePaymentsList() {
+function InvoicePaymentsListInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const invoiceNumber = searchParams.get("invoiceNumber");
@@ -260,5 +260,13 @@ export default function InvoicePaymentsList() {
         </Table>
       </div>
     </div>
+  );
+}
+
+export default function InvoicePaymentsList() {
+  return (
+    <Suspense>
+      <InvoicePaymentsListInner />
+    </Suspense>
   );
 }

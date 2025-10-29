@@ -1,9 +1,9 @@
 // app/api/departments/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params;
+    const { id } = await context.params;
     const token = request.headers.get('authorization'); // "Bearer <token>"
 
     if (!token) {
@@ -24,14 +24,15 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const data = await response.json();
     return NextResponse.json(data);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal Server Error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
     try {
-      const { id } = params;
+      const { id } = await context.params;
       const token = request.headers.get('authorization');
       if (!token) return NextResponse.json({ error: 'Authorization token missing' }, { status: 401 });
   
@@ -48,13 +49,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   
       const data = await res.json();
       return NextResponse.json(data);
-    } catch (error: any) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Internal Server Error';
+      return NextResponse.json({ error: message }, { status: 500 });
     }
   }
-  export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
     try {
-      const { id } = params;
+      const { id } = await context.params;
       const token = request.headers.get('authorization');
       if (!token) return NextResponse.json({ error: 'Authorization token missing' }, { status: 401 });
   
@@ -67,8 +69,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   
       const data = await res.json();
       return NextResponse.json(data);
-    } catch (error: any) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Internal Server Error';
+      return NextResponse.json({ error: message }, { status: 500 });
     }
   }
   

@@ -38,8 +38,9 @@ export default function ClientDocumentsPage() {
 
       const data = await res.json()
       setDocuments(data)
-    } catch (err: any) {
-      setError(err.message || "Something went wrong")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong"
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -69,8 +70,9 @@ export default function ClientDocumentsPage() {
       }
   
       console.log("Document deleted successfully");
-    } catch (err: any) {
-      alert(err.message || "Something went wrong");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong"
+      alert(message);
       // Revert UI if delete fails
       await fetchDocuments();
     }

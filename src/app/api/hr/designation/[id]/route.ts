@@ -3,12 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 const API_URL = 'https://chat.swiftandgo.in/admin/designations';
 
 // ✅ GET single designation
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await context.params;
     const token = request.headers.get('authorization');
     if (!token) return NextResponse.json({ error: 'Authorization token missing' }, { status: 401 });
 
-    const res = await fetch(`${API_URL}/${params.id}`, {
+    const res = await fetch(`${API_URL}/${id}`, {
       method: 'GET',
       headers: {
         Authorization: token,
@@ -25,13 +26,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // ✅ PUT update designation
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await context.params;
     const token = request.headers.get('authorization');
     if (!token) return NextResponse.json({ error: 'Authorization token missing' }, { status: 401 });
 
     const body = await request.json();
-    const res = await fetch(`${API_URL}/${params.id}`, {
+    const res = await fetch(`${API_URL}/${id}`, {
       method: 'PUT',
       headers: {
         Authorization: token,
@@ -49,12 +51,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // ✅ DELETE designation
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await context.params;
     const token = request.headers.get('authorization');
     if (!token) return NextResponse.json({ error: 'Authorization token missing' }, { status: 401 });
 
-    const res = await fetch(`${API_URL}/${params.id}`, {
+    const res = await fetch(`${API_URL}/${id}`, {
       method: 'DELETE',
       headers: {
         Authorization: token,

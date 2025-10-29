@@ -2,10 +2,10 @@ import { type NextRequest, NextResponse } from "next/server"
 
 const API_BASE = "https://chat.swiftandgo.in/employee"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-
-    const url = `${API_BASE}/${encodeURIComponent(params.id)}`
+    const { id } = await context.params
+    const url = `${API_BASE}/${encodeURIComponent(id)}`
 
     const res = await fetch(url, {
       headers: {
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const data = await res.json()
     return NextResponse.json(data)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal Server Error"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

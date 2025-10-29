@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await context.params;
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -9,7 +10,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
     const accessToken = authHeader.split(" ")[1];
 
-    const res = await fetch(`https://chat.swiftandgo.in/api/projects/${params.id}`, {
+    const res = await fetch(`https://chat.swiftandgo.in/api/projects/${id}`, {
       method: "GET",
       cache: "no-store",
       headers: {
@@ -32,10 +33,11 @@ export async function GET(request: Request, { params }: { params: { id: string }
 }
 
 export async function PUT(
-    request: Request,
-    { params }: { params: { id: string } }
+    request: NextRequest,
+    context: { params: Promise<{ id: string }> }
   ) {
     try {
+      const { id } = await context.params;
       const authHeader = request.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -46,7 +48,7 @@ export async function PUT(
   
       const formData = await request.formData();
   
-      const res = await fetch(`https://chat.swiftandgo.in/api/projects/${params.id}`, {
+      const res = await fetch(`https://chat.swiftandgo.in/api/projects/${id}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${accessToken}`,

@@ -1,7 +1,8 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 import { useState } from "react"
+import Image from "next/image"
 import { Camera, Building2, User, Mail, Phone, Globe, AlertCircle, CheckCircle, X, ArrowRight } from "lucide-react"
 
 export default function NewClientPage() {
@@ -125,7 +126,6 @@ export default function NewClientPage() {
     if (companyLogoFile) formData.append("companyLogo", companyLogoFile)
 
     try {
-      const token = sessionStorage.getItem("accessToken") || ""
       const res = await fetch("/api/clients", {
         method: "POST",
         headers: {
@@ -143,8 +143,9 @@ export default function NewClientPage() {
       setTimeout(() => {
         resetForm()
       }, 2000)
-    } catch (err: any) {
-      setMessage(err.message || "Failed to create client")
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to create client"
+      setMessage(errorMessage)
       setMessageType("error")
     } finally {
       setIsSubmitting(false)
@@ -460,7 +461,7 @@ export default function NewClientPage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold text-slate-900">Company Details</h2>
-                  <p className="text-sm text-slate-600 mt-0.5">Information about the client's company</p>
+                  <p className="text-sm text-slate-600 mt-0.5">Information about the client&#39;s company</p>
                 </div>
               </div>
             </div>
@@ -608,7 +609,7 @@ export default function NewClientPage() {
                   <Camera className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-slate-900">Media & Uploads</h2>
+                  <h2 className="text-xl font-semibold text-slate-900">Media &amp; Uploads</h2>
                   <p className="text-sm text-slate-600 mt-0.5">Profile picture and company logo</p>
                 </div>
               </div>
@@ -630,10 +631,12 @@ export default function NewClientPage() {
                     <label htmlFor="profile-upload" className="cursor-pointer block">
                       {profilePreview ? (
                         <div className="flex flex-col items-center">
-                          <img
+                          <Image
                             src={profilePreview || "/placeholder.svg"}
                             alt="Profile"
-                            className="w-32 h-32 object-cover rounded-full mx-auto mb-4 ring-4 ring-blue-100"
+                            width={128}
+                            height={128}
+                            className="rounded-full mx-auto mb-4 ring-4 ring-blue-100"
                           />
                           <p className="text-sm text-slate-600 font-medium">Click to change</p>
                         </div>
@@ -664,10 +667,12 @@ export default function NewClientPage() {
                     <label htmlFor="logo-upload" className="cursor-pointer block">
                       {logoPreview ? (
                         <div className="flex flex-col items-center">
-                          <img
+                          <Image
                             src={logoPreview || "/placeholder.svg"}
                             alt="Logo"
-                            className="w-32 h-32 object-contain mx-auto mb-4"
+                            width={128}
+                            height={128}
+                            className="object-contain mx-auto mb-4"
                           />
                           <p className="text-sm text-slate-600 font-medium">Click to change</p>
                         </div>

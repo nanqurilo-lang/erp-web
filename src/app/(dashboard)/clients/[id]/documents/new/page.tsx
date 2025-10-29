@@ -2,20 +2,29 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
+
+type UploadResponse = {
+  id: string;
+  filename: string;
+  url: string;
+};
 
 export default function ClientDocumentUploader() {
-  const { id } = useParams(); // id comes from /clients/[id] route
+  const { id } = useParams(); // id comes from /clients/[id]
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [response, setResponse] = useState<any>(null);
+  const [response, setResponse] = useState<UploadResponse | null>(null);
 
   const handleUpload = async () => {
-    if (!file) return alert('Please select a file.');
+    if (!file) {
+      alert('Please select a file.');
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
 
-    // ✅ Get auth token (example: from localStorage or cookie)
     const token = localStorage.getItem('accessToken');
     if (!token) {
       alert('You are not logged in!');
@@ -28,7 +37,7 @@ export default function ClientDocumentUploader() {
       const res = await fetch(`/api/clients/${id}/documents`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`, // ✅ include auth header
+          Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
@@ -38,11 +47,15 @@ export default function ClientDocumentUploader() {
         throw new Error(`Upload failed: ${errText}`);
       }
 
-      const data = await res.json();
+      const data: UploadResponse = await res.json();
       setResponse(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Upload error:', err);
-      alert('Error uploading file');
+      if (err instanceof Error) {
+        alert(err.message);
+      } else {
+        alert('Error uploading file');
+      }
     } finally {
       setUploading(false);
     }
@@ -69,18 +82,22 @@ export default function ClientDocumentUploader() {
 
       {response && (
         <div className="mt-4 bg-gray-50 p-3 rounded">
-          <p><b>ID:</b> {response.id}</p>
-          <p><b>Filename:</b> {response.filename}</p>
+          <p>
+            <b>ID:</b> {response.id}
+          </p>
+          <p>
+            <b>Filename:</b> {response.filename}
+          </p>
           <p>
             <b>URL:</b>{' '}
-            <a
+            <Link
               href={response.url}
               className="text-blue-600 underline break-all"
               target="_blank"
               rel="noopener noreferrer"
             >
               {response.url}
-            </a>
+            </Link>
           </p>
         </div>
       )}

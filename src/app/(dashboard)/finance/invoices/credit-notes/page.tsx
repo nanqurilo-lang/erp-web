@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft, Eye, Download, Mail } from "lucide-react";
@@ -60,7 +60,7 @@ type CreditNote = {
   createdAt: string;
 };
 
-export default function InvoiceCreditNotesList() {
+function InvoiceCreditNotesListInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const invoiceNumber = searchParams.get("invoiceNumber");
@@ -221,5 +221,13 @@ export default function InvoiceCreditNotesList() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function InvoiceCreditNotesList() {
+  return (
+    <Suspense>
+      <InvoiceCreditNotesListInner />
+    </Suspense>
   );
 }

@@ -3,9 +3,9 @@ import { type NextRequest, NextResponse } from "next/server"
 const API_BASE = "https://chat.swiftandgo.in/employee"
 
 // Proxy: GET /api/hr/employee/[id]/emergency-contacts -> external /employee/{id}/emergency-contacts
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const id = params.id
+    const { id } = await context.params
     const url = `${API_BASE}/${encodeURIComponent(id)}/emergency-contacts`
 
     const res = await fetch(url, {
@@ -22,16 +22,17 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const data = await res.json()
     return NextResponse.json(data)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal Server Error"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const authHeader = request.headers.get("authorization") || undefined
     const body = await request.text()
-    const id = params.id
+    const { id } = await context.params
     const url = `${API_BASE}/${encodeURIComponent(id)}/emergency-contacts`
 
     const upstream = await fetch(url, {
