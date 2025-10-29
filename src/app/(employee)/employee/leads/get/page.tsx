@@ -108,7 +108,7 @@ export default function EmployeeLeadsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Employee Leads</h1>
-        <Link href="/employee-leads/add">
+        <Link href="/employee/leads/create">
           <Button className="gap-2">
             <Plus className="w-4 h-4" />
             Add Lead
@@ -135,65 +135,72 @@ export default function EmployeeLeadsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => {
-              setStatusFilter(value)
-              setCurrentPage(1)
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {statuses.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {status}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+       <Select
+  value={statusFilter}
+  onValueChange={(value) => {
+    setStatusFilter(value)
+    setCurrentPage(1)
+  }}
+>
+  <SelectTrigger>
+    <SelectValue placeholder="Filter by Status" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="all">All Statuses</SelectItem>
+    {statuses
+      .filter((status) => status && status.trim() !== "")
+      .map((status) => (
+        <SelectItem key={status} value={status}>
+          {status}
+        </SelectItem>
+      ))}
+  </SelectContent>
+</Select>
 
-          <Select
-            value={categoryFilter}
-            onValueChange={(value) => {
-              setCategoryFilter(value)
-              setCurrentPage(1)
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+<Select
+  value={categoryFilter}
+  onValueChange={(value) => {
+    setCategoryFilter(value)
+    setCurrentPage(1)
+  }}
+>
+  <SelectTrigger>
+    <SelectValue placeholder="Filter by Category" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="all">All Categories</SelectItem>
+    {categories
+      .filter((category) => category && category.trim() !== "")
+      .map((category) => (
+        <SelectItem key={category} value={category}>
+          {category}
+        </SelectItem>
+      ))}
+  </SelectContent>
+</Select>
 
-          <Select
-            value={sourceFilter}
-            onValueChange={(value) => {
-              setSourceFilter(value)
-              setCurrentPage(1)
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by Source" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sources</SelectItem>
-              {sources.map((source) => (
-                <SelectItem key={source} value={source}>
-                  {source}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+<Select
+  value={sourceFilter}
+  onValueChange={(value) => {
+    setSourceFilter(value)
+    setCurrentPage(1)
+  }}
+>
+  <SelectTrigger>
+    <SelectValue placeholder="Filter by Source" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="all">All Sources</SelectItem>
+    {sources
+      .filter((source) => source && source.trim() !== "")
+      .map((source) => (
+        <SelectItem key={source} value={source}>
+          {source}
+        </SelectItem>
+      ))}
+  </SelectContent>
+</Select>
+
         </div>
       </div>
 
