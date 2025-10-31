@@ -1,13 +1,13 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
 import { Loader2, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import ProjectFilters from "./_components/project-filters"
-
 
 type Employee = {
   employeeId: string
@@ -47,6 +47,7 @@ type Project = {
 const ITEMS_PER_PAGE = 10
 
 export default function ProjectsPage() {
+  const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -64,14 +65,10 @@ export default function ProjectsPage() {
       try {
         const token = localStorage.getItem("accessToken")
         const res = await fetch("/api/work/project/employee", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         })
 
-        if (!res.ok) {
-          throw new Error(`Error ${res.status}: ${res.statusText}`)
-        }
+        if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`)
 
         const data = await res.json()
         setProjects(data)
@@ -133,6 +130,7 @@ export default function ProjectsPage() {
           <p className="text-muted-foreground">Manage and track your ongoing projects</p>
         </div>
 
+        {/* Search & Filters */}
         <div className="mb-6 space-y-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
@@ -157,7 +155,7 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        {/* Main content */}
+        {/* Main Content */}
         {filteredProjects.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="py-12 text-center">
@@ -179,11 +177,22 @@ export default function ProjectsPage() {
                       <TableHead className="font-semibold">Created</TableHead>
                       <TableHead className="font-semibold">Team</TableHead>
                       <TableHead className="font-semibold">Status</TableHead>
+                      <TableHead className="font-semibold text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
+
                   <TableBody>
                     {paginatedProjects.map((p) => (
-                      <TableRow key={p.id} className="hover:bg-muted/30 transition-colors">
+                      <TableRow
+                        key={p.id}
+                        className="hover:bg-muted/30 transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          // Prevent row click if button is clicked
+                          if ((e.target as HTMLElement).tagName !== "BUTTON") {
+                            router.push(`/employee/work/project/${p.id}`)
+                          }
+                        }}
+                      >
                         <TableCell className="font-mono text-sm font-medium">{p.shortCode}</TableCell>
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell>
@@ -225,6 +234,16 @@ export default function ProjectsPage() {
                             </span>
                           )}
                         </TableCell>
+
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/employee/work/project/${p.id}`)}
+                          >
+                            View Details
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -232,6 +251,7 @@ export default function ProjectsPage() {
               </div>
             </Card>
 
+            {/* Pagination */}
             {totalPages > 1 && (
               <div className="mt-6 flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
