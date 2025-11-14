@@ -44,6 +44,7 @@ import {
   Filter,
   List,
   X,
+  Archive,
 } from "lucide-react";
 
 const MAIN = process.env.NEXT_PUBLIC_MAIN || "https://chat.swiftandgo.in";
@@ -85,6 +86,11 @@ interface Project {
   archived?: boolean;
 }
 
+interface Category {
+  id: string | number;
+  name: string;
+}
+
 const OVERRIDES_KEY = "projectProgressOverrides";
 
 export default function AllProjectsPage() {
@@ -118,7 +124,7 @@ export default function AllProjectsPage() {
   const [startDate, setStartDate] = useState("");
   const [deadline, setDeadline] = useState("");
   const [noDeadline, setNoDeadline] = useState(false);
-  const [category, setCategory] = useState("none");
+  const [category, setCategory] = useState("none"); // selected category id or "none"
   const [department, setDepartment] = useState("none");
   const [client, setClientField] = useState("none");
   const [summary, setSummary] = useState("");
@@ -143,10 +149,17 @@ export default function AllProjectsPage() {
 
   const [submitting, setSubmitting] = useState(false);
 
+  // CATEGORY MODAL states
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [catLoading, setCatLoading] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [catSubmitting, setCatSubmitting] = useState(false);
+
   // LOCK BODY SCROLL WHEN DRAWER OR MODAL OPEN
   useEffect(() => {
-    document.body.style.overflow = showFilters || showAddModal ? "hidden" : "auto";
-  }, [showFilters, showAddModal]);
+    document.body.style.overflow = showFilters || showAddModal || showCategoryModal ? "hidden" : "auto";
+  }, [showFilters, showAddModal, showCategoryModal]);
 
   // Build select options from fetched projects
   const projectOptions = Array.from(new Set(projects.map((p) => p.name))).filter(Boolean);
@@ -154,6 +167,9 @@ export default function AllProjectsPage() {
     new Set(projects.flatMap((p) => (p.assignedEmployees || []).map((e) => e.name)))
   ).filter(Boolean);
   const clientOptions = Array.from(new Set(projects.map((p) => p.client?.name).filter(Boolean))).filter(Boolean);
+
+  // categoryOptions derived (id as string)
+  const categoryOptions = categories.map((c) => ({ id: String(c.id), name: c.name }));
 
   // local overrides helpers
   const readProgressOverrides = (): Record<string, number> => {
@@ -258,7 +274,122 @@ export default function AllProjectsPage() {
     [currentPage, searchQuery, statusFilter, progressFilter, durationFilter, filterProject, filterMember, filterClient, token]
   );
 
-  // debounce search
+  // CATEGORY helpers: load, add, delete
+  const loadCategories = useCallback(async (accessToken?: string | null) => {
+    setCatLoading(true);
+    try {
+      const resolvedToken = accessToken || token || (typeof window !== "undefined" ? localStorage.getItem("accessToken") : null);
+      const res = await fetch(`${MAIN}/api/projects/category`, {
+        headers: resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : undefined,
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        // fallback: keep categories empty
+        console.warn("Failed to load categories, status:", res.status);
+        setCategories([]);
+        setCatLoading(false);
+        return;
+      }
+      const data = await res.json();
+      // expect data to be array of {id, name} or array of strings
+      if (Array.isArray(data)) {
+        if (data.length > 0 && typeof data[0] === "string") {
+          setCategories(data.map((n, i) => ({ id: i + 1, name: String(n) })));
+        } else {
+          setCategories(data.map((d: any) => ({ id: d.id ?? d.name ?? Math.random(), name: d.name ?? String(d) })));
+        }
+      } else {
+        setCategories([]);
+      }
+    } catch (err) {
+      console.error("Error loading categories:", err);
+      setCategories([]);
+    } finally {
+      setCatLoading(false);
+    }
+  }, [token]);
+
+  const openCategoryModal = async () => {
+    setShowCategoryModal(true);
+    await loadCategories();
+  };
+
+  const closeCategoryModal = () => {
+    setShowCategoryModal(false);
+    setNewCategoryName("");
+  };
+
+  const addCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return alert("Category name required");
+    setCatSubmitting(true);
+    const prev = categories.slice();
+    // optimistic add (generate temporary id)
+    const temp: Category = { id: `temp-${Date.now()}`, name };
+    setCategories((c) => [...c, temp]);
+    try {
+      const resolvedToken = token || (typeof window !== "undefined" ? localStorage.getItem("accessToken") : null);
+      const res = await fetch(`${MAIN}/api/projects/category`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {}),
+        },
+        body: JSON.stringify({ name }),
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("Add category failed", res.status, text);
+        setCategories(prev);
+        alert("Failed to add category");
+        return;
+      }
+      const created = await res.json().catch(() => null);
+      if (created && (created.id || created.name)) {
+        // replace temp with created
+        setCategories((cur) => cur.map((c) => (c.id === temp.id ? { id: created.id ?? created.name ?? Math.random(), name: created.name ?? name } : c)));
+        // set selected category to the new one
+        setCategory(String(created.id ?? created.name ?? name));
+      } else {
+        // fallback: reload categories from server (best effort)
+        await loadCategories();
+        // attempt to set selection to name
+        const found = categories.find((c) => c.name === name);
+        if (found) setCategory(String(found.id));
+      }
+      setNewCategoryName("");
+    } catch (err) {
+      console.error("Add category error:", err);
+      setCategories(prev);
+      alert("Failed to add category");
+    } finally {
+      setCatSubmitting(false);
+    }
+  };
+
+  const deleteCategory = async (catId: string | number) => {
+    if (!confirm("Delete this category?")) return;
+    const prev = categories.slice();
+    setCategories((c) => c.filter((x) => x.id !== catId));
+    try {
+      const resolvedToken = token || (typeof window !== "undefined" ? localStorage.getItem("accessToken") : null);
+      const res = await fetch(`${MAIN}/api/projects/category/${encodeURIComponent(String(catId))}`, {
+        method: "DELETE",
+        headers: resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : undefined,
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        throw new Error("Delete failed");
+      }
+    } catch (err) {
+      console.error("Delete category failed:", err);
+      setCategories(prev);
+      alert("Failed to delete category");
+    }
+  };
+
+  // Debounce search
   useEffect(() => {
     const t = setTimeout(() => {
       setSearchQuery((prev) => {
@@ -297,7 +428,7 @@ export default function AllProjectsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getProjects, token, currentPage, searchQuery, statusFilter, progressFilter, durationFilter, filterProject, filterMember, filterClient]);
 
-  // UPDATES
+  // UPDATES (status/progress/pin/delete/archive) - unchanged logic
   async function patchStatus(projectId: number, newStatus: StatusOption) {
     if (!token) return alert("Not authenticated");
     const prev = projects;
@@ -386,7 +517,7 @@ export default function AllProjectsPage() {
   }
 
   const handlePin = async (projectId: number) => {
-    if (!token) return;
+    if (!token) return alert("Not authenticated");
     const prev = projects;
     const idx = projects.findIndex((p) => p.id === projectId);
     if (idx === -1) return;
@@ -411,6 +542,39 @@ export default function AllProjectsPage() {
       console.error(err);
       setProjects(prev);
       alert("Failed to toggle pin");
+    }
+  };
+
+  const handleArchive = async (projectId: number) => {
+    if (!token) return alert("Not authenticated");
+    const prev = projects;
+    const idx = projects.findIndex((p) => p.id === projectId);
+    if (idx === -1) return;
+    const newArchived = !projects[idx].archived;
+    // optimistic UI
+    setProjects((ps) => ps.map((pr) => (pr.id === projectId ? { ...pr, archived: newArchived } : pr)));
+    try {
+      const res = await fetch(`${MAIN}/api/projects/${projectId}/archive`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: newArchived }),
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Archive toggle failed");
+      try {
+        const json = await res.json();
+        if (json && json.id) {
+          setProjects((ps) => ps.map((pr) => (pr.id === json.id ? { ...pr, ...json } : pr)));
+        } else {
+          await getProjects(token);
+        }
+      } catch {
+        await getProjects(token);
+      }
+    } catch (err) {
+      console.error("Archive toggle error:", err);
+      setProjects(prev);
+      alert("Failed to toggle archive state on server");
     }
   };
 
@@ -477,6 +641,7 @@ export default function AllProjectsPage() {
     fd.append("startDate", startDate || "");
     fd.append("deadline", noDeadline ? "" : deadline || "");
     fd.append("noDeadline", String(Boolean(noDeadline)));
+    // send selected category id or name
     fd.append("category", category === "none" ? "" : category);
     fd.append("department", department === "none" ? "" : department);
     fd.append("client", client === "none" ? "" : client);
@@ -678,6 +843,11 @@ export default function AllProjectsPage() {
               </DropdownMenuItem>
 
               <DropdownMenuItem onClick={() => handlePin(p.id)}><Pin className="h-4 w-4 mr-2" /> {p.pinned ? "Unpin" : "Pin"} Project</DropdownMenuItem>
+
+              {/* Archive / Unarchive option added here */}
+              <DropdownMenuItem onClick={() => handleArchive(p.id)}>
+                <Archive className="h-4 w-4 mr-2" /> {p.archived ? "Unarchive" : "Archive"}
+              </DropdownMenuItem>
 
               <DropdownMenuSeparator />
 
@@ -900,12 +1070,10 @@ export default function AllProjectsPage() {
                         <SelectTrigger className="w-full"><SelectValue placeholder="--" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">--</SelectItem>
-                          <SelectItem value="internal">Internal</SelectItem>
-                          <SelectItem value="client">Client Work</SelectItem>
-                          <SelectItem value="research">Research</SelectItem>
+                          {categoryOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <Button variant="outline">Add</Button>
+                      <Button variant="outline" onClick={openCategoryModal}>Add</Button>
                     </div>
                   </div>
 
@@ -1052,6 +1220,64 @@ export default function AllProjectsPage() {
               <div className="flex items-center justify-end gap-3">
                 <Button variant="outline" onClick={() => { setShowAddModal(false); resetAddForm(); }}>Cancel</Button>
                 <Button className="bg-blue-600 text-white" onClick={createProject} disabled={submitting}>{submitting ? "Saving..." : "Save"}</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CATEGORY MODAL (table + add) */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 z-[11000] flex items-center justify-center px-4">
+          <div className="fixed inset-0 bg-black/40" onClick={() => closeCategoryModal()} />
+          <div className="relative w-full max-w-2xl bg-white rounded-lg shadow-2xl z-20 overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="font-semibold">Project Category</h3>
+              <button onClick={() => closeCategoryModal()} className="p-2 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {/* Categories table */}
+              <div className="rounded border overflow-auto">
+                <table className="min-w-full text-left">
+                  <thead className="bg-blue-50">
+                    <tr>
+                      <th className="px-4 py-2 text-sm">#</th>
+                      <th className="px-4 py-2 text-sm">Category Name</th>
+                      <th className="px-4 py-2 text-sm">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {catLoading ? (
+                      <tr><td colSpan={3} className="px-4 py-6 text-center text-gray-500">Loading...</td></tr>
+                    ) : categories.length === 0 ? (
+                      <tr><td colSpan={3} className="px-4 py-6 text-center text-gray-500">No categories</td></tr>
+                    ) : categories.map((c, idx) => (
+                      <tr key={c.id} className="border-t">
+                        <td className="px-4 py-3 text-sm">{idx + 1}</td>
+                        <td className="px-4 py-3 text-sm">{c.name}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <button className="p-2 rounded hover:bg-gray-100 text-red-600" onClick={() => deleteCategory(c.id)} title="Delete">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Add category */}
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">Category Name *</label>
+                <Input placeholder="Enter category name" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} />
+              </div>
+
+              <div className="flex items-center justify-end gap-3">
+                <Button variant="outline" onClick={() => closeCategoryModal()}>Cancel</Button>
+                <Button className="bg-blue-600 text-white" onClick={addCategory} disabled={catSubmitting}>
+                  {catSubmitting ? "Saving..." : "Save"}
+                </Button>
               </div>
             </div>
           </div>
