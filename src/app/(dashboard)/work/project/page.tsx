@@ -1,436 +1,1062 @@
-"use client"
+// app/(your-folder)/AllProjectsPage.tsx
+"use client";
 
-import type React from "react"
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-import Link from "next/link"
-import { useEffect, useState, useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
-import { ChevronLeft, ChevronRight, Search, MoreVertical, Eye, Edit2, Pin, Archive, Trash2 } from "lucide-react"
+} from "@/components/ui/dropdown-menu";
+
+import {
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  MoreVertical,
+  Eye,
+  Edit2,
+  Pin,
+  Trash2,
+  Grid,
+  Calendar,
+  Filter,
+  List,
+  X,
+} from "lucide-react";
+
+const MAIN = process.env.NEXT_PUBLIC_MAIN || "https://chat.swiftandgo.in";
+
+const STATUS_OPTIONS = [
+  "IN_PROGRESS",
+  "NOT_STARTED",
+  "ON_HOLD",
+  "CANCELLED",
+  "FINISHED",
+] as const;
+type StatusOption = typeof STATUS_OPTIONS[number];
+
+type Employee = {
+  employeeId: string;
+  name: string;
+  profileUrl?: string | null;
+  designation?: string;
+};
 
 interface Project {
-  id: number
-  shortCode: string
-  name: string
-  startDate: string
-  deadline: string
-  client?: {
-    name: string
-    profilePictureUrl?: string
-  }
-  currency: string
-  budget: number
-  progress?: number
-  status?: "active" | "completed" | "on-hold" | "planning"
-  duration?: number
-  assignedEmployees?: {
-    employeeId: string
-    name: string
-    profileUrl?: string
-    designation?: string
-  }[]
-  isPinned?: boolean
-  isArchived?: boolean
+  id: number;
+  shortCode?: string;
+  code?: string;
+  projectCode?: string;
+  name: string;
+  startDate?: string;
+  deadline?: string;
+  noDeadline?: boolean;
+  client?:
+    | { name?: string; profilePictureUrl?: string | null; company?: string | null }
+    | null;
+  currency?: string;
+  budget?: number;
+  progressPercent?: number | null;
+  projectStatus?: StatusOption | null;
+  assignedEmployees?: Employee[];
+  pinned?: boolean;
+  archived?: boolean;
 }
 
-export default function AllProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(true)
-  const [token, setToken] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [progressFilter, setProgressFilter] = useState<string>("all")
-  const [durationFilter, setDurationFilter] = useState<string>("all")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const itemsPerPage = 10
+const OVERRIDES_KEY = "projectProgressOverrides";
 
+export default function AllProjectsPage() {
+  // STATES
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(null);
+
+  // visible filters
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [progressFilter, setProgressFilter] = useState<string>("all");
+  const [durationFilter, setDurationFilter] = useState<string>("all");
+
+  // drawer filters
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterProject, setFilterProject] = useState<string>("all");
+  const [filterMember, setFilterMember] = useState<string>("all");
+  const [filterClient, setFilterClient] = useState<string>("all");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 9;
+
+  // ADD PROJECT MODAL STATE
+  const [showAddModal, setShowAddModal] = useState(false);
+  // form fields (use "none" sentinel for selects)
+  const [shortCode, setShortCode] = useState("");
+  const [projectName, setProjectName] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [deadline, setDeadline] = useState("");
+  const [noDeadline, setNoDeadline] = useState(false);
+  const [category, setCategory] = useState("none");
+  const [department, setDepartment] = useState("none");
+  const [client, setClientField] = useState("none");
+  const [summary, setSummary] = useState("");
+  const [needsApproval, setNeedsApproval] = useState(true);
+  const [members, setMembers] = useState<string[] | string>(""); // comma-separated input
+
+  // Company Details — first copy
+  const [file, setFile] = useState<File | null>(null);
+  const [currency, setCurrency] = useState("USD");
+  const [budget, setBudget] = useState<string>("");
+  const [hoursEstimate, setHoursEstimate] = useState<string>("");
+  const [allowManualTimeLogs, setAllowManualTimeLogs] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Company Details — second copy (same UI)
+  const [file2, setFile2] = useState<File | null>(null);
+  const [currency2, setCurrency2] = useState("USD");
+  const [budget2, setBudget2] = useState<string>("");
+  const [hoursEstimate2, setHoursEstimate2] = useState<string>("");
+  const [allowManualTimeLogs2, setAllowManualTimeLogs2] = useState(false);
+  const fileInputRef2 = useRef<HTMLInputElement | null>(null);
+
+  const [submitting, setSubmitting] = useState(false);
+
+  // LOCK BODY SCROLL WHEN DRAWER OR MODAL OPEN
+  useEffect(() => {
+    document.body.style.overflow = showFilters || showAddModal ? "hidden" : "auto";
+  }, [showFilters, showAddModal]);
+
+  // Build select options from fetched projects
+  const projectOptions = Array.from(new Set(projects.map((p) => p.name))).filter(Boolean);
+  const memberOptions = Array.from(
+    new Set(projects.flatMap((p) => (p.assignedEmployees || []).map((e) => e.name)))
+  ).filter(Boolean);
+  const clientOptions = Array.from(new Set(projects.map((p) => p.client?.name).filter(Boolean))).filter(Boolean);
+
+  // local overrides helpers
+  const readProgressOverrides = (): Record<string, number> => {
+    try {
+      const raw = localStorage.getItem(OVERRIDES_KEY);
+      if (!raw) return {};
+      return JSON.parse(raw) as Record<string, number>;
+    } catch {
+      return {};
+    }
+  };
+  const writeProgressOverrides = (map: Record<string, number>) => {
+    try {
+      localStorage.setItem(OVERRIDES_KEY, JSON.stringify(map));
+    } catch {}
+  };
+  const setProgressOverrideFor = (projectId: number, percent: number | null) => {
+    const map = readProgressOverrides();
+    const key = String(projectId);
+    if (percent == null) delete map[key];
+    else map[key] = percent;
+    writeProgressOverrides(map);
+  };
+
+  // fetch projects
   const getProjects = useCallback(
-    async (accessToken: string) => {
+    async (accessToken?: string | null) => {
+      setLoading(true);
       try {
+        const resolvedToken =
+          accessToken ||
+          (typeof window !== "undefined" ? localStorage.getItem("accessToken") : null) ||
+          token ||
+          null;
+
+        if (!resolvedToken) {
+          setProjects([]);
+          setTotalPages(1);
+          setLoading(false);
+          return;
+        }
+
         const params = new URLSearchParams({
-          page: currentPage.toString(),
-          limit: itemsPerPage.toString(),
-          search: searchQuery,
+          page: String(currentPage),
+          limit: String(itemsPerPage),
+          search: searchQuery || "",
           status: statusFilter !== "all" ? statusFilter : "",
           progress: progressFilter !== "all" ? progressFilter : "",
           duration: durationFilter !== "all" ? durationFilter : "",
-        })
+          project: filterProject !== "all" ? filterProject : "",
+          member: filterMember !== "all" ? filterMember : "",
+          client: filterClient !== "all" ? filterClient : "",
+        });
 
-        const res = await fetch(`/api/work/project?${params}`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        })
+        const res = await fetch(`${MAIN}/api/projects?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${resolvedToken}` },
+          cache: "no-store",
+        });
 
-        if (!res.ok) {
-          throw new Error("Failed to load projects")
+        if (res.status === 401) {
+          try { localStorage.removeItem("accessToken"); } catch {}
+          setToken(null);
+          setProjects([]);
+          setTotalPages(1);
+          setLoading(false);
+          return;
         }
 
-        const data = await res.json()
-        setProjects(data.projects || [])
-        setTotalPages(data.totalPages || 1)
-      } catch (err: any) {
-        console.error("Error loading projects:", err)
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          console.error("getProjects failed", res.status, text);
+          throw new Error("Failed to load projects");
+        }
+
+        const data = await res.json();
+        let fetched: Project[] = [];
+        if (Array.isArray(data)) fetched = data;
+        else {
+          fetched = data.projects || data.items || [];
+          setTotalPages(data.totalPages || Math.max(1, Math.ceil((data.total || itemsPerPage) / itemsPerPage)));
+        }
+
+        // apply local overrides
+        const overrides = readProgressOverrides();
+        if (Object.keys(overrides).length > 0) {
+          fetched = fetched.map((p) => {
+            const o = overrides[String(p.id)];
+            if (o != null) return { ...p, progressPercent: o };
+            return p;
+          });
+        }
+
+        setProjects(fetched);
+      } catch (err) {
+        console.error("Error loading projects:", err);
+        setProjects([]);
+        setTotalPages(1);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     },
-    [currentPage, searchQuery, statusFilter, progressFilter, durationFilter],
-  )
+    [currentPage, searchQuery, statusFilter, progressFilter, durationFilter, filterProject, filterMember, filterClient, token]
+  );
+
+  // debounce search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearchQuery((prev) => {
+        if (prev !== searchInput) {
+          setCurrentPage(1);
+          return searchInput;
+        }
+        return prev;
+      });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  // initial token & load
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedToken = localStorage.getItem("accessToken");
+      setToken(savedToken);
+      if (savedToken) getProjects(savedToken);
+      else setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem("accessToken")
-    setToken(savedToken)
-
-    if (savedToken) {
-      getProjects(savedToken)
-    } else {
-      setLoading(false)
-    }
-  }, [getProjects])
-
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value)
-    setCurrentPage(1)
-  }
-
-  const handleStatusChange = (value: string) => {
-    setStatusFilter(value)
-    setCurrentPage(1)
-  }
-
-  const handleProgressChange = (value: string) => {
-    setProgressFilter(value)
-    setCurrentPage(1)
-  }
-
-  const handleDurationChange = (value: string) => {
-    setDurationFilter(value)
-    setCurrentPage(1)
-  }
-
-  const handleView = (projectId: number) => {
-    console.log("View project:", projectId)
-  }
-
-  const handleEdit = (projectId: number) => {
-    console.log("Edit project:", projectId)
-  }
-
- // ... (imports and other state unchanged)
-
-// Updated handlePin
-const handlePin = async (projectId: number) => {
-    const projectIndex = projects.findIndex(p => p.id === projectId)
-    if (projectIndex === -1) return
-  
-    const currentProject = projects[projectIndex]
-    const newPinnedStatus = !currentProject.isPinned
-  
-    // Optimistic update
-    setProjects(prev => prev.map((p, i) => 
-      i === projectIndex ? { ...p, isPinned: newPinnedStatus } : p
-    ))
-  
-    try {
-      const res = await fetch(`/api/work/project/${projectId}/pin`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token!}`, // Assume token is set
-          "Content-Type": "application/json",
-        },
-        // Optional: body: JSON.stringify({ pinned: newPinnedStatus }) if API needs it
-      })
-  
-      if (!res.ok) {
-        throw new Error(`Failed to ${newPinnedStatus ? 'pin' : 'unpin'} project`)
+    if (!token && typeof window !== "undefined") {
+      const fromStorage = localStorage.getItem("accessToken");
+      if (fromStorage) {
+        setToken(fromStorage);
+        getProjects(fromStorage);
+        return;
       }
-  
-      // On success, refetch to ensure sync (in case API updates other fields)
-      await getProjects(token!)
-      console.log(`${newPinnedStatus ? 'Pinned' : 'Unpinned'} project:`, projectId)
+      return;
+    }
+    if (token) getProjects(token);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getProjects, token, currentPage, searchQuery, statusFilter, progressFilter, durationFilter, filterProject, filterMember, filterClient]);
+
+  // UPDATES
+  async function patchStatus(projectId: number, newStatus: StatusOption) {
+    if (!token) return alert("Not authenticated");
+    const prev = projects;
+    setProjects((ps) => ps.map((pr) => (pr.id === projectId ? { ...pr, projectStatus: newStatus } : pr)));
+    try {
+      const fd = new FormData();
+      fd.append("status", newStatus);
+      const res = await fetch(`${MAIN}/api/projects/${projectId}/status`, {
+        method: "PATCH",
+        body: fd,
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error(`Status patch failed ${res.status}`);
+
+      let json: any = null;
+      try { json = await res.json(); } catch { json = null; }
+
+      if (json && json.id) {
+        setProjects((ps) => ps.map((pr) => (pr.id === json.id ? { ...pr, ...json } : pr)));
+        if (json.progressPercent != null) setProgressOverrideFor(json.id, null);
+      } else {
+        await getProjects(token);
+      }
     } catch (err) {
-      // Rollback optimistic update
-      setProjects(prev => prev.map((p, i) => 
-        i === projectIndex ? { ...p, isPinned: !newPinnedStatus } : p
-      ))
-      console.error("Failed to pin/unpin:", err)
-      // Optional: Show user-facing error (e.g., alert or toast)
+      console.error("Status update failed", err);
+      setProjects(prev);
+      alert("Failed to update status on server");
     }
   }
-  
-  
 
-  const handleArchive = (projectId: number) => {
-    console.log("Archive project:", projectId)
-    setProjects(projects.map((p) => (p.id === projectId ? { ...p, isArchived: !p.isArchived } : p)))
+  async function patchProgress(projectId: number, percent: number) {
+    if (!token) return alert("Not authenticated");
+    const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+    const prev = projects;
+    setProjects((ps) => ps.map((pr) => (pr.id === projectId ? { ...pr, progressPercent: clamped } : pr)));
+    setProgressOverrideFor(projectId, clamped);
+
+    try {
+      const fd = new FormData();
+      fd.append("percent", String(clamped));
+      const res = await fetch(`${MAIN}/api/projects/${projectId}/progress`, {
+        method: "PATCH",
+        body: fd,
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+
+      if (res.status === 401) {
+        console.error("patchProgress 401 unauthorized");
+        setProjects(prev);
+        setProgressOverrideFor(projectId, null);
+        localStorage.removeItem("accessToken");
+        setToken(null);
+        alert("Session expired. Please login again.");
+        return;
+      }
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("patchProgress failed:", res.status, text);
+        setProjects(prev);
+        setProgressOverrideFor(projectId, null);
+        alert("Failed to update progress on server");
+        return;
+      }
+
+      let json: any = null;
+      try {
+        if (res.status !== 204) json = await res.json();
+        else json = null;
+      } catch { json = null; }
+
+      if (json && json.id) {
+        setProjects((ps) => ps.map((pr) => (pr.id === json.id ? { ...pr, ...json } : pr)));
+        if (json.progressPercent != null) setProgressOverrideFor(json.id, null);
+      } else {
+        await getProjects(token);
+      }
+    } catch (err) {
+      console.error("Progress update failed:", err);
+      setProjects(prev);
+      setProgressOverrideFor(projectId, null);
+      alert("Failed to update progress on server");
+    }
   }
 
-  const handleDelete = (projectId: number) => {
-    console.log("Delete project:", projectId)
-    setProjects(projects.filter((p) => p.id !== projectId))
-  }
+  const handlePin = async (projectId: number) => {
+    if (!token) return;
+    const prev = projects;
+    const idx = projects.findIndex((p) => p.id === projectId);
+    if (idx === -1) return;
+    const newPinned = !projects[idx].pinned;
+    setProjects((ps) => ps.map((pr) => (pr.id === projectId ? { ...pr, pinned: newPinned } : pr)));
+    try {
+      const res = await fetch(`${MAIN}/api/projects/${projectId}/pin`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ pinned: newPinned }),
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Pin failed");
+      try {
+        const json = await res.json();
+        if (json && json.id) setProjects((ps) => ps.map((pr) => (pr.id === json.id ? { ...pr, ...json } : pr)));
+        else await getProjects(token);
+      } catch {
+        await getProjects(token);
+      }
+    } catch (err) {
+      console.error(err);
+      setProjects(prev);
+      alert("Failed to toggle pin");
+    }
+  };
 
-  const getStatusColor = (status?: string) => {
+  const handleDelete = async (projectId: number) => {
+    if (!confirm("Delete this project?")) return;
+    const prev = projects;
+    setProjects((ps) => ps.filter((p) => p.id !== projectId));
+    try {
+      const res = await fetch(`${MAIN}/api/projects/${projectId}`, {
+        method: "DELETE",
+        headers: { Authorization: token ? `Bearer ${token}` : "" },
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      setProgressOverrideFor(projectId, null);
+    } catch (err) {
+      console.error(err);
+      setProjects(prev);
+      alert("Failed to delete project");
+    }
+  };
+
+  // ---------- Add Project form handlers ----------
+  const resetAddForm = () => {
+    setShortCode("");
+    setProjectName("");
+    setStartDate("");
+    setDeadline("");
+    setNoDeadline(false);
+    setCategory("none");
+    setDepartment("none");
+    setClientField("none");
+    setSummary("");
+    setNeedsApproval(true);
+    setMembers("");
+    // reset first company details
+    setFile(null);
+    setCurrency("USD");
+    setBudget("");
+    setHoursEstimate("");
+    setAllowManualTimeLogs(false);
+    // reset second company details
+    setFile2(null);
+    setCurrency2("USD");
+    setBudget2("");
+    setHoursEstimate2("");
+    setAllowManualTimeLogs2(false);
+    setSubmitting(false);
+  };
+
+  const handleChooseFileClick = () => fileInputRef.current?.click();
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] ?? null);
+
+  const handleChooseFileClick2 = () => fileInputRef2.current?.click();
+  const handleFileInputChange2 = (e: React.ChangeEvent<HTMLInputElement>) => setFile2(e.target.files?.[0] ?? null);
+
+  const createProject = async () => {
+    if (!projectName.trim()) return alert("Project Name is required");
+    setSubmitting(true);
+
+    const fd = new FormData();
+    fd.append("shortCode", shortCode || "");
+    fd.append("name", projectName);
+    fd.append("startDate", startDate || "");
+    fd.append("deadline", noDeadline ? "" : deadline || "");
+    fd.append("noDeadline", String(Boolean(noDeadline)));
+    fd.append("category", category === "none" ? "" : category);
+    fd.append("department", department === "none" ? "" : department);
+    fd.append("client", client === "none" ? "" : client);
+    fd.append("summary", summary || "");
+    fd.append("needsApproval", String(Boolean(needsApproval)));
+    fd.append("members", Array.isArray(members) ? members.join(",") : String(members || ""));
+
+    // first company details
+    if (file) fd.append("file", file);
+    fd.append("currency", currency || "");
+    fd.append("budget", budget || "");
+    fd.append("hoursEstimate", hoursEstimate || "");
+    fd.append("allowManualTimeLogs", String(Boolean(allowManualTimeLogs)));
+
+    // second (duplicate) company details — using different keys so backend can distinguish if needed
+    if (file2) fd.append("file2", file2);
+    fd.append("currency2", currency2 || "");
+    fd.append("budget2", budget2 || "");
+    fd.append("hoursEstimate2", hoursEstimate2 || "");
+    fd.append("allowManualTimeLogs2", String(Boolean(allowManualTimeLogs2)));
+
+    const resolvedToken = token || (typeof window !== "undefined" ? localStorage.getItem("accessToken") : null);
+
+    try {
+      const res = await fetch(`${MAIN}/api/projects`, {
+        method: "POST",
+        body: fd,
+        headers: resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : undefined,
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("Create project failed", res.status, text);
+        alert("Failed to create project");
+        setSubmitting(false);
+        return;
+      }
+
+      try {
+        await res.json();
+      } catch {}
+
+      await getProjects(resolvedToken);
+      setShowAddModal(false);
+      resetAddForm();
+    } catch (err) {
+      console.error("Create project error", err);
+      alert("Failed to create project");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ---------- UI helpers ----------
+  const getProgressColor = (p?: number | null) => {
+    if (p === undefined || p === null) return "bg-gray-300";
+    if (p < 33) return "bg-red-500";
+    if (p < 66) return "bg-yellow-400";
+    return "bg-green-500";
+  };
+
+  function badgeDotColor(status?: string | null) {
     switch (status) {
-      case "active":
-        return "bg-green-100 text-green-800"
-      case "completed":
-        return "bg-blue-100 text-blue-800"
-      case "on-hold":
-        return "bg-yellow-100 text-yellow-800"
-      case "planning":
-        return "bg-purple-100 text-purple-800"
-      default:
-        return "bg-gray-100 text-gray-800"
+      case "IN_PROGRESS": return "#10B981";
+      case "NOT_STARTED": return "#9CA3AF";
+      case "ON_HOLD": return "#F59E0B";
+      case "CANCELLED": return "#EF4444";
+      case "FINISHED": return "#3B82F6";
+      default: return "#9CA3AF";
     }
   }
 
-  const getProgressColor = (progress?: number) => {
-    if (!progress) return "bg-gray-200"
-    if (progress < 33) return "bg-red-500"
-    if (progress < 66) return "bg-yellow-500"
-    return "bg-green-500"
+  function statusBadgeClas(status?: string | null) {
+    switch (status) {
+      case "IN_PROGRESS": return "bg-green-600 text-white";
+      case "NOT_STARTED": return "bg-gray-400 text-white";
+      case "ON_HOLD": return "bg-yellow-500 text-white";
+      case "CANCELLED": return "bg-red-600 text-white";
+      case "FINISHED": return "bg-blue-600 text-white";
+      default: return "bg-gray-400 text-white";
+    }
   }
 
-  const ProjectTableRow = ({ project }: { project: Project }) => {
-    const startDate = new Date(project.startDate)
-    const deadline = new Date(project.deadline)
-    const durationDays = Math.ceil((deadline.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+  const projectCodeFor = (p: Project) => p.shortCode || p.code || p.projectCode || `RTA-${String(p.id).padStart(2, "0")}`;
+
+  const openFilters = () => setShowFilters(true);
+  const closeFilters = () => setShowFilters(false);
+  const applyFilters = async () => { setCurrentPage(1); await getProjects(token ?? null); setShowFilters(false); };
+  const resetDrawerFilters = async () => { setFilterProject("all"); setFilterMember("all"); setFilterClient("all"); setCurrentPage(1); await getProjects(token ?? null); setShowFilters(false); };
+
+  const setStatusAndApply = (status?: string | null) => { setStatusFilter(status ?? "all"); setCurrentPage(1); };
+  const setProgressBucketAndApply = (percent: number | null) => {
+    if (percent == null) setProgressFilter("all");
+    else if (percent <= 33) setProgressFilter("0-33");
+    else if (percent <= 66) setProgressFilter("34-66");
+    else setProgressFilter("67-100");
+    setCurrentPage(1);
+  };
+
+  if (loading) return <p className="p-8 text-center">Loading projects...</p>;
+
+  // Table row
+  const ProjectRow: React.FC<{ p: Project }> = ({ p }) => {
+    const start = p.startDate ? new Date(p.startDate).toLocaleDateString() : "-";
+    const dl = p.noDeadline ? "No Deadline" : p.deadline ? new Date(p.deadline).toLocaleDateString() : "-";
+    const progress = Math.max(0, Math.min(100, p.progressPercent ?? 0));
+    const barColor = getProgressColor(progress);
 
     return (
-      <TableRow key={project.id} className="hover:bg-gray-50">
-        <TableCell>
-          <Link href={`/work/project/${project.id}`} className="text-blue-600 hover:underline font-medium">
-            {project.name}
-          </Link>
-          <p className="text-xs text-gray-500">{project.shortCode}</p>
-        </TableCell>
-        <TableCell>
-          <div className="flex items-center gap-2">
-            {project.client?.profilePictureUrl && (
-              <img
-                src={project.client.profilePictureUrl || "/placeholder.svg"}
-                alt="client"
-                className="w-6 h-6 rounded-full object-cover"
-              />
-            )}
-            <span className="text-sm">{project.client?.name || "N/A"}</span>
-          </div>
-        </TableCell>
-        <TableCell>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-            {project.status || "N/A"}
-          </span>
-        </TableCell>
-        <TableCell>
-          <div className="space-y-1">
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className={`h-2 rounded-full ${getProgressColor(project.progress)}`}
-                style={{ width: `${project.progress || 0}%` }}
-              />
+      <TableRow key={p.id} className="bg-white hover:bg-gray-50">
+        <TableCell className="py-4 px-4 align-top w-28"><div className="text-sm font-medium">{projectCodeFor(p)}</div></TableCell>
+        <TableCell className="py-4 px-4 align-top"><div className="font-medium">{p.name}</div></TableCell>
+        <TableCell className="py-4 px-4 align-top">
+          <div className="flex items-center">
+            <div className="flex -space-x-2">
+              {(p.assignedEmployees || []).slice(0, 3).map((emp) => (
+                <div key={emp.employeeId} className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gray-100" title={emp.name}>
+                  {emp.profileUrl ? <img src={emp.profileUrl} alt={emp.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs text-white bg-gray-400">{(emp.name||"U").charAt(0)}</div>}
+                </div>
+              ))}
+              {(p.assignedEmployees || []).length > 3 && (<div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 text-xs text-gray-700 flex items-center justify-center">+{(p.assignedEmployees || []).length - 3}</div>)}
             </div>
-            <p className="text-xs text-gray-600">{project.progress || 0}%</p>
           </div>
         </TableCell>
-        <TableCell>
-          <span className="font-medium">
-            {project.currency} {project.budget.toLocaleString()}
-          </span>
-        </TableCell>
-        <TableCell>
-          <span className="text-sm">{durationDays} days</span>
-        </TableCell>
-        <TableCell>
-          <span className="text-sm">{new Date(project.deadline).toLocaleDateString()}</span>
-        </TableCell>
-        <TableCell>
-          <div className="flex -space-x-2">
-            {project.assignedEmployees?.slice(0, 3).map((emp) => (
-              <div
-                key={emp.employeeId}
-                className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center border-2 border-white"
-                title={emp.name}
-              >
-                {emp.name.charAt(0)}
-              </div>
-            ))}
-            {project.assignedEmployees && project.assignedEmployees.length > 3 && (
-              <div className="w-6 h-6 rounded-full bg-gray-400 text-white text-xs flex items-center justify-center border-2 border-white">
-                +{project.assignedEmployees.length - 3}
-              </div>
-            )}
+        <TableCell className="py-4 px-4 align-top text-sm">{start}</TableCell>
+        <TableCell className="py-4 px-4 align-top text-sm">{dl}</TableCell>
+        <TableCell className="py-4 px-4 align-top">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+              {p.client?.profilePictureUrl ? <img src={p.client.profilePictureUrl} alt={p.client?.name} className="w-full h-full object-cover" /> : <div className="text-xs text-gray-500">{(p.client?.name || "C").charAt(0)}</div>}
+            </div>
+            <div>
+              <div className="text-sm font-medium">{p.client?.name ?? "Client"}</div>
+              <div className="text-xs text-gray-400">{p.client?.company ?? ""}</div>
+            </div>
           </div>
         </TableCell>
-        <TableCell className="text-right">
+        <TableCell className="py-4 px-4 align-top">
+          <div className="flex flex-col gap-2">
+            <div className="w-44 cursor-pointer" title="Click to filter by this progress bucket" onClick={() => setProgressBucketAndApply(p.progressPercent ?? null)}>
+              <div className="relative bg-gray-200 h-4 rounded-full overflow-hidden">
+                <div className={`h-4 rounded-full ${barColor}`} style={{ width: `${progress}%` }} />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="text-xs font-semibold text-white drop-shadow-sm">{progress}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button className={`inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs ${statusBadgeClas(p.projectStatus)}`} title="Click to filter by this status" onClick={() => setStatusAndApply(p.projectStatus)}>
+                <span className="w-2 h-2 rounded-full" style={{ background: badgeDotColor(p.projectStatus) }} />
+                <span>{p.projectStatus ?? "N/A"}</span>
+              </button>
+
+              <div className="relative">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="inline-flex items-center gap-1 px-2 py-1 border rounded text-sm bg-white hover:bg-gray-50"><span className="text-xs text-gray-500">▾</span></button>
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent align="start" className="w-64 p-2">
+                    <div className="text-xs text-gray-500 mb-1">Change status</div>
+                    <div className="space-y-1">
+                      {STATUS_OPTIONS.map((s) => (
+                        <button key={s} onClick={() => patchStatus(p.id, s)} className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-50 ${s === p.projectStatus ? "font-medium" : ""}`}>{s}</button>
+                      ))}
+                    </div>
+
+                    <DropdownMenuSeparator />
+                    <div className="text-xs text-gray-500 mt-2 mb-1">Adjust progress</div>
+                    <div>
+                      <input type="range" min={0} max={100} value={p.progressPercent ?? 0}
+                        onChange={(e) => { const v = Number(e.target.value); setProjects((prev) => prev.map((pr) => (pr.id === p.id ? { ...pr, progressPercent: v } : pr))); }}
+                        onMouseUp={async (e) => { const v = Number((e.target as HTMLInputElement).value); await patchProgress(p.id, v); }}
+                        onTouchEnd={async (e) => { const v = Number((e.target as HTMLInputElement).value); await patchProgress(p.id, v); }}
+                        className="w-full" />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1"><span>0%</span><span>{p.progressPercent ?? 0}%</span><span>100%</span></div>
+                    </div>
+
+                    <div className="flex justify-end mt-2"><Button size="sm" variant="ghost" onClick={() => getProjects(token ?? null)}>Refresh</Button></div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </div>
+        </TableCell>
+
+        <TableCell className="py-4 px-4 align-top text-right">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreVertical className="h-4 w-4" /></Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align="end" className="w-48">
-            
-              <DropdownMenuItem onClick={() => handleView(project.id)} className="gap-2">
-                            <Eye className="h-4 w-4" />
-                            <Link href={`/work/project/${project.id}`} >
-                      View
-                      </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild className="gap-2">
-  <Link href={`/work/project/${project.id}/update`} className="flex items-center gap-2">
-    <Edit2 className="h-4 w-4" />
-    Edit
-  </Link>
-</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handlePin(project.id)} className="gap-2">
-                <Pin className="h-4 w-4" />
-                {project.isPinned ? "Unpin" : "Pin"} Project
+              <DropdownMenuItem onClick={() => window.location.assign(`/work/project/${p.id}`)}><Eye className="h-4 w-4 mr-2" /> View</DropdownMenuItem>
+
+              <DropdownMenuItem asChild>
+                <Link href={`/work/project/${p.id}/update`} className="flex items-center gap-2"><Edit2 className="h-4 w-4" /> Edit</Link>
               </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => handlePin(p.id)}><Pin className="h-4 w-4 mr-2" /> {p.pinned ? "Unpin" : "Pin"} Project</DropdownMenuItem>
+
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleArchive(project.id)} className="gap-2">
-                <Archive className="h-4 w-4" />
-                {project.isArchived ? "Unarchive" : "Archive"}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleDelete(project.id)}
-                className="gap-2 text-red-600 focus:text-red-600"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => handleDelete(p.id)} className="text-red-600"><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </TableCell>
       </TableRow>
-    )
-  }
+    );
+  };
 
-  if (loading) return <p className="p-4">Loading Projects...</p>
-  if (!token) return <p className="p-4 text-red-500">Unauthorized! Token not found.</p>
-
+  // MAIN RENDER
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg border p-4 space-y-4">
-        <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border">
-          <Search className="w-4 h-4 text-gray-400" />
-          <Input
-            placeholder="Search projects by name or code..."
-            value={searchQuery}
-            onChange={handleSearch}
-            className="border-0 bg-transparent focus-visible:ring-0"
-          />
+    <div className="min-h-screen bg-gray-50">
+      <main className="w-full">
+        <div className="max-w-[1200px] mx-auto p-6">
+          {/* TOP FILTER BAR */}
+          <div className="bg-white rounded-lg border p-3 mb-4 flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600">Duration</span>
+              <Input placeholder="Start Date to End Date" value={durationFilter === "all" ? "" : durationFilter} onChange={(e) => { setDurationFilter(e.target.value); setCurrentPage(1); }} className="w-56" />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600">Status</span>
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
+                <SelectTrigger className="w-40"><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="NOT_STARTED">Not Started</SelectItem>
+                  <SelectItem value="ON_HOLD">On Hold</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  <SelectItem value="FINISHED">Finished</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600">Progress</span>
+              <Select value={progressFilter} onValueChange={(v) => { setProgressFilter(v); setCurrentPage(1); }}>
+                <SelectTrigger className="w-40"><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="0-33">0 - 33%</SelectItem>
+                  <SelectItem value="34-66">34 - 66%</SelectItem>
+                  <SelectItem value="67-100">67 - 100%</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="ml-auto">
+              <button onClick={openFilters} className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800"><Filter className="w-5 h-5" /> Filters</button>
+            </div>
+          </div>
+
+          {/* ROW: Add Project + Search */}
+          <div className="flex items-center justify-between mb-4">
+            <div><Button className="bg-blue-600 text-white" onClick={() => setShowAddModal(true)}>+ Add Project</Button></div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 border rounded px-2 py-1 bg-white">
+                <Search className="w-4 h-4 text-gray-400" />
+                <Input placeholder="Search" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setSearchQuery(searchInput); setCurrentPage(1); } }} className="border-0 bg-transparent focus-visible:ring-0" />
+              </div>
+
+              <div className="flex items-center bg-white border rounded-lg overflow-hidden">
+                <button className="px-3 py-2 hover:bg-gray-50"><List className="w-4 h-4" /></button>
+                <button className="px-3 py-2 bg-violet-600 text-white"><Grid className="w-4 h-4" /></button>
+                <button className="px-3 py-2 hover:bg-gray-50" />
+              </div>
+
+              <button className="w-10 h-10 rounded bg-white border flex items-center justify-center"><Calendar className="w-4 h-4 text-gray-600" /></button>
+            </div>
+          </div>
+
+          {/* TABLE */}
+          <div className="bg-white rounded-lg border overflow-hidden">
+            <div className="bg-blue-50 px-6 py-3 border-b"><h2 className="font-semibold text-gray-900">Projects ({projects.length})</h2></div>
+
+            <div className="overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-blue-50">
+                    <TableHead className="px-4 py-3">Code</TableHead>
+                    <TableHead className="px-4 py-3">Project Name</TableHead>
+                    <TableHead className="px-4 py-3">Members</TableHead>
+                    <TableHead className="px-4 py-3">Start Date</TableHead>
+                    <TableHead className="px-4 py-3">Deadline</TableHead>
+                    <TableHead className="px-4 py-3">Client</TableHead>
+                    <TableHead className="px-4 py-3">Status</TableHead>
+                    <TableHead className="px-4 py-3 text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+
+                <TableBody>
+                  {projects.length === 0 ? (
+                    <TableRow><TableCell colSpan={8} className="py-8 text-center text-gray-500">No projects found</TableCell></TableRow>
+                  ) : (
+                    projects.map((p) => <ProjectRow key={p.id} p={p} />)
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {/* PAGINATION */}
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-gray-600">Result per page - {projects.length ? projects.length : 0}</div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" onClick={() => { setCurrentPage((c) => Math.max(1, c - 1)); }} disabled={currentPage === 1}><ChevronLeft /> Prev</Button>
+              <div className="text-sm text-gray-600">Page {currentPage} of {totalPages}</div>
+              <Button variant="outline" size="sm" onClick={() => { setCurrentPage((c) => Math.min(totalPages, c + 1)); }} disabled={currentPage === totalPages}>Next <ChevronRight /></Button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* DRAWER OVERLAY */}
+      <div aria-hidden={!showFilters} onClick={closeFilters} className={`fixed inset-0 transition-opacity duration-300 z-[9990] ${showFilters ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`} style={{ backgroundColor: "rgba(0,0,0,0.3)" }} />
+
+      {/* DRAWER */}
+      <aside aria-hidden={!showFilters} className={`fixed right-0 top-0 h-full w-[360px] bg-white shadow-xl transform transition-transform duration-300 z-[9999] ${showFilters ? "translate-x-0" : "translate-x-full"}`} role="dialog" aria-modal="true">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-2"><Filter className="w-5 h-5" /><h3 className="font-semibold">Filters</h3></div>
+          <button onClick={closeFilters} className="p-2 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Select value={statusFilter} onValueChange={handleStatusChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="on-hold">On Hold</SelectItem>
-              <SelectItem value="planning">Planning</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="p-4 space-y-4 overflow-auto h-[calc(100%-140px)]">
+          <div>
+            <label className="block text-sm text-gray-600 mb-2">Project</label>
+            <Select value={filterProject} onValueChange={(v) => setFilterProject(v)}>
+              <SelectTrigger className="w-full rounded border px-3 py-2"><SelectValue placeholder="All" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {projectOptions.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select value={progressFilter} onValueChange={handleProgressChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by Progress" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Progress</SelectItem>
-              <SelectItem value="0-33">0-33%</SelectItem>
-              <SelectItem value="33-66">33-66%</SelectItem>
-              <SelectItem value="66-100">66-100%</SelectItem>
-            </SelectContent>
-          </Select>
+          <div>
+            <label className="block text-sm text-gray-600 mb-2">Project Members</label>
+            <Select value={filterMember} onValueChange={(v) => setFilterMember(v)}>
+              <SelectTrigger className="w-full rounded border px-3 py-2"><SelectValue placeholder="All" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {memberOptions.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select value={durationFilter} onValueChange={handleDurationChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by Duration" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Duration</SelectItem>
-              <SelectItem value="0-30">0-30 days</SelectItem>
-              <SelectItem value="30-60">30-60 days</SelectItem>
-              <SelectItem value="60-90">60-90 days</SelectItem>
-              <SelectItem value="90+">90+ days</SelectItem>
-            </SelectContent>
-          </Select>
+          <div>
+            <label className="block text-sm text-gray-600 mb-2">Client</label>
+            <Select value={filterClient} onValueChange={(v) => setFilterClient(v)}>
+              <SelectTrigger className="w-full rounded border px-3 py-2"><SelectValue placeholder="All" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {clientOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </div>
 
-      <div className="bg-white rounded-lg border overflow-hidden">
-        <div className="bg-gray-50 px-6 py-3 border-b">
-          <h2 className="font-semibold text-gray-900">All Projects ({projects.length})</h2>
+        <div className="p-4 border-t flex items-center justify-between gap-2">
+          <Button variant="outline" onClick={resetDrawerFilters}>Reset</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={closeFilters}>Close</Button>
+            <Button className="bg-blue-600 text-white" onClick={applyFilters}>Apply</Button>
+          </div>
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-gray-50">
-              <TableHead>Project</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Progress</TableHead>
-              <TableHead>Budget</TableHead>
-              <TableHead>Duration</TableHead>
-              <TableHead>Deadline</TableHead>
-              <TableHead>Employees</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {projects.length > 0 ? (
-              projects.map((project) => <ProjectTableRow key={project.id} project={project} />)
-            ) : (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                  No projects found
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      </aside>
 
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-600">
-          Page {currentPage} of {totalPages}
-        </p>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-          >
-            Next
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+      {/* ADD PROJECT MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[10000] flex items-start justify-center pt-12 px-4 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/40" onClick={() => { setShowAddModal(false); resetAddForm(); }} />
+          <div className="relative w-full max-w-4xl bg-white rounded-xl shadow-2xl overflow-y-auto z-10">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold">Add Project</h3>
+              <button onClick={() => { setShowAddModal(false); resetAddForm(); }} className="p-2 rounded hover:bg-gray-100"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Project Details */}
+              <div className="rounded-lg border p-4">
+                <h4 className="font-medium mb-3">Project Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-gray-600">Short Code *</label>
+                    <Input value={shortCode} onChange={(e) => setShortCode(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Project Name *</label>
+                    <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} />
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-600">Start Date *</label>
+                    <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <label className="text-sm text-gray-600">Deadline *</label>
+                        <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} disabled={noDeadline} />
+                      </div>
+                      <div className="pt-6">
+                        <label className="inline-flex items-center gap-2 text-sm text-gray-600">
+                          <input type="checkbox" checked={noDeadline} onChange={(e) => setNoDeadline(e.target.checked)} />
+                          <span className="text-xs">There is no project deadline</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-600">Project Category *</label>
+                    <div className="flex gap-2">
+                      <Select value={category} onValueChange={(v) => setCategory(v)}>
+                        <SelectTrigger className="w-full"><SelectValue placeholder="--" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">--</SelectItem>
+                          <SelectItem value="internal">Internal</SelectItem>
+                          <SelectItem value="client">Client Work</SelectItem>
+                          <SelectItem value="research">Research</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button variant="outline">Add</Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-600">Department *</label>
+                    <Select value={department} onValueChange={(v) => setDepartment(v)}>
+                      <SelectTrigger className="w-full"><SelectValue placeholder="--" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">--</SelectItem>
+                        <SelectItem value="engineering">Engineering</SelectItem>
+                        <SelectItem value="marketing">Marketing</SelectItem>
+                        <SelectItem value="sales">Sales</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-600">Client *</label>
+                    <Select value={client} onValueChange={(v) => setClientField(v)}>
+                      <SelectTrigger className="w-full"><SelectValue placeholder="--" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">--</SelectItem>
+                        {clientOptions.length === 0 && <SelectItem value="acme">Acme Corp</SelectItem>}
+                        {clientOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="text-sm text-gray-600">Project Summary</label>
+                    <textarea rows={4} value={summary} onChange={(e) => setSummary(e.target.value)} className="w-full p-2 border rounded" />
+                  </div>
+
+                  <div>
+                    <div className="text-sm text-gray-600 mb-1">Tasks needs approval by Admin</div>
+                    <div className="flex items-center gap-4">
+                      <label className="inline-flex items-center gap-2">
+                        <input type="radio" name="approval" checked={needsApproval === true} onChange={() => setNeedsApproval(true)} />
+                        <span className="text-sm">Yes</span>
+                      </label>
+                      <label className="inline-flex items-center gap-2">
+                        <input type="radio" name="approval" checked={needsApproval === false} onChange={() => setNeedsApproval(false)} />
+                        <span className="text-sm">No</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-600">Add Project Members *</label>
+                    <Input placeholder="Comma separated names" value={Array.isArray(members) ? members.join(",") : members} onChange={(e) => setMembers(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Company Details — FIRST */}
+              <div className="rounded-lg border p-4">
+                <h4 className="font-medium mb-3">Company Details</h4>
+
+                <div className="mb-4">
+                  <label className="text-sm text-gray-600 mb-2 block">Add File</label>
+                  <div onClick={handleChooseFileClick} className="border-2 border-dashed rounded-lg h-28 flex items-center justify-center cursor-pointer text-gray-500">
+                    {file ? <div>{file.name}</div> : <div>Choose File</div>}
+                    <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileInputChange} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-sm text-gray-600">Currency</label>
+                    <Select value={currency} onValueChange={(v) => setCurrency(v)}>
+                      <SelectTrigger className="w-full"><SelectValue placeholder="USD" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">USD $</SelectItem>
+                        <SelectItem value="INR">INR ₹</SelectItem>
+                        <SelectItem value="EUR">EUR €</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-600">Project Budget</label>
+                    <Input value={budget} onChange={(e) => setBudget(e.target.value)} />
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-600">Hours Estimate (In Hours)</label>
+                    <Input value={hoursEstimate} onChange={(e) => setHoursEstimate(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" checked={allowManualTimeLogs} onChange={(e) => setAllowManualTimeLogs(e.target.checked)} />
+                    <span className="text-sm text-gray-600">Allow manual time logs</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Company Details — SECOND (duplicate, immediately below) */}
+              <div className="rounded-lg border p-4">
+                <h4 className="font-medium mb-3">Company Details</h4>
+
+                <div className="mb-4">
+                  <label className="text-sm text-gray-600 mb-2 block">Add File</label>
+                  <div onClick={handleChooseFileClick2} className="border-2 border-dashed rounded-lg h-28 flex items-center justify-center cursor-pointer text-gray-500">
+                    {file2 ? <div>{file2.name}</div> : <div>Choose File</div>}
+                    <input ref={fileInputRef2} type="file" className="hidden" onChange={handleFileInputChange2} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-sm text-gray-600">Currency</label>
+                    <Select value={currency2} onValueChange={(v) => setCurrency2(v)}>
+                      <SelectTrigger className="w-full"><SelectValue placeholder="USD" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">USD $</SelectItem>
+                        <SelectItem value="INR">INR ₹</SelectItem>
+                        <SelectItem value="EUR">EUR €</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-600">Project Budget</label>
+                    <Input value={budget2} onChange={(e) => setBudget2(e.target.value)} />
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-600">Hours Estimate (In Hours)</label>
+                    <Input value={hoursEstimate2} onChange={(e) => setHoursEstimate2(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" checked={allowManualTimeLogs2} onChange={(e) => setAllowManualTimeLogs2(e.target.checked)} />
+                    <span className="text-sm text-gray-600">Allow manual time logs</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* ACTIONS */}
+              <div className="flex items-center justify-end gap-3">
+                <Button variant="outline" onClick={() => { setShowAddModal(false); resetAddForm(); }}>Cancel</Button>
+                <Button className="bg-blue-600 text-white" onClick={createProject} disabled={submitting}>{submitting ? "Saving..." : "Save"}</Button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
-  )
+  );
 }

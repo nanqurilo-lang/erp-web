@@ -18,7 +18,7 @@ type Timesheet = {
   employeeId?: string;
   employees?: EmployeeItem[];
   startDate?: string; // YYYY-MM-DD
-  startTime?: string; // HH:MM:SS
+  startTime?: string; // HH:MM:SS or HH:MM
   endDate?: string;
   endTime?: string;
   memo?: string | null;
@@ -68,6 +68,12 @@ export default function TimesheetsTableNew({
     endTime: "",
     memo: "",
   });
+
+  // action dropdown + view/delete modals
+  const [actionOpenFor, setActionOpenFor] = useState<number | null>(null);
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<Timesheet | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   // helpers
   const buildUrl = (path: string) => {
@@ -151,7 +157,7 @@ export default function TimesheetsTableNew({
 
   useEffect(() => {
     fetchTimesheets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps nandini
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
 
   // derive employees for filter/select
@@ -181,19 +187,37 @@ export default function TimesheetsTableNew({
   });
 
   // helpers to format
-  const fmtDateTime = (date?: string, time?: string) => {
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  const formatDateTimeDisplay = (date?: string, time?: string) => {
     if (!date) return "-";
-    if (!time) return date;
-    // date like YYYY-MM-DD, time like HH:MM:SS -> show DD/MM/YYYY HH:MM AM/PM (approx)
+    // date: YYYY-MM-DD, time: HH:MM or HH:MM:SS
     try {
-      const [y, m, d] = date.split("-");
-      const [hh, mm] = time.split(":");
-      const dt = new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm));
-      return dt.toLocaleString();
+      const [y, m, d] = date.split("-").map(Number);
+      let hh = 0,
+        mm = 0;
+      if (time) {
+        const parts = time.split(":").map(Number);
+        hh = parts[0] ?? 0;
+        mm = parts[1] ?? 0;
+      }
+      const dt = new Date(y, m - 1, d, hh, mm);
+      // format DD/MM/YYYY hh:mm AM/PM
+      const day = pad(dt.getDate());
+      const mon = pad(dt.getMonth() + 1);
+      const year = dt.getFullYear();
+      let hours = dt.getHours();
+      const minutes = pad(dt.getMinutes());
+      const ampm = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12 || 12;
+      const hoursStr = pad(hours);
+      return `${day}/${mon}/${year} ${hoursStr}:${minutes} ${ampm}`;
     } catch {
-      const t = time.split(":").slice(0, 2).join(":");
-      return `${date} ${t}`;
+      return date + (time ? ` ${time}` : "");
     }
+  };
+
+  const fmtDateTime = (date?: string, time?: string) => {
+    return formatDateTimeDisplay(date, time);
   };
 
   const computeDurationHours = (sDate?: string, sTime?: string, eDate?: string, eTime?: string) => {
@@ -248,6 +272,42 @@ export default function TimesheetsTableNew({
     }
     setSaveError(null);
     setIsModalOpen(true);
+  };
+
+  // View row (read-only modal)
+  const openView = (row: Timesheet) => {
+    setSelectedRow(row);
+    setIsViewOpen(true);
+    setActionOpenFor(null);
+  };
+
+  // Delete flow
+  const openDelete = (row: Timesheet) => {
+    setSelectedRow(row);
+    setIsDeleteConfirmOpen(true);
+    setActionOpenFor(null);
+  };
+
+  const deleteTimesheet = async () => {
+    if (!selectedRow) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const url = buildUrl(`${gatewayPath}/${selectedRow.id}`);
+      await doFetch(url, {
+        method: "DELETE",
+        headers: headersWithAuth({ "Content-Type": "application/json" }),
+        credentials: "same-origin",
+      });
+      setIsDeleteConfirmOpen(false);
+      setSelectedRow(null);
+      setRefreshKey((k) => k + 1);
+    } catch (err: any) {
+      console.error("deleteTimesheet error:", err);
+      setSaveError(err?.message || "Failed to delete timesheet");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // save (create or update)
@@ -369,7 +429,7 @@ export default function TimesheetsTableNew({
                           <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
                             {emp?.profileUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img src={emp.profileUrl} alt={emp?.name} className="w-full h-full object-cover" />
+                              <img src={emp.profileUrl} alt={emp?.name ?? ""} className="w-full h-full object-cover" />
                             ) : <UserIcon className="w-6 h-6 text-gray-400 p-1" />}
                           </div>
 
@@ -384,9 +444,43 @@ export default function TimesheetsTableNew({
                         <td className="px-4 py-4 align-top">{typeof row.durationHours === "number" ? `${row.durationHours}h` : "-"}</td>
 
                         <td className="px-4 py-4 align-top">
-                          <div className="flex items-center gap-2">
-                            <button title="Edit" onClick={() => openModal(row)} className="px-2 py-1 border rounded text-sm">Edit</button>
-                            <button title="More" className="px-2 py-1 border rounded text-sm">⋮</button>
+                          <div className="relative inline-block text-left">
+                            {/* Three-dot button */}
+                            <button
+                              onClick={() => setActionOpenFor(actionOpenFor === row.id ? null : row.id)}
+                              className="px-2 py-1 border rounded text-sm"
+                              aria-haspopup="true"
+                              aria-expanded={actionOpenFor === row.id}
+                              title="More"
+                            >
+                              ⋮
+                            </button>
+
+                            {/* Dropdown */}
+                            {actionOpenFor === row.id && (
+                              <div className="absolute right-0 mt-2 z-30 w-40 bg-white border rounded-md shadow-lg text-sm">
+                                <button
+                                  onClick={() => openView(row)}
+                                  className="w-full text-left px-4 py-2 hover:bg-gray-50"
+                                >
+                                  View
+                                </button>
+
+                                <button
+                                  onClick={() => { openModal(row); setActionOpenFor(null); }}
+                                  className="w-full text-left px-4 py-2 hover:bg-gray-50"
+                                >
+                                  Edit
+                                </button>
+
+                                <button
+                                  onClick={() => openDelete(row)}
+                                  className="w-full text-left px-4 py-2 hover:bg-gray-50 text-red-600"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -399,14 +493,14 @@ export default function TimesheetsTableNew({
         </>
       )}
 
-      {/* Modal */}
+      {/* Log Time Modal (create/edit) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 px-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setIsModalOpen(false)} />
 
           <div className="relative bg-white w-full max-w-4xl rounded-xl shadow-xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold">Log Time</h3>
+              <h3 className="text-lg font-semibold">{editingId ? "Edit TimeLog" : "Log Time"}</h3>
               <button className="p-2 rounded hover:bg-gray-100" onClick={() => setIsModalOpen(false)} aria-label="Close">
                 <XMarkIcon className="w-6 h-6 text-gray-500" />
               </button>
@@ -484,6 +578,119 @@ export default function TimesheetsTableNew({
                 <button onClick={saveEntry} className="px-6 py-2 rounded-md bg-blue-600 text-white shadow" disabled={saving}>
                   {saving ? "Saving..." : editingId ? "Update" : "Save"}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Modal - redesigned to match provided screenshot */}
+      {isViewOpen && selectedRow && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 px-6">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setIsViewOpen(false)} />
+
+          <div className="relative bg-white w-full max-w-6xl rounded-xl shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="text-xl font-semibold">Timesheet</h3>
+              <button className="p-2 rounded hover:bg-gray-100" onClick={() => setIsViewOpen(false)} aria-label="Close">
+                <XMarkIcon className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {/* grid: left big card + right small history card */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* LEFT: Big Card */}
+                <div className="lg:col-span-2 relative bg-white rounded-xl border p-6">
+                  {/* three-dot icon top-right inside card */}
+                  <div className="absolute top-4 right-4 text-gray-500">⋮</div>
+
+                  <h4 className="text-lg font-medium mb-4">TimeLog Details</h4>
+
+                  <div className="grid grid-cols-3 gap-y-4 gap-x-6 items-center text-sm">
+                    <div className="text-gray-500">Start Time</div>
+                    <div className="col-span-2">{fmtDateTime(selectedRow.startDate, selectedRow.startTime)}</div>
+
+                    <div className="text-gray-500">End Time</div>
+                    <div className="col-span-2">{fmtDateTime(selectedRow.endDate, selectedRow.endTime)}</div>
+
+                    <div className="text-gray-500">Total Hours</div>
+                    <div className="col-span-2">{typeof selectedRow.durationHours === "number" ? `${selectedRow.durationHours}h` : "-"}</div>
+
+                    <div className="text-gray-500">Memo</div>
+                    <div className="col-span-2">{selectedRow.memo ?? "-"}</div>
+
+                    <div className="text-gray-500">Project</div>
+                    <div className="col-span-2">Project {selectedRow.projectId ?? "-"}</div>
+
+                    <div className="text-gray-500">Task</div>
+                    <div className="col-span-2">Task {selectedRow.taskId ?? "-"}</div>
+
+                    <div className="text-gray-500">Employee</div>
+                    <div className="col-span-2 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                        {selectedRow.employees && selectedRow.employees[0]?.profileUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={selectedRow.employees![0]!.profileUrl!} alt={selectedRow.employees![0]!.name ?? ""} className="w-full h-full object-cover" />
+                        ) : (
+                          <UserIcon className="w-6 h-6 text-gray-400 p-1" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">{selectedRow.employees && selectedRow.employees[0]?.name ? selectedRow.employees[0]!.name : selectedRow.employeeId}</div>
+                        <div className="text-xs text-gray-500">{selectedRow.employees && selectedRow.employees[0]?.designation ? selectedRow.employees[0]!.designation : ""}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* RIGHT: History Card */}
+                <div className="bg-white rounded-xl border p-5">
+                  <h5 className="font-medium mb-3">History</h5>
+
+                  <div className="space-y-4 text-sm text-gray-700">
+                    <div className="flex justify-between">
+                      <div className="text-gray-500">Start Time</div>
+                      <div>{fmtDateTime(selectedRow.startDate, selectedRow.startTime)}</div>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <div className="text-gray-500">Task</div>
+                      <div>Task {selectedRow.taskId ?? "-"}</div>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <div className="text-gray-500">End Time</div>
+                      <div>{fmtDateTime(selectedRow.endDate, selectedRow.endTime)}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* footer buttons */}
+              <div className="flex items-center justify-center gap-6 mt-8 pb-6">
+                <button onClick={() => setIsViewOpen(false)} className="px-6 py-2 rounded-md border text-blue-600">Close</button>
+                <button onClick={() => { openModal(selectedRow); setIsViewOpen(false); }} className="px-6 py-2 rounded-md bg-blue-600 text-white">Edit</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm modal */}
+      {isDeleteConfirmOpen && selectedRow && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 px-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setIsDeleteConfirmOpen(false)} />
+          <div className="relative bg-white w-full max-w-md rounded-lg shadow-xl overflow-hidden">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Delete TimeLog</h3>
+              <p className="text-sm text-gray-700">Are you sure you want to delete timesheet <strong>RTA-{String(selectedRow.id).padStart(2, "0")}</strong>? This action cannot be undone.</p>
+
+              {saveError && <div className="mt-4 text-sm text-red-600">{saveError}</div>}
+
+              <div className="flex items-center justify-end gap-4 mt-6">
+                <button className="px-4 py-2 rounded border" onClick={() => setIsDeleteConfirmOpen(false)} disabled={saving}>Cancel</button>
+                <button className="px-4 py-2 rounded bg-red-600 text-white" onClick={deleteTimesheet} disabled={saving}>{saving ? "Deleting..." : "Delete"}</button>
               </div>
             </div>
           </div>
