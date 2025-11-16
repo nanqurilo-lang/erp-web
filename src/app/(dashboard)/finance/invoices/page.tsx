@@ -621,16 +621,37 @@ export default function InvoiceList() {
 
   return (
     <div className="container mx-auto p-6">
-      {/* header */}
+      {/* header - Create button moved to top-left (matches your screenshot) */}
       <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
-          <p className="text-gray-600 mt-1">Manage and track all your invoices</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button onClick={() => { setCreateForm({ invoiceDate: "", currency: "", projectId: "", clientId: "", amount: "", tax: "", discount: "", amountInWords: "", notes: "" }); setOpenCreateModal(true); }}>
+        <div className="flex items-center gap-4">
+          <Button
+            onClick={() => {
+              setCreateForm({
+                invoiceDate: "",
+                currency: "",
+                projectId: "",
+                clientId: "",
+                amount: "",
+                tax: "",
+                discount: "",
+                amountInWords: "",
+                notes: "",
+              });
+              setOpenCreateModal(true);
+            }}
+            className="flex items-center"
+          >
             <Plus className="mr-2 h-4 w-4" /> Create Invoice
           </Button>
+
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
+            <p className="text-gray-600 mt-1">Manage and track all your invoices</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* right side reserved for other actions if needed */}
         </div>
       </div>
 
