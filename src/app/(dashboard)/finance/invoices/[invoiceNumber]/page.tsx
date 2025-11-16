@@ -239,10 +239,10 @@ export default function InvoiceDetail() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4 mb-4">
-                {invoice.client.company.companyLogoUrl ? (
+                {invoice.client?.company?.companyLogoUrl ? (
                   <Image
-                    src={invoice.client.company.companyLogoUrl}
-                    alt={invoice.client.company.companyName || "Company"}
+                    src={invoice.client?.company.companyLogoUrl}
+                    alt={invoice.client?.company.companyName || "Company"}
                     width={48}
                     height={48}
                     className="rounded-full"
@@ -250,31 +250,31 @@ export default function InvoiceDetail() {
                 ) : (
                   <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
                     <span className="text-lg font-semibold text-gray-600">
-                      {invoice.client.name.charAt(0).toUpperCase()}
+                      {invoice.client?.name.charAt(0).toUpperCase()}
                     </span>
                   </div>
                 )}
                 <div>
-                  <p className="font-medium">{invoice.client.name}</p>
-                  <p className="text-sm text-gray-500">{invoice.client.company.companyName}</p>
+                  <p className="font-medium">{invoice.client?.name}</p>
+                  <p className="text-sm text-gray-500">{invoice.client?.company.companyName}</p>
                 </div>
               </div>
               <div className="space-y-4">
                 <div>
                   <p className="text-sm text-gray-500">Email</p>
-                  <p className="font-medium">{invoice.client.email}</p>
+                  <p className="font-medium">{invoice.client?.email}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Mobile</p>
-                  <p className="font-medium">{invoice.client.mobile}</p>
+                  <p className="font-medium">{invoice.client?.mobile}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Address</p>
-                  <p className="font-medium">{invoice.client.address}, {invoice.client.country}</p>
+                  <p className="font-medium">{invoice.client?.address}, {invoice.client?.country}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">GST/VAT No</p>
-                  <p className="font-medium">{invoice.client.company.gstVatNo}</p>
+                  <p className="font-medium">{invoice.client?.company.gstVatNo}</p>
                 </div>
               </div>
             </CardContent>
