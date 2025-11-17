@@ -3,9 +3,11 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Pencil } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+const API_BASE = "https://chat.swiftandgo.in";
 
 type CompanyPayload = {
   companyName: string;
@@ -15,40 +17,37 @@ type CompanyPayload = {
   address: string;
 };
 
-const API_BASE = "https://chat.swiftandgo.in";
-
 export default function CompanySettingsFormPage() {
-  const search = useSearchParams();
   const router = useRouter();
-  const id = search?.get("id"); // if present => edit mode
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [loading, setLoading] = useState<boolean>(!!id);
+  const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
 
-  const [form, setForm] = useState<any>({
+  const [form, setForm] = useState<CompanyPayload>({
     companyName: "",
     email: "",
     contactNo: "",
     website: "",
     address: "",
-    logoUrl: "",
   });
 
-  // fetch existing company if edit
+  // load existing company (GET /employee/company)
   useEffect(() => {
-    if (!id) return setLoading(false);
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/company/${encodeURIComponent(id)}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` },
+        const res = await fetch(`${API_BASE}/employee/company`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
+            Accept: "application/json",
+          },
         });
         if (!res.ok) {
-          const t = await res.text().catch(() => "");
-          console.error("Failed to load company:", res.status, t);
+          // If 404 or not found, continue with blank form
+          console.warn("Company load failed", res.status);
           return;
         }
         const data = await res.json();
@@ -59,22 +58,25 @@ export default function CompanySettingsFormPage() {
           contactNo: data.contactNo ?? "",
           website: data.website ?? "",
           address: data.address ?? "",
-          logoUrl: data.logoUrl ?? "",
         });
         if (data.logoUrl) setLogoPreview(data.logoUrl);
       } catch (err) {
-        console.error("Load company error:", err);
+        console.error("Error loading company:", err);
       } finally {
         if (mounted) setLoading(false);
       }
     })();
     return () => { mounted = false; };
-  }, [id]);
+  }, []);
+
+  const onPickFileClick = () => {
+    fileInputRef.current?.click();
+  };
 
   const handleFileChange = (f?: File | null) => {
     if (!f) {
       setLogoFile(null);
-      setLogoPreview(form.logoUrl || null);
+      // keep server-provided preview if any
       return;
     }
     setLogoFile(f);
@@ -82,53 +84,52 @@ export default function CompanySettingsFormPage() {
     setLogoPreview(url);
   };
 
-  const onPickFileClick = () => {
-    fileInputRef.current?.click();
-  };
-
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    // validation (required fields)
+    if (!form.companyName || !form.email || !form.contactNo || !form.website || !form.address) {
+      alert("Please fill all required fields.");
+      return;
+    }
+
     setSaving(true);
     try {
-      // Use FormData because logo file may be present
       const fd = new FormData();
-      fd.append("companyName", form.companyName ?? "");
-      fd.append("email", form.email ?? "");
-      fd.append("contactNo", form.contactNo ?? "");
-      fd.append("website", form.website ?? "");
-      fd.append("address", form.address ?? "");
+      fd.append("companyName", form.companyName);
+      fd.append("email", form.email);
+      fd.append("contactNo", form.contactNo);
+      fd.append("website", form.website);
+      fd.append("address", form.address);
       if (logoFile) fd.append("logo", logoFile);
 
-      // Create vs Update
-      const method = id ? "PUT" : "POST";
-      // endpoint: POST /api/company  ; PUT /api/company/{id}
-      const url = id ? `${API_BASE}/api/company/${encodeURIComponent(id)}` : `${API_BASE}/api/company`;
-
-      const res = await fetch(url, {
-        method,
+      // API: PUT /employee/company (updates company)
+      const res = await fetch(`${API_BASE}/employee/company`, {
+        method: "PUT",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
-          // NOTE: don't set Content-Type for FormData; browser will set multipart boundary
+          // DO NOT set Content-Type when sending FormData
         },
         body: fd,
       });
 
       if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        console.error("Save failed:", res.status, t);
-        alert(`Save failed: ${res.status} (see console)`);
+        const text = await res.text().catch(() => "");
+        console.error("Save failed:", res.status, text);
+        alert(`Save failed: ${res.status}. Check console for details.`);
         setSaving(false);
         return;
       }
 
       const saved = await res.json();
-      // success -> navigate back to list or show toast
-      alert("Company saved successfully");
-      // go to listing or edit page of saved resource
+      // update UI with server response (logo url etc)
+      if (saved.logoUrl) setLogoPreview(saved.logoUrl);
+      // show confirmation
+      alert("Company saved successfully.");
+      // navigate back to listing (adjust route as needed)
       router.push("/settings/company-settings");
     } catch (err) {
       console.error("Unexpected save error:", err);
-      alert("Unexpected error while saving (see console)");
+      alert("Unexpected error while saving (see console).");
     } finally {
       setSaving(false);
     }
@@ -172,45 +173,53 @@ export default function CompanySettingsFormPage() {
         <form onSubmit={handleSubmit} className="bg-white border rounded-xl p-6 shadow-sm">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="space-y-1">
-              <div className="text-sm font-medium text-slate-700">Company Name <span className="text-red-500">*</span></div>
+              <div className="text-sm font-medium text-slate-700">
+                Company Name <span className="text-red-500">*</span>
+              </div>
               <input
                 required
                 value={form.companyName}
-                onChange={(e) => setForm((p: any) => ({ ...p, companyName: e.target.value }))}
+                onChange={(e) => setForm((p) => ({ ...p, companyName: e.target.value }))}
                 className="border rounded-md h-11 px-3 w-full"
                 placeholder="--"
               />
             </label>
 
             <label className="space-y-1">
-              <div className="text-sm font-medium text-slate-700">Email Id <span className="text-red-500">*</span></div>
+              <div className="text-sm font-medium text-slate-700">
+                Email Id <span className="text-red-500">*</span>
+              </div>
               <input
                 required
                 type="email"
                 value={form.email}
-                onChange={(e) => setForm((p: any) => ({ ...p, email: e.target.value }))}
+                onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
                 className="border rounded-md h-11 px-3 w-full"
                 placeholder="--"
               />
             </label>
 
             <label className="space-y-1">
-              <div className="text-sm font-medium text-slate-700">Contact No. <span className="text-red-500">*</span></div>
+              <div className="text-sm font-medium text-slate-700">
+                Contact No. <span className="text-red-500">*</span>
+              </div>
               <input
                 required
                 value={form.contactNo}
-                onChange={(e) => setForm((p: any) => ({ ...p, contactNo: e.target.value }))}
+                onChange={(e) => setForm((p) => ({ ...p, contactNo: e.target.value }))}
                 className="border rounded-md h-11 px-3 w-full"
                 placeholder="--"
               />
             </label>
 
             <label className="space-y-1">
-              <div className="text-sm font-medium text-slate-700">Company Website <span className="text-red-500">*</span></div>
+              <div className="text-sm font-medium text-slate-700">
+                Company Website <span className="text-red-500">*</span>
+              </div>
               <input
                 required
                 value={form.website}
-                onChange={(e) => setForm((p: any) => ({ ...p, website: e.target.value }))}
+                onChange={(e) => setForm((p) => ({ ...p, website: e.target.value }))}
                 className="border rounded-md h-11 px-3 w-full"
                 placeholder="--"
               />
@@ -219,11 +228,13 @@ export default function CompanySettingsFormPage() {
 
           <div className="mt-4">
             <label className="space-y-1 w-full">
-              <div className="text-sm font-medium text-slate-700">Company Address <span className="text-red-500">*</span></div>
+              <div className="text-sm font-medium text-slate-700">
+                Company Address <span className="text-red-500">*</span>
+              </div>
               <textarea
                 required
                 value={form.address}
-                onChange={(e) => setForm((p: any) => ({ ...p, address: e.target.value }))}
+                onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
                 className="border rounded-md p-3 h-28 w-full"
                 placeholder="--"
               />
@@ -232,7 +243,9 @@ export default function CompanySettingsFormPage() {
 
           {/* Logo upload */}
           <div className="mt-6">
-            <div className="text-sm font-medium text-slate-700 mb-2">Company Logo <span className="text-red-500">*</span></div>
+            <div className="text-sm font-medium text-slate-700 mb-2">
+              Company Logo <span className="text-red-500">*</span>
+            </div>
             <div
               onClick={onPickFileClick}
               className="border rounded-md h-36 flex items-center justify-center cursor-pointer bg-white hover:bg-gray-50"
@@ -253,6 +266,7 @@ export default function CompanySettingsFormPage() {
                 </div>
               )}
             </div>
+
             <input
               ref={fileInputRef}
               type="file"
@@ -269,12 +283,11 @@ export default function CompanySettingsFormPage() {
           <div className="mt-6 flex justify-center gap-4">
             <Button variant="outline" onClick={() => router.push("/settings/company-settings")}>Cancel</Button>
             <Button type="submit" onClick={handleSubmit} disabled={saving}>
-              {saving ? "Saving..." : id ? "Save changes" : "Save"}
+              {saving ? "Saving..." : "Save"}
             </Button>
           </div>
         </form>
 
-        {/* small footer / existing companies link */}
         <div className="mt-6 text-center text-sm text-slate-500">
           <Link href="/settings/company-settings" className="underline">Back to company list</Link>
         </div>
