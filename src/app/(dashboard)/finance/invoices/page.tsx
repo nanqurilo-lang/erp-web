@@ -211,6 +211,8 @@ export default function InvoiceList() {
   const fetchInvoices = async () => {
     setLoading(true);
     try {
+       const token=localStorage.getItem("accessToken");
+      console.log(token)
       const res = await fetch("/api/finance/invoices", {
         headers: { Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` },
       });
@@ -366,41 +368,100 @@ export default function InvoiceList() {
   };
 
   // Edit invoice (PUT /api/invoices/{invoiceNumber})
-  const handleEditInvoice = async () => {
-    if (!activeInvoice?.invoiceNumber) return;
-    setEditing(true);
-    try {
-      const body = {
-        invoiceDate: editForm.invoiceDate,
-        currency: editForm.currency,
-        amount: Number(editForm.amount || 0),
-        tax: Number(editForm.tax || 0),
-        discount: Number(editForm.discount || 0),
-        amountInWords: editForm.amountInWords,
-        notes: editForm.notes,
-      };
-      const res = await fetch(`/api/invoices/${activeInvoice.invoiceNumber}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
-        },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        throw new Error(`Update failed: ${res.status} ${t}`);
+ // replace your existing handleEditInvoice with this version
+const handleEditInvoice = async () => {
+  if (!activeInvoice) {
+    alert("No active invoice selected");
+    return;
+  }
+
+  // prefer invoiceNumber, but prepare fallback to numeric id (some APIs expect id)
+  const tryPaths = [];
+  if (activeInvoice.invoiceNumber) {
+    tryPaths.push(`/api/invoices/${encodeURIComponent(activeInvoice.invoiceNumber)}`);
+  }
+  if (typeof activeInvoice.id !== "undefined" && activeInvoice.id !== null) {
+    tryPaths.push(`/api/invoices/${encodeURIComponent(String(activeInvoice.id))}`);
+  }
+  if (tryPaths.length === 0) {
+    alert("Cannot determine invoice identifier (invoiceNumber or id missing).");
+    return;
+  }
+
+  setEditing(true);
+  let lastErrorText = null;
+
+  try {
+    const body = {
+      invoiceDate: editForm.invoiceDate,
+      currency: editForm.currency,
+      amount: Number(editForm.amount || 0),
+      tax: Number(editForm.tax || 0),
+      discount: Number(editForm.discount || 0),
+      amountInWords: editForm.amountInWords,
+      notes: editForm.notes,
+    };
+
+    // try available endpoints in order, stop on first success (2xx)
+    let success = false;
+    for (const path of tryPaths) {
+      try {
+        const res = await fetch(path, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
+          },
+          body: JSON.stringify(body),
+        });
+
+        if (res.ok) {
+          // success -> update UI
+          await res.json(); // consume body
+          success = true;
+          break;
+        } else {
+          // capture error text (could be JSON or HTML); keep trying other paths
+          const text = await res.text().catch(() => "");
+          lastErrorText = `Path: ${path} => ${res.status} ${res.statusText}\n${text}`;
+          // if 404 specifically, try next path; otherwise break and show error
+          if (res.status === 404) {
+            // try fallback path (loop continues)
+            continue;
+          } else {
+            // stop trying on other errors (400/401/500) so we don't mask real problems
+            break;
+          }
+        }
+      } catch (fetchErr: any) {
+        lastErrorText = `Network/Fetch error for ${path}: ${fetchErr?.message || fetchErr}`;
+        // try next path (maybe second path works)
+        continue;
       }
-      await res.json();
-      setOpenEditModal(false);
-      await fetchInvoices();
-    } catch (err: any) {
-      console.error(err);
-      alert(err?.message || "Update failed");
-    } finally {
-      setEditing(false);
     }
-  };
+
+    if (!lastErrorText && !success) {
+      lastErrorText = "Unknown error while updating invoice";
+    }
+
+    if (!success) {
+      // surface a concise error to user and log details to console
+      console.error("Update failed details:", lastErrorText);
+      alert(`Update failed. See console for details.`);
+      return;
+    }
+
+    // success path
+    setOpenEditModal(false);
+    await fetchInvoices(); // refresh list
+  } catch (err: any) {
+    console.error("Unexpected error in handleEditInvoice:", err);
+    alert(err?.message || "Update failed");
+  } finally {
+    setEditing(false);
+  }
+};
+
 
   // Upload file (POST /api/invoices/{invoiceNumber}/files) FormData field 'file'
   const handleUploadFile = async () => {
