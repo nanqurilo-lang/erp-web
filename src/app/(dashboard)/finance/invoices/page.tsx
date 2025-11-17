@@ -20,6 +20,7 @@ import {
   CheckCircle,
   Bell,
   FilePlus,
+  Download as DownloadIcon,
 } from "lucide-react";
 
 import {
@@ -51,7 +52,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 /* --------------------------
-  Types (loose to accept nulls)
+  Types
 ---------------------------*/
 type Company = { companyName?: string | null; companyLogoUrl?: string | null };
 type Client = {
@@ -96,16 +97,16 @@ type Invoice = {
 };
 
 /* --------------------------
-  Helper small modal component
+  Modal & small components
 ---------------------------*/
 function Modal({ open, title, onClose, children }: { open: boolean; title?: string; onClose: () => void; children: React.ReactNode; }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8">
+    <div className="fixed inset-0 z-50 flex items-start justify-center  overflow-auto px-4 py-8">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative z-10 w-full max-w-5xl bg-white rounded shadow-lg overflow-auto">
-        <div className="flex items-center justify-between p-6 border-b">
-          <h3 className="text-2xl font-semibold">{title}</h3>
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="text-lg font-semibold">{title}</h3>
           <Button variant="ghost" onClick={onClose}><span className="sr-only">Close</span>✕</Button>
         </div>
         <div className="p-6">{children}</div>
@@ -114,16 +115,8 @@ function Modal({ open, title, onClose, children }: { open: boolean; title?: stri
   );
 }
 
-/* --------------------------
-  Small UI card used inside view modal for client/project
----------------------------*/
-function InfoCard({ title, children }: { title: string; children: React.ReactNode; }) {
-  return (
-    <div className="rounded-lg border p-6 bg-white">
-      <h4 className="text-lg font-medium mb-4">{title}</h4>
-      <div>{children}</div>
-    </div>
-  );
+function Card({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-lg border bg-white p-4">{children}</div>;
 }
 
 /* --------------------------
@@ -169,13 +162,15 @@ export default function InvoiceList() {
 
   // forms
   const [createForm, setCreateForm] = useState<any>({
+    invoiceNumber: "",
     invoiceDate: "",
-    currency: "",
+    currency: "USD",
     projectId: "",
+    projectName: "",
     clientId: "",
-    amount: "",
-    tax: "",
-    discount: "",
+    amount: 0,
+    tax: 10,
+    discount: 0,
     amountInWords: "",
     notes: "",
   });
@@ -183,9 +178,9 @@ export default function InvoiceList() {
   const [editForm, setEditForm] = useState<any>({
     invoiceDate: "",
     currency: "",
-    amount: "",
-    tax: "",
-    discount: "",
+    amount: 0,
+    tax: 0,
+    discount: 0,
     amountInWords: "",
     notes: "",
   });
@@ -239,14 +234,14 @@ export default function InvoiceList() {
     fetchInvoices();
   }, []);
 
-  // derived lists
+  // derived lists (projects/clients from invoices response)
   const projectList = useMemo(() => {
     const s = new Set<string>();
     invoices.forEach((i) => {
       const v = i.project?.projectName;
       if (v) s.add(v);
     });
-    return ["All", ...Array.from(s)];
+    return ["Select Project", ...Array.from(s)];
   }, [invoices]);
 
   const clientList = useMemo(() => {
@@ -255,7 +250,7 @@ export default function InvoiceList() {
       const v = i.client?.name;
       if (v) s.add(v);
     });
-    return ["All", ...Array.from(s)];
+    return ["Select Client", ...Array.from(s)];
   }, [invoices]);
 
   const statusList = useMemo(() => {
@@ -268,9 +263,9 @@ export default function InvoiceList() {
   }, [invoices]);
 
   const safeFormatDate = (d?: string | null) => {
-    if (!d) return "N/A";
+    if (!d) return "--";
     const dt = new Date(d);
-    if (Number.isNaN(dt.getTime())) return "N/A";
+    if (Number.isNaN(dt.getTime())) return d;
     return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   };
 
@@ -296,8 +291,8 @@ export default function InvoiceList() {
           (inv.client?.name ?? "").toString().toLowerCase().includes(s);
         if (!match) return false;
       }
-      if (projectFilter !== "All" && (inv.project?.projectName ?? "") !== projectFilter) return false;
-      if (clientFilter !== "All" && (inv.client?.name ?? "") !== clientFilter) return false;
+      if (projectFilter !== "All" && projectFilter !== "Select Project" && (inv.project?.projectName ?? "") !== projectFilter) return false;
+      if (clientFilter !== "All" && clientFilter !== "Select Client" && (inv.client?.name ?? "") !== clientFilter) return false;
       if (statusFilter !== "All" && (inv.status ?? "") !== statusFilter) return false;
 
       if (dateRange.start && dateRange.end) {
@@ -323,6 +318,7 @@ export default function InvoiceList() {
     setCreating(true);
     try {
       const body = {
+        invoiceNumber: createForm.invoiceNumber || undefined,
         invoiceDate: createForm.invoiceDate,
         currency: createForm.currency,
         projectId: createForm.projectId,
@@ -348,13 +344,15 @@ export default function InvoiceList() {
       await res.json();
       setOpenCreateModal(false);
       setCreateForm({
+        invoiceNumber: "",
         invoiceDate: "",
-        currency: "",
+        currency: "USD",
         projectId: "",
+        projectName: "",
         clientId: "",
-        amount: "",
-        tax: "",
-        discount: "",
+        amount: 0,
+        tax: 10,
+        discount: 0,
         amountInWords: "",
         notes: "",
       });
@@ -457,31 +455,29 @@ export default function InvoiceList() {
     }
   };
 
-  // Add receipt -> POST /api/invoice (body is receiptForm)
-  const handleAddReceipt = async () => {
-    setAddingReceipt(true);
+  // Add receipt, Add payment, fetch payments, mark as paid, send reminder, delete invoice...
+  // (same implementations as previous version; omitted here for brevity but kept below)
+  // View payments -> fetch /api/payments/invoice/{invoiceNumber}
+  const [paymentsForActive, setPaymentsForActive] = useState<any[]>([]);
+  const fetchPaymentsForInvoice = async (invoiceNumber?: string | null) => {
+    if (!invoiceNumber) return setPaymentsForActive([]);
     try {
-      const res = await fetch("/api/invoice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` },
-        body: JSON.stringify(receiptForm),
+      const res = await fetch(`/api/payments/invoice/${invoiceNumber}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` },
       });
       if (!res.ok) {
         const t = await res.text().catch(() => "");
-        throw new Error(`Add receipt failed: ${res.status} ${t}`);
+        throw new Error(`Fetch payments failed: ${res.status} ${t}`);
       }
-      await res.json();
-      setOpenAddReceiptModal(false);
-      await fetchInvoices();
+      const data = await res.json();
+      setPaymentsForActive(Array.isArray(data) ? data : []);
     } catch (err: any) {
       console.error(err);
-      alert(err?.message || "Add receipt failed");
-    } finally {
-      setAddingReceipt(false);
+      setPaymentsForActive([]);
+      alert(err?.message || "Failed to load payments");
     }
   };
 
-  // Add payment -> /api/payments (FormData: 'payment' JSON and 'file')
   const handleAddPayment = async () => {
     setAddingPayment(true);
     try {
@@ -509,28 +505,29 @@ export default function InvoiceList() {
     }
   };
 
-  // View payments -> fetch /api/payments/invoice/{invoiceNumber}
-  const [paymentsForActive, setPaymentsForActive] = useState<any[]>([]);
-  const fetchPaymentsForInvoice = async (invoiceNumber?: string | null) => {
-    if (!invoiceNumber) return setPaymentsForActive([]);
+  const handleAddReceipt = async () => {
+    setAddingReceipt(true);
     try {
-      const res = await fetch(`/api/payments/invoice/${invoiceNumber}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` },
+      const res = await fetch("/api/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` },
+        body: JSON.stringify(receiptForm),
       });
       if (!res.ok) {
         const t = await res.text().catch(() => "");
-        throw new Error(`Fetch payments failed: ${res.status} ${t}`);
+        throw new Error(`Add receipt failed: ${res.status} ${t}`);
       }
-      const data = await res.json();
-      setPaymentsForActive(Array.isArray(data) ? data : []);
+      await res.json();
+      setOpenAddReceiptModal(false);
+      await fetchInvoices();
     } catch (err: any) {
       console.error(err);
-      setPaymentsForActive([]);
-      alert(err?.message || "Failed to load payments");
+      alert(err?.message || "Add receipt failed");
+    } finally {
+      setAddingReceipt(false);
     }
   };
 
-  // Mark as paid -> POST /api/invoices/{invoiceId}/mark-paid
   const handleMarkAsPaid = async () => {
     if (!activeInvoice) return;
     setMarkingPaid(true);
@@ -554,7 +551,6 @@ export default function InvoiceList() {
     }
   };
 
-  // Send payment reminder -> POST /api/invoices/{invoiceNumber}/actions/send-reminder-email
   const handleSendPaymentReminder = async () => {
     if (!activeInvoice?.invoiceNumber) return;
     try {
@@ -574,7 +570,6 @@ export default function InvoiceList() {
     }
   };
 
-  // Delete invoice -> DELETE /api/invoices/{invoiceNumber}
   const handleDeleteInvoice = async (invoiceNumber?: string | null) => {
     if (!invoiceNumber) return;
     if (!confirm("Delete this invoice?")) return;
@@ -599,49 +594,60 @@ export default function InvoiceList() {
     }
   };
 
-  // Duplicate -> prefill create form from invoice
   const handleCreateDuplicate = (inv: Invoice) => {
     setCreateForm({
+      invoiceNumber: "",
       invoiceDate: inv.invoiceDate ?? "",
-      currency: inv.currency ?? "",
+      currency: inv.currency ?? "USD",
       projectId: inv.project?.projectId ?? "",
+      projectName: inv.project?.projectName ?? "",
       clientId: inv.client?.clientId ?? "",
       amount: inv.amount ?? inv.total ?? 0,
       tax: inv.tax ?? 0,
       discount: inv.discount ?? 0,
-      amountInWords: inv.amount ? inv.amount.toString() : "",
+      amountInWords: inv.amountInWords ?? "",
       notes: inv?.notes ?? "",
     });
     setOpenCreateModal(true);
   };
 
-  // open action modal items depending on status
-  const openActionsFor = (inv: Invoice) => {
-    setActiveInvoice(inv);
-    setOpenViewModal(true);
+  // helpful: compute subtotal, tax, discount, total for create modal preview
+  const subtotal = Number(createForm.amount || 0);
+  const discountAmount = createForm.discount
+    ? createForm.discount > 1
+      ? Number(createForm.discount) // if user enters absolute value
+      : (subtotal * Number(createForm.discount || 0)) / 100
+    : 0;
+  const taxAmount = ((subtotal - discountAmount) * Number(createForm.tax || 0)) / 100;
+  const totalAmount = subtotal - discountAmount + taxAmount;
+
+  // helper to get project budget from invoices list (best-effort)
+  const getProjectBudget = (projectName?: string | null) => {
+    if (!projectName) return 0;
+    const found = invoices.find((i) => i.project?.projectName === projectName && typeof i.project?.budget === "number");
+    return found?.project?.budget ?? 0;
   };
 
-  /* --------------------------
-    UI
-  ---------------------------*/
   if (loading) return <div className="container mx-auto p-6"><p className="text-center text-gray-600">Loading invoices...</p></div>;
   if (error) return <div className="container mx-auto p-6"><p className="text-center text-red-500">Error: {error}</p></div>;
 
   return (
     <div className="container mx-auto p-6">
-      {/* header - Create button moved to top-left (matches your screenshot) */}
+      {/* header - Create button top-left */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button
             onClick={() => {
               setCreateForm({
+                invoiceNumber: "",
                 invoiceDate: "",
-                currency: "",
+                currency: "USD",
                 projectId: "",
+                projectName: "",
                 clientId: "",
-                amount: "",
-                tax: "",
-                discount: "",
+                amount: 0,
+                tax: 10,
+                discount: 0,
                 amountInWords: "",
                 notes: "",
               });
@@ -659,11 +665,11 @@ export default function InvoiceList() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* right side reserved for other actions if needed */}
+          {/* space for other actions */}
         </div>
       </div>
 
-      {/* filters bar */}
+      {/* filters */}
       <div className="mb-4 border rounded-md bg-white px-3 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 border rounded p-2 bg-white">
@@ -742,21 +748,18 @@ export default function InvoiceList() {
                     <TableCell>{safeFormatDate(inv.invoiceDate)}</TableCell>
                     <TableCell>{getStatusBadge(inv.status)}</TableCell>
                     <TableCell className="text-right">
-                      {/* Action menu - entries depend on status */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56">
-                          {/* common: View */}
                           <DropdownMenuItem onClick={() => { setActiveInvoice(inv); setOpenViewModal(true); }}>
                             <Eye className="mr-2 h-4 w-4" /> View
                           </DropdownMenuItem>
 
-                          {/* UNPAID: edit, mark as paid, add payment, view payment, payment reminder */}
                           {statusKey === "UNPAID" && (
                             <>
-                              <DropdownMenuItem onClick={() => { setActiveInvoice(inv); setEditForm({ invoiceDate: inv.invoiceDate ?? "", currency: inv.currency ?? "", amount: inv.amount ?? inv.total ?? 0, tax: inv.tax ?? 0, discount: inv.discount ?? 0, amountInWords: inv.amountInWords ?? "", notes: inv.notes ?? "" }); setOpenEditModal(true); }}>
+                              <DropdownMenuItem onClick={() => { setActiveInvoice(inv); setEditForm({ invoiceDate: inv.invoiceDate ?? "", currency: inv.currency ?? "USD", amount: inv.amount ?? inv.total ?? 0, tax: inv.tax ?? 0, discount: inv.discount ?? 0, amountInWords: inv.amountInWords ?? "", notes: inv.notes ?? "" }); setOpenEditModal(true); }}>
                                 <Edit2 className="mr-2 h-4 w-4" /> Edit
                               </DropdownMenuItem>
 
@@ -778,7 +781,6 @@ export default function InvoiceList() {
                             </>
                           )}
 
-                          {/* PAID: add receipt, view receipt, upload file, view payment, add credit note, view credit note */}
                           {statusKey === "PAID" && (
                             <>
                               <DropdownMenuItem onClick={() => { setActiveInvoice(inv); setOpenAddReceiptModal(true); }}>
@@ -796,18 +798,9 @@ export default function InvoiceList() {
                               <DropdownMenuItem onClick={() => { setActiveInvoice(inv); fetchPaymentsForInvoice(inv.invoiceNumber ?? ""); setOpenViewPaymentsModal(true); }}>
                                 <FileText className="mr-2 h-4 w-4" /> View payment
                               </DropdownMenuItem>
-
-                              <DropdownMenuItem onClick={() => { alert("Add credit note: feature to implement in future"); }}>
-                                <FileText className="mr-2 h-4 w-4" /> Add credit note
-                              </DropdownMenuItem>
-
-                              <DropdownMenuItem onClick={() => { alert("View credit notes: feature to implement in future"); }}>
-                                <FileText className="mr-2 h-4 w-4" /> View credit note
-                              </DropdownMenuItem>
                             </>
                           )}
 
-                          {/* CREDIT_NOTES */}
                           {statusKey.includes("CREDIT") && (
                             <>
                               <DropdownMenuItem onClick={() => { setActiveInvoice(inv); setPaymentForm({ ...paymentForm, projectId: inv.project?.projectId ?? "", clientId: inv.client?.clientId ?? "", currency: inv.currency ?? "", amount: inv.unpaidAmount ?? inv.total ?? 0, invoiceId: inv.invoiceNumber ?? "" }); setOpenAddPaymentModal(true); }}>
@@ -822,12 +815,10 @@ export default function InvoiceList() {
 
                           <DropdownMenuSeparator />
 
-                          {/* Create duplicate */}
                           <DropdownMenuItem onClick={() => handleCreateDuplicate(inv)}>
                             <Copy className="mr-2 h-4 w-4" /> Create duplicate
                           </DropdownMenuItem>
 
-                          {/* Delete */}
                           <DropdownMenuItem onClick={() => { setActiveInvoice(inv); handleDeleteInvoice(inv.invoiceNumber ?? ""); }}>
                             <Trash className="mr-2 h-4 w-4" /> Delete
                           </DropdownMenuItem>
@@ -843,99 +834,203 @@ export default function InvoiceList() {
       </div>
 
       {/* -------------------------
-         Create Invoice Modal
+         Create Invoice Modal (NEW UI matching screenshot)
          ------------------------ */}
-      <Modal open={openCreateModal} title="+ Create Invoice" onClose={() => setOpenCreateModal(false)}>
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <div className="text-sm text-gray-600">Invoice Date</div>
-              <input type="date" value={createForm.invoiceDate} onChange={(e) => setCreateForm((p:any) => ({ ...p, invoiceDate: e.target.value }))} className="border rounded px-2 py-1 w-full" />
-            </label>
-            <label className="block">
-              <div className="text-sm text-gray-600">Currency</div>
-              <input value={createForm.currency} onChange={(e) => setCreateForm((p:any) => ({ ...p, currency: e.target.value }))} className="border rounded px-2 py-1 w-full" />
-            </label>
-            <label>
-              <div className="text-sm text-gray-600">Project (ID)</div>
-              <input value={createForm.projectId} onChange={(e) => setCreateForm((p:any) => ({ ...p, projectId: e.target.value }))} className="border rounded px-2 py-1 w-full" placeholder="projectId (e.g. 15)" />
-            </label>
-            <label>
-              <div className="text-sm text-gray-600">Client (ID)</div>
-              <input value={createForm.clientId} onChange={(e) => setCreateForm((p:any) => ({ ...p, clientId: e.target.value }))} className="border rounded px-2 py-1 w-full" placeholder="clientId (e.g. CLI006)" />
-            </label>
-          </div>
+      <Modal open={openCreateModal} title="Create Invoice" onClose={() => setOpenCreateModal(false)}>
+        <div className="space-y-6 ">
+          {/* Invoice Details card */}
+          <Card>
+            <h4 className="text-sm font-medium mb-4">Invoice Details</h4>
+            <div className="grid grid-cols-12 gap-3 items-center">
+              <div className="col-span-4">
+                <label className="text-sm text-gray-600 block mb-1">Invoice Number *</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">INV#</div>
+                  <input value={createForm.invoiceNumber} onChange={(e) => setCreateForm((p:any) => ({ ...p, invoiceNumber: e.target.value }))} className="pl-14 border rounded w-full h-10" placeholder="INV#000" />
+                </div>
+              </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <input value={createForm.amount} onChange={(e) => setCreateForm((p:any) => ({ ...p, amount: e.target.value }))} className="border rounded px-2 py-1" placeholder="Amount" />
-            <input value={createForm.tax} onChange={(e) => setCreateForm((p:any) => ({ ...p, tax: e.target.value }))} className="border rounded px-2 py-1" placeholder="Tax" />
-            <input value={createForm.discount} onChange={(e) => setCreateForm((p:any) => ({ ...p, discount: e.target.value }))} className="border rounded px-2 py-1" placeholder="Discount" />
-          </div>
+              <div className="col-span-4">
+                <label className="text-sm text-gray-600 block mb-1">Invoice Date *</label>
+                <input type="date" value={createForm.invoiceDate} onChange={(e) => setCreateForm((p:any) => ({ ...p, invoiceDate: e.target.value }))} className="border rounded w-full h-10" />
+              </div>
 
-          <input value={createForm.amountInWords} onChange={(e) => setCreateForm((p:any) => ({ ...p, amountInWords: e.target.value }))} className="border rounded px-2 py-1 w-full" placeholder="Amount in words" />
-          <textarea value={createForm.notes} onChange={(e) => setCreateForm((p:any) => ({ ...p, notes: e.target.value }))} className="border rounded px-2 py-1 w-full" placeholder="Notes" />
+              <div className="col-span-4">
+                <label className="text-sm text-gray-600 block mb-1">Currency *</label>
+                <select value={createForm.currency} onChange={(e) => setCreateForm((p:any) => ({ ...p, currency: e.target.value }))} className="border rounded w-full h-10">
+                  <option>USD $</option>
+                  <option>INR ₹</option>
+                  <option>EUR €</option>
+                </select>
+              </div>
+            </div>
+          </Card>
 
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setOpenCreateModal(false)}>Cancel</Button>
+          {/* Project Details card */}
+          <Card>
+            <h4 className="text-sm font-medium mb-4">Project Details</h4>
+
+            <div className="grid grid-cols-12 gap-3 items-center">
+              <div className="col-span-4">
+                <label className="text-sm text-gray-600 block mb-1">Project *</label>
+                <select
+                  value={createForm.projectName || "Select Project"}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCreateForm((p:any) => ({ ...p, projectName: val }));
+                    // try to set projectId if invoice matched
+                    const found = invoices.find((inv) => inv.project?.projectName === val);
+                    if (found?.project?.projectId) setCreateForm((p:any) => ({ ...p, projectId: found.project?.projectId }));
+                    // if project has budget, keep it displayed (we use getProjectBudget)
+                  }}
+                  className="border rounded w-full h-10"
+                >
+                  {projectList.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+
+              <div className="col-span-4">
+                <label className="text-sm text-gray-600 block mb-1">Client *</label>
+                <select value={createForm.clientId || "Select Client"} onChange={(e) => setCreateForm((p:any) => ({ ...p, clientId: e.target.value }))} className="border rounded w-full h-10">
+                  {clientList.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <div className="col-span-4">
+                <label className="text-sm text-gray-600 block mb-1">Project Budget *</label>
+                <div className="flex items-center">
+                  <div className="px-3 py-2 bg-gray-100 border rounded-l"> {createForm.currency === "INR" ? "₹" : createForm.currency?.[0] ?? "$"}</div>
+                  <input readOnly value={getProjectBudget(createForm.projectName).toLocaleString()} className="border rounded-r w-full h-10 pl-3" />
+                </div>
+              </div>
+            </div>
+
+            {/* Amount / Tax summary row */}
+            <div className="mt-4 border rounded overflow-auto flex">
+              <div className="flex-1 p-3">
+                <div className="text-sm text-gray-600 mb-1">Amount</div>
+                <div className="flex gap-3 items-center">
+                  <div className="px-3 py-2 bg-gray-50 border rounded">$</div>
+                  <input type="number" value={createForm.amount} onChange={(e) => setCreateForm((p:any) => ({ ...p, amount: Number(e.target.value) }))} className="border rounded h-10 w-40 px-2" />
+                </div>
+              </div>
+
+              <div className="w-56 p-3 border-l">
+                <div className="text-sm text-gray-600 mb-1">Tax</div>
+                <input type="number" value={createForm.tax} onChange={(e) => setCreateForm((p:any) => ({ ...p, tax: Number(e.target.value) }))} className="border rounded h-10 w-full px-2" />
+              </div>
+
+              <div className="w-40 bg-gray-100 p-3 flex flex-col items-center justify-center">
+                <div className="text-sm text-gray-500">Amount</div>
+                <div className="font-bold text-lg">{(totalAmount).toLocaleString()}</div>
+              </div>
+            </div>
+
+            {/* Subtotal table small */}
+            <div className="mt-4 flex justify-end">
+              <div className="w-80 border rounded overflow-hidden">
+                <div className="grid grid-cols-3 gap-2 border-b p-2">
+                  <div />
+                  <div className="text-sm text-gray-500 text-right">Sub Total</div>
+                  <div className="text-right font-medium">{subtotal.toFixed(2)}</div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 border-b p-2 items-center">
+                  <div className="text-sm text-gray-500">Discount</div>
+                  <div>
+                    <input type="number" value={createForm.discount} onChange={(e) => setCreateForm((p:any) => ({ ...p, discount: Number(e.target.value) }))} className="border rounded px-2 h-8 w-full" />
+                  </div>
+                  <div className="text-right">{discountAmount.toFixed(2)}</div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 border-b p-2 items-center">
+                  <div className="text-sm text-gray-500">Tax</div>
+                  <div className="text-sm text-gray-500">{createForm.tax} %</div>
+                  <div className="text-right">{taxAmount.toFixed(2)}</div>
+                </div>
+
+                <div className="p-2 bg-gray-100 grid grid-cols-3 gap-2 items-center">
+                  <div />
+                  <div className="text-right font-medium">Total</div>
+                  <div className="text-right font-bold">{totalAmount.toFixed(2)}</div>
+                </div>
+              </div>
+            </div>
+
+          </Card>
+
+          {/* Amount in words + Notes */}
+          <Card>
+            <div className="grid grid-cols-12 gap-4">
+              <div className="col-span-6">
+                <label className="text-sm text-gray-600 block mb-1">Amount in words</label>
+                <input value={createForm.amountInWords} onChange={(e) => setCreateForm((p:any) => ({ ...p, amountInWords: e.target.value }))} className="border rounded w-full h-10 px-3" />
+              </div>
+
+              <div className="col-span-6">
+                <label className="text-sm text-gray-600 block mb-1">Note/ Description for the recipient</label>
+                <textarea value={createForm.notes} onChange={(e) => setCreateForm((p:any) => ({ ...p, notes: e.target.value }))} className="border rounded w-full h-28 p-3" />
+              </div>
+            </div>
+          </Card>
+
+          {/* bottom action buttons (centered) */}
+          <div className="flex justify-center gap-4 mt-2">
+            <Button variant="outline" onClick={() => setOpenCreateModal(false)}>Cancel</Button>
             <Button onClick={handleCreateInvoice} disabled={creating}>{creating ? "Creating..." : "Save"}</Button>
           </div>
+
         </div>
       </Modal>
 
       {/* -------------------------
-         View Invoice Modal (FULL DETAILS UI)
+         View / Edit / Upload / Payments / Receipts modals
+         (kept same as earlier implementation)
          ------------------------ */}
+
+      {/* View invoice modal */}
       <Modal open={openViewModal} title={`Invoice ${activeInvoice?.invoiceNumber ?? ""}`} onClose={() => { setOpenViewModal(false); setActiveInvoice(null); }}>
         <div className="space-y-6">
-          {/* Top row: Client card and Project card */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <InfoCard title="Client Details">
+            <Card>
+              <h4 className="text-sm font-medium mb-4">Client Details</h4>
               <div className="grid grid-cols-2 gap-y-3">
                 <div className="text-sm text-gray-500">Name</div>
                 <div className="font-medium">{activeInvoice?.client?.name ?? "-"}</div>
-
                 <div className="text-sm text-gray-500">Email</div>
                 <div className="font-medium">{activeInvoice?.client?.email ?? "-"}</div>
-
                 <div className="text-sm text-gray-500">Company Name</div>
                 <div className="font-medium">{activeInvoice?.client?.company?.companyName ?? activeInvoice?.client?.companyName ?? "-"}</div>
-
                 <div className="text-sm text-gray-500">Mobile</div>
                 <div className="font-medium">{activeInvoice?.client?.mobile ?? "-"}</div>
-
                 <div className="text-sm text-gray-500">Address</div>
                 <div className="font-medium">{activeInvoice?.client?.address ?? "--"}</div>
-
                 <div className="text-sm text-gray-500">Country</div>
                 <div className="font-medium">{activeInvoice?.client?.country ?? "-"}</div>
               </div>
-            </InfoCard>
+            </Card>
 
-            <InfoCard title="Project Details">
+            <Card>
+              <h4 className="text-sm font-medium mb-4">Project Details</h4>
               <div className="grid grid-cols-2 gap-y-3">
                 <div className="text-sm text-gray-500">Project Name</div>
                 <div className="font-medium">{activeInvoice?.project?.projectName ?? "-"}</div>
-
                 <div className="text-sm text-gray-500">Project Code</div>
                 <div className="font-medium">{activeInvoice?.project?.projectCode ?? "-"}</div>
-
                 <div className="text-sm text-gray-500">Start Date</div>
                 <div className="font-medium">{safeFormatDate(activeInvoice?.project?.startDate ?? activeInvoice?.createdAt)}</div>
-
                 <div className="text-sm text-gray-500">Deadline</div>
                 <div className="font-medium">{safeFormatDate(activeInvoice?.project?.deadline)}</div>
-
                 <div className="text-sm text-gray-500">Budget</div>
                 <div className="font-medium">{activeInvoice?.project?.currency ?? ""} {Number(activeInvoice?.project?.budget ?? 0).toLocaleString()}</div>
               </div>
-            </InfoCard>
+            </Card>
           </div>
 
-          {/* Invoice details full (big card) */}
-          <InfoCard title="Invoice Details">
+          <Card>
+            <h4 className="text-sm font-medium mb-3">Invoice Details</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* labels column */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="text-sm text-gray-500">Invoice No.</div>
                 <div className="text-sm text-gray-500">Invoice Date</div>
                 <div className="text-sm text-gray-500">Currency</div>
@@ -948,8 +1043,7 @@ export default function InvoiceList() {
                 <div className="text-sm text-gray-500">Files</div>
               </div>
 
-              {/* values column */}
-              <div className="md:col-span-2 space-y-4">
+              <div className="md:col-span-2 space-y-3">
                 <div className="font-medium">{activeInvoice?.invoiceNumber ?? "-"}</div>
                 <div className="font-medium">{safeFormatDate(activeInvoice?.invoiceDate)}</div>
                 <div className="font-medium">{activeInvoice?.currency ?? "-"}</div>
@@ -960,46 +1054,40 @@ export default function InvoiceList() {
                 <div className="font-bold">{activeInvoice?.currency ?? ""} {Number(activeInvoice?.total ?? 0).toLocaleString()}</div>
                 <div className="flex items-center gap-2">{getStatusBadge(activeInvoice?.status)} <span className="text-sm text-gray-600">{(activeInvoice?.status ?? "").toString().replace("_", " ")}</span></div>
 
-                <div>
-                  {/* files - show thumbnails if images, else show file link */}
-                  <div className="flex gap-4 flex-wrap">
-                    {(activeInvoice?.fileUrls ?? []).length === 0 && <div className="text-sm text-gray-500">No files attached</div>}
-                    {(activeInvoice?.fileUrls ?? []).map((f, idx) => {
-                      const isImage = /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(f ?? "");
-                      return (
-                        <div key={idx} className="w-40">
-                          <div className="relative rounded overflow-hidden border">
-                            {isImage ? (
-                              // Next/Image requires remote domains configured; use normal img if not configured
-                              <img src={f ?? ""} alt={`file-${idx}`} className="w-full h-24 object-cover" />
-                            ) : (
-                              <div className="w-full h-24 flex items-center justify-center bg-gray-50 text-sm text-gray-600">FILE</div>
-                            )}
-                            <div className="absolute top-2 right-2">
-                              <Button variant="ghost" size="sm" onClick={() => window.open(f, "_blank")}>
-                                <Download className="w-4 h-4" />
-                              </Button>
-                            </div>
+                <div className="flex gap-4 flex-wrap">
+                  {(activeInvoice?.fileUrls ?? []).length === 0 && <div className="text-sm text-gray-500">No files attached</div>}
+                  {(activeInvoice?.fileUrls ?? []).map((f, idx) => {
+                    const isImage = /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(f ?? "");
+                    return (
+                      <div key={idx} className="w-40">
+                        <div className="relative rounded overflow-hidden border">
+                          {isImage ? (
+                            <img src={f ?? ""} alt={`file-${idx}`} className="w-full h-24 object-cover" />
+                          ) : (
+                            <div className="w-full h-24 flex items-center justify-center bg-gray-50 text-sm text-gray-600">FILE</div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <Button variant="ghost" size="sm" onClick={() => window.open(f, "_blank")}>
+                              <DownloadIcon className="w-4 h-4" />
+                            </Button>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
-            {/* notes */}
             <div className="mt-6">
               <div className="text-sm text-gray-500">Notes</div>
               <div className="mt-2 text-sm">{activeInvoice?.notes ?? "No notes"}</div>
             </div>
 
-            {/* quick actions in view modal */}
             <div className="mt-6 flex gap-2 justify-end">
               {(activeInvoice?.status ?? "").toString().toUpperCase() === "UNPAID" && (
                 <>
-                  <Button variant="ghost" onClick={() => { setOpenEditModal(true); setEditForm({ invoiceDate: activeInvoice?.invoiceDate ?? "", currency: activeInvoice?.currency ?? "", amount: activeInvoice?.amount ?? activeInvoice?.total ?? 0, tax: activeInvoice?.tax ?? 0, discount: activeInvoice?.discount ?? 0, amountInWords: activeInvoice?.amountInWords ?? "", notes: activeInvoice?.notes ?? "" }); }}>
+                  <Button variant="ghost" onClick={() => { setOpenEditModal(true); setEditForm({ invoiceDate: activeInvoice?.invoiceDate ?? "", currency: activeInvoice?.currency ?? "USD", amount: activeInvoice?.amount ?? activeInvoice?.total ?? 0, tax: activeInvoice?.tax ?? 0, discount: activeInvoice?.discount ?? 0, amountInWords: activeInvoice?.amountInWords ?? "", notes: activeInvoice?.notes ?? "" }); }}>
                     <Edit2 className="mr-2 h-4 w-4" /> Edit
                   </Button>
                   <Button onClick={() => { setActiveInvoice(activeInvoice); if (confirm("Mark this invoice as paid?")) handleMarkAsPaid(); }}>
@@ -1016,13 +1104,12 @@ export default function InvoiceList() {
                 <FileText className="mr-2 h-4 w-4" /> View Payment
               </Button>
             </div>
-          </InfoCard>
+          </Card>
         </div>
       </Modal>
 
-      {/* -------------------------
-         Edit Invoice Modal
-         ------------------------ */}
+      {/* Edit, Upload, Add Payment, View Payments, Add Receipt, View Receipts modals below (kept same as earlier) */}
+      {/* Edit Invoice Modal */}
       <Modal open={openEditModal} title={`Edit ${activeInvoice?.invoiceNumber ?? ""}`} onClose={() => setOpenEditModal(false)}>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -1052,9 +1139,7 @@ export default function InvoiceList() {
         </div>
       </Modal>
 
-      {/* -------------------------
-         Upload File Modal
-         ------------------------ */}
+      {/* Upload File Modal */}
       <Modal open={openUploadModal} title={`Upload file for ${activeInvoice?.invoiceNumber ?? ""}`} onClose={() => { setOpenUploadModal(false); setFileToUpload(null); }}>
         <div className="space-y-3">
           <input type="file" onChange={(e) => setFileToUpload(e.target.files ? e.target.files[0] : null)} />
@@ -1065,9 +1150,7 @@ export default function InvoiceList() {
         </div>
       </Modal>
 
-      {/* -------------------------
-         Add Payment Modal
-         ------------------------ */}
+      {/* Add Payment Modal */}
       <Modal open={openAddPaymentModal} title={`Add payment for ${activeInvoice?.invoiceNumber ?? ""}`} onClose={() => { setOpenAddPaymentModal(false); setPaymentFile(null); }}>
         <div className="space-y-3">
           <input value={paymentForm.projectId} onChange={(e) => setPaymentForm((p:any) => ({ ...p, projectId: e.target.value }))} className="border rounded px-2 py-1 w-full" placeholder="projectId" />
@@ -1085,9 +1168,7 @@ export default function InvoiceList() {
         </div>
       </Modal>
 
-      {/* -------------------------
-         View Payments Modal
-         ------------------------ */}
+      {/* View Payments Modal */}
       <Modal open={openViewPaymentsModal} title={`Payments for ${activeInvoice?.invoiceNumber ?? ""}`} onClose={() => { setOpenViewPaymentsModal(false); setPaymentsForActive([]); }}>
         <div className="space-y-3">
           {paymentsForActive.length === 0 ? (
@@ -1102,7 +1183,6 @@ export default function InvoiceList() {
                     <div className="text-sm">{p.note}</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {/* Implement payment delete/download if needed */}
                     <Button variant="ghost" size="icon" onClick={() => { if (p.receiptFileUrl) window.open(p.receiptFileUrl, "_blank"); }}>🔍</Button>
                   </div>
                 </div>
@@ -1112,9 +1192,7 @@ export default function InvoiceList() {
         </div>
       </Modal>
 
-      {/* -------------------------
-         Add Receipt Modal
-         ------------------------ */}
+      {/* Add Receipt Modal */}
       <Modal open={openAddReceiptModal} title={`Add Receipt for ${activeInvoice?.invoiceNumber ?? ""}`} onClose={() => setOpenAddReceiptModal(false)}>
         <div className="space-y-3">
           <input value={receiptForm.invoiceId} onChange={(e) => setReceiptForm((p:any) => ({ ...p, invoiceId: e.target.value }))} className="border rounded px-2 py-1 w-full" placeholder="invoiceId" />
@@ -1130,9 +1208,7 @@ export default function InvoiceList() {
         </div>
       </Modal>
 
-      {/* -------------------------
-         View Receipts Modal (simple) - will open receipt API in modal or new page
-         ------------------------ */}
+      {/* View Receipts Modal */}
       <Modal open={openViewReceiptsModal} title={`Receipts for ${activeInvoice?.invoiceNumber ?? ""}`} onClose={() => setOpenViewReceiptsModal(false)}>
         <div className="space-y-3">
           <div className="text-sm text-gray-500">Receipts are available in receipts API. You can open the receipt in a new tab.</div>
