@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { useMemo, useState, useEffect, useCallback, Fragment } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -12,6 +12,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type Employee = { employeeId: string; name: string; designation?: string };
+type DealCategoryItem = { id: number; categoryName: string };
+type LeadSourceItem = { id: number; name: string };
+
 type DealPayload = {
   title: string;
   pipeline: string;
@@ -22,26 +25,33 @@ type DealPayload = {
   dealAgent: string;
   dealWatchers: string[];
 };
+
 type Lead = {
   id: number;
   name: string;
   email: string;
   mobileNumber?: string;
   clientCategory?: string;
+  leadSource?: string;
   addedBy?: string;
   leadOwner?: string;
   createDeal?: boolean;
   autoConvertToClient?: boolean;
   deal?: DealPayload;
   companyName?: string;
+  officialWebsite?: string;
+  officePhone?: string;
   city?: string;
+  state?: string;
+  postalCode?: string;
   country?: string;
+  companyAddress?: string;
   createdAt?: string;
-  leadOwnerMeta?: { name?: string; profileUrl?: string };
-  addedByMeta?: { name?: string; profileUrl?: string };
+  leadOwnerMeta?: { name?: string };
+  addedByMeta?: { name?: string };
 };
 
-const BASE = "https://chat.swiftandgo.in"; // as you provided
+const BASE = "https://chat.swiftandgo.in";
 
 const fetcher = async (url: string) => {
   const token = localStorage.getItem("accessToken");
@@ -57,50 +67,36 @@ const fetcher = async (url: string) => {
   return res.json();
 };
 
-function OwnerCell({ name, designation, avatar }: { name?: string; designation?: string; avatar?: string }) {
-  return (
-    <div className="flex items-center gap-3">
-      <img
-        src={avatar || "/placeholder.svg?height=32&width=32&query=profile-avatar"}
-        alt={name || "avatar"}
-        className="h-8 w-8 rounded-full object-cover border"
-      />
-      <div className="flex flex-col">
-        <span className="text-sm font-medium">{name || "—"}</span>
-        <span className="text-xs text-muted-foreground">{designation || "—"}</span>
-      </div>
-    </div>
-  );
-}
-
+/* ---------------------------
+   Main Leads page
+   --------------------------- */
 export default function LeadsPage() {
   const router = useRouter();
-  const { data, error, isLoading, mutate } = useSWR<Lead[]>(`${BASE}/leads`, fetcher, {
-    refreshInterval: 30000,
-    revalidateOnFocus: true,
-  });
 
-  // employees for selects
-  const { data: employeesData } = useSWR<Employee[]>(`${BASE}/hr/employee`, fetcher, {
-    revalidateOnFocus: false,
-  });
+  const { data: leadsData, error: leadsError, isLoading: leadsLoading, mutate } = useSWR<Lead[]>(
+    `${BASE}/leads`,
+    fetcher,
+    { refreshInterval: 30000, revalidateOnFocus: true }
+  );
+
+  const { data: employeesData } = useSWR<Employee[]>(`${BASE}/hr/employee`, fetcher, { revalidateOnFocus: false });
   const employees = employeesData || [];
 
   const [query, setQuery] = useState("");
-  const [drawerOpen, setDrawerOpen] = useState(false); // for filters (if needed)
   const [addModalOpen, setAddModalOpen] = useState(false);
 
-  // Filtering basic
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!data || !q) return data || [];
-    return data.filter((l) =>
+    if (!leadsData) return [];
+    if (!q) return leadsData;
+    return leadsData.filter((l) =>
       [
         l.name,
         l.email,
         l.companyName,
         l.mobileNumber,
         l.clientCategory,
+        l.leadSource,
         l.city,
         l.country,
         l.leadOwner,
@@ -109,11 +105,11 @@ export default function LeadsPage() {
         .filter(Boolean)
         .some((f) => (f as string).toLowerCase().includes(q))
     );
-  }, [data, query]);
+  }, [leadsData, query]);
 
   return (
     <main className="container mx-auto max-w-6xl px-4 py-8">
-      {/* top header */}
+      {/* Header */}
       <div className="mb-6 border-b border-gray-200">
         <div className="flex items-center justify-between py-3">
           <div className="flex items-center gap-4">
@@ -121,49 +117,38 @@ export default function LeadsPage() {
             <div className="text-sm text-muted-foreground underline">Start Date to End Date</div>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => setDrawerOpen(true)} className="flex items-center gap-2 text-sm text-muted-foreground">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M6 12h12M10 18h4" />
-              </svg>
-              <span className="hidden sm:inline">Filters</span>
-            </button>
             <div className="w-9 h-9 rounded-full bg-gray-200" />
           </div>
         </div>
       </div>
 
-      <div className="mb-4">
-        <div className="flex items-start md:items-center justify-between gap-3">
-          <div>
-            <button
-              onClick={() => setAddModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-sky-700"
-            >
-              + Add Lead
-            </button>
-          </div>
+      {/* Controls */}
+      <div className="mb-4 flex items-start md:items-center justify-between gap-3">
+        <div>
+          <button
+            onClick={() => setAddModalOpen(true)}
+            className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-sky-700"
+          >
+            + Add Lead
+          </button>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <div className="rounded-md border bg-white px-3 py-2">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search"
-                className="border-0 p-0 outline-none text-sm"
-              />
-            </div>
-            <button onClick={() => mutate()} className="inline-flex items-center rounded-md border px-3 py-2 text-sm">
-              Refresh
-            </button>
+        <div className="flex items-center gap-2">
+          <div className="rounded-md border bg-white px-3 py-2">
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" className="border-0 p-0 outline-none text-sm" />
           </div>
+          <button onClick={() => mutate()} className="inline-flex items-center rounded-md border px-3 py-2 text-sm">
+            Refresh
+          </button>
         </div>
       </div>
 
+      {/* Table */}
       <Card className="p-0">
-        {isLoading ? (
+        {leadsLoading ? (
           <div className="p-6 text-center text-muted-foreground">Loading…</div>
-        ) : error ? (
-          <div className="p-6 text-center text-destructive">{(error as Error).message}</div>
+        ) : leadsError ? (
+          <div className="p-6 text-center text-destructive">{(leadsError as Error).message}</div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
@@ -179,8 +164,8 @@ export default function LeadsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((lead, i) => (
-                  <LeadRow key={lead.id} idx={i} lead={lead} mutate={mutate} />
+                {filtered.map((lead, idx) => (
+                  <LeadRow key={lead.id} lead={lead} idx={idx} mutate={mutate} />
                 ))}
               </TableBody>
             </Table>
@@ -221,18 +206,17 @@ export default function LeadsPage() {
   );
 }
 
-/* ----------------------------
-   Lead row w/ action menu (icons)
-   ---------------------------- */
+/* ------------------------
+   LeadRow (with actions)
+   ------------------------ */
 function LeadRow({ lead, idx, mutate }: { lead: Lead; idx: number; mutate: () => Promise<any> }) {
   const [open, setOpen] = useState(false);
+
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (!(target as HTMLElement).closest || !(target as HTMLElement).closest(`[data-lead-row="${lead.id}"]`)) {
-        setOpen(false);
-      }
+      const t = e.target as HTMLElement;
+      if (!t.closest(`[data-lead-row="${lead.id}"]`)) setOpen(false);
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
@@ -240,13 +224,13 @@ function LeadRow({ lead, idx, mutate }: { lead: Lead; idx: number; mutate: () =>
 
   const router = useRouter();
 
-  const doConvert = async () => {
+  const convert = async () => {
     if (!confirm("Convert this lead to client?")) return;
     try {
       const token = localStorage.getItem("accessToken");
       const res = await fetch(`${BASE}/leads/${lead.id}/convert`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(await res.text());
       alert("Converted to client");
@@ -258,8 +242,8 @@ function LeadRow({ lead, idx, mutate }: { lead: Lead; idx: number; mutate: () =>
     }
   };
 
-  const doDelete = async () => {
-    if (!confirm("Delete this lead? This action cannot be undone.")) return;
+  const remove = async () => {
+    if (!confirm("Delete this lead?")) return;
     try {
       const token = localStorage.getItem("accessToken");
       const res = await fetch(`${BASE}/leads/${lead.id}`, {
@@ -294,16 +278,25 @@ function LeadRow({ lead, idx, mutate }: { lead: Lead; idx: number; mutate: () =>
         </div>
       </TableCell>
       <TableCell>
-        <OwnerCell name={lead.leadOwnerMeta?.name || lead.leadOwner} designation={lead.leadOwnerMeta?.name && ""} />
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-full bg-gray-100" />
+          <div className="flex flex-col">
+            <span className="text-sm">{lead.leadOwnerMeta?.name || lead.leadOwner || "—"}</span>
+          </div>
+        </div>
       </TableCell>
       <TableCell>
-        <OwnerCell name={lead.addedByMeta?.name || lead.addedBy} designation={lead.addedByMeta?.name && ""} />
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-full bg-gray-100" />
+          <div className="flex flex-col">
+            <span className="text-sm">{lead.addedByMeta?.name || lead.addedBy || "—"}</span>
+          </div>
+        </div>
       </TableCell>
       <TableCell>
-        <span className="text-sm">
-          {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"}
-        </span>
+        <span className="text-sm">{lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : "—"}</span>
       </TableCell>
+
       <TableCell className="relative text-right">
         <button onClick={() => setOpen((s) => !s)} className="inline-flex items-center rounded-full p-2 hover:bg-slate-100">
           <svg className="w-5 h-5 text-muted-foreground" viewBox="0 0 24 24" fill="currentColor">
@@ -317,10 +310,7 @@ function LeadRow({ lead, idx, mutate }: { lead: Lead; idx: number; mutate: () =>
           <div className="absolute right-0 z-30 mt-2 w-56 rounded-md bg-white shadow-lg border">
             <ul className="py-1">
               <li>
-                <button
-                  onClick={() => { setOpen(false); window.location.href = `/leads/${lead.id}`; }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-slate-50"
-                >
+                <button onClick={() => (window.location.href = `/leads/${lead.id}`)} className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-slate-50">
                   <svg className="w-5 h-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" />
                     <circle cx="12" cy="12" r="3" strokeWidth="1.5" />
@@ -328,12 +318,8 @@ function LeadRow({ lead, idx, mutate }: { lead: Lead; idx: number; mutate: () =>
                   View
                 </button>
               </li>
-
               <li>
-                <button
-                  onClick={() => { setOpen(false); router.push(`/leads/edit/${lead.id}`); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-slate-50"
-                >
+                <button onClick={() => { setOpen(false); window.location.href = `/leads/edit/${lead.id}`; }} className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-slate-50">
                   <svg className="w-5 h-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6-6L20 10M3 21h6l11-11a2 2 0 00-2-2L7 19v2z" />
                   </svg>
@@ -342,7 +328,7 @@ function LeadRow({ lead, idx, mutate }: { lead: Lead; idx: number; mutate: () =>
               </li>
 
               <li>
-                <button onClick={doConvert} className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-slate-50">
+                <button onClick={convert} className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-slate-50">
                   <svg className="w-5 h-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 11c2.21 0 4-1.79 4-4S14.21 3 12 3 8 4.79 8 7s1.79 4 4 4z" />
                     <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M6 20v-1a4 4 0 014-4h4a4 4 0 014 4v1" />
@@ -352,7 +338,7 @@ function LeadRow({ lead, idx, mutate }: { lead: Lead; idx: number; mutate: () =>
               </li>
 
               <li>
-                <button onClick={doDelete} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-destructive hover:bg-slate-50">
+                <button onClick={remove} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-destructive hover:bg-slate-50">
                   <svg className="w-5 h-5 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6v12a2 2 0 002 2h4a2 2 0 002-2V6M10 6V4a2 2 0 012-2h0a2 2 0 012 2v2" />
                   </svg>
@@ -368,14 +354,56 @@ function LeadRow({ lead, idx, mutate }: { lead: Lead; idx: number; mutate: () =>
 }
 
 /* ----------------------------
-   Add Lead Modal component
+   AddLeadModal component
+   (with server-backed add/list/delete for categories & lead sources)
    ---------------------------- */
 function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; onCreated: () => void; employees: Employee[] }) {
+  // presets
+  const defaultPipelines = ["Default Pipeline", "Sales Pipeline", "Enterprise Pipeline"];
+  const defaultDealStages = ["Generated", "Qualification", "Proposal", "Win", "Lost"];
+
+  // server-backed lists
+  const [dealCategories, setDealCategories] = useState<DealCategoryItem[]>([]);
+  const [leadSources, setLeadSources] = useState<LeadSourceItem[]>([]);
+  const [clientCategories, setClientCategories] = useState<DealCategoryItem[]>([]); // reuse deal category endpoint for client categories
+
+  // load server lists on mount
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    (async () => {
+      try {
+        // deal categories
+        const res1 = await fetch(`${BASE}/deals/dealCategory`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res1.ok) {
+          const json = await res1.json();
+          if (Array.isArray(json)) setDealCategories(json);
+        }
+
+        // lead sources
+        const res2 = await fetch(`${BASE}/deals/dealCategory/LeadSource`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res2.ok) {
+          const json2 = await res2.json();
+          if (Array.isArray(json2)) setLeadSources(json2);
+        }
+
+        // client categories reuse dealCategory endpoint
+        // we can reuse dealCategories for clientCategories or call same endpoint again
+        setClientCategories((prev) => (Array.isArray((prev)) && dealCategories.length ? dealCategories : prev));
+      } catch (err) {
+        // ignore — UI will have defaults
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // form payload state
   const emptyDeal: DealPayload = {
     title: "",
-    pipeline: "Default Pipeline",
-    dealStage: "Win",
-    dealCategory: "Enterprise",
+    pipeline: defaultPipelines[0],
+    dealStage: defaultDealStages[0],
+    dealCategory: "",
     value: "" as unknown as number,
     expectedCloseDate: "",
     dealAgent: "",
@@ -390,43 +418,59 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
     leadSource: "",
     addedBy: "",
     leadOwner: "",
-    createDeal: false,
-    autoConvertToClient: false,
-    companyName: "",
-    city: "",
-    country: "",
+    createDeal: true,
+    autoConvertToClient: true,
     deal: emptyDeal,
+    companyName: "",
+    officialWebsite: "",
+    officePhone: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "",
+    companyAddress: "",
   });
 
+  // small add-list modal state
+  const [addModalOpen, setAddModalOpen] = useState<null | "clientCategory" | "leadSource" | "dealCategory">(null);
+  const [addName, setAddName] = useState("");
+  const [loadingAddList, setLoadingAddList] = useState(false);
+  const [addListItems, setAddListItems] = useState<any[]>([]); // items fetched to show
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // handle clicks outside to close modal
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        if (addModalOpen) setAddModalOpen(null);
+        else onClose();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [addModalOpen, onClose]);
 
-  const updateField = (k: string, v: any) => setPayload((p) => ({ ...p, [k]: v }));
+  const update = (k: string, v: any) => setPayload((p) => ({ ...p, [k]: v }));
   const updateDeal = (k: keyof DealPayload, v: any) => setPayload((p) => ({ ...p, deal: { ...(p.deal as DealPayload), [k]: v } }));
 
-  const toggleWatcher = (empId: string) => {
+  const toggleWatcher = (id: string) => {
     setPayload((p) => {
-      const watchers = new Set(p.deal?.dealWatchers || []);
-      if (watchers.has(empId)) watchers.delete(empId);
-      else watchers.add(empId);
-      return { ...p, deal: { ...(p.deal as DealPayload), dealWatchers: Array.from(watchers) } };
+      const s = new Set(p.deal!.dealWatchers || []);
+      if (s.has(id)) s.delete(id);
+      else s.add(id);
+      return { ...p, deal: { ...(p.deal as DealPayload), dealWatchers: Array.from(s) } };
     });
   };
 
   const validate = () => {
-    if (!payload.name || !payload.email || !payload.companyName) return "Name, Email and Company Name are required.";
+    if (!payload.name?.trim() || !payload.email?.trim() || !payload.companyName?.trim()) {
+      return "Name, Email and Company Name are required.";
+    }
     if (payload.createDeal || payload.autoConvertToClient) {
-      const d = payload.deal as DealPayload;
-      if (!d.title || !d.value || !d.expectedCloseDate || !d.dealAgent) return "Complete deal details are required when creating a deal.";
+      const d = payload.deal!;
+      if (!d.title?.trim() || !d.value || !d.expectedCloseDate || !d.dealAgent) {
+        return "Deal title, value, expected close date and deal agent are required when creating a deal.";
+      }
     }
     return null;
   };
@@ -440,23 +484,21 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
     }
     setError(null);
     setSubmitting(true);
+
     try {
       const token = localStorage.getItem("accessToken");
       if (!token) throw new Error("No access token found.");
 
-      // Build request identical to your sample JSON (trim empty strings)
-      const body = {
+      const body: any = {
         name: payload.name,
         email: payload.email,
         mobileNumber: payload.mobileNumber || undefined,
         clientCategory: payload.clientCategory || undefined,
+        leadSource: payload.leadSource || undefined,
         addedBy: payload.addedBy || undefined,
         leadOwner: payload.leadOwner || undefined,
         createDeal: !!payload.createDeal,
         autoConvertToClient: !!payload.autoConvertToClient,
-        companyName: payload.companyName || undefined,
-        city: payload.city || undefined,
-        country: payload.country || undefined,
         deal: payload.createDeal || payload.autoConvertToClient ? {
           title: payload.deal!.title,
           pipeline: payload.deal!.pipeline,
@@ -467,6 +509,14 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
           dealAgent: payload.deal!.dealAgent,
           dealWatchers: payload.deal!.dealWatchers || [],
         } : undefined,
+        companyName: payload.companyName,
+        officialWebsite: payload.officialWebsite || undefined,
+        officePhone: payload.officePhone || undefined,
+        city: payload.city || undefined,
+        state: payload.state || undefined,
+        postalCode: payload.postalCode || undefined,
+        country: payload.country || undefined,
+        companyAddress: payload.companyAddress || undefined,
       };
 
       const res = await fetch(`${BASE}/leads`, {
@@ -477,12 +527,11 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
 
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
-        throw new Error(txt || "Create failed");
+        throw new Error(txt || "Failed to create lead");
       }
 
-      // success
       onCreated();
-      alert("Lead created.");
+      alert("Lead created successfully.");
     } catch (err: any) {
       setError(err?.message || "Failed to create lead.");
     } finally {
@@ -490,13 +539,148 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
     }
   };
 
+  // open small add-list modal and fetch items from server for that type
+  const openAddModal = async (type: "clientCategory" | "leadSource" | "dealCategory") => {
+    setAddModalOpen(type);
+    setAddName("");
+    setLoadingAddList(true);
+    setAddListItems([]);
+
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No token");
+
+      if (type === "leadSource") {
+        const res = await fetch(`${BASE}/deals/dealCategory/LeadSource`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json)) setAddListItems(json); // objects with id,name
+        }
+      } else {
+        // dealCategory used for both dealCategory and clientCategory
+        const res = await fetch(`${BASE}/deals/dealCategory`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json)) setAddListItems(json); // objects with id, categoryName
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingAddList(false);
+    }
+  };
+
+  // add new item to server and update local arrays + select value
+  const addItem = async (type: "clientCategory" | "leadSource" | "dealCategory") => {
+    if (!addName.trim()) return alert("Please enter a name.");
+    setLoadingAddList(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No token");
+
+      let url = "";
+      let body: any = {};
+      if (type === "leadSource") {
+        url = `${BASE}/deals/dealCategory/LeadSource`;
+        body = { name: addName.trim() };
+      } else {
+        url = `${BASE}/deals/dealCategory`;
+        body = { categoryName: addName.trim() };
+      }
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(txt || "Failed to add");
+      }
+      const created = await res.json();
+
+      // Update local arrays and choose the created value
+      if (type === "leadSource") {
+        setLeadSources((prev) => [{ id: created.id, name: created.name || addName.trim() }, ...prev]);
+        setPayload((p) => ({ ...p, leadSource: created.name || addName.trim() }));
+      } else {
+        // dealCategory or clientCategory
+        setDealCategories((prev) => [{ id: created.id, categoryName: created.categoryName || addName.trim() }, ...prev]);
+        setClientCategories((prev) => [{ id: created.id, categoryName: created.categoryName || addName.trim() }, ...prev]);
+        // if dealCategory add, set selected deal.dealCategory to created.categoryName
+        setPayload((p) => ({ ...p, deal: { ...(p.deal as DealPayload), dealCategory: created.categoryName || addName.trim() }, clientCategory: created.categoryName || addName.trim() }));
+      }
+
+      setAddName("");
+      setAddModalOpen(null);
+      alert("Added successfully.");
+    } catch (err: any) {
+      alert("Error: " + (err?.message || err));
+    } finally {
+      setLoadingAddList(false);
+    }
+  };
+
+  // delete item from server (dealCategory or leadSource)
+  const deleteItem = async (type: "clientCategory" | "leadSource" | "dealCategory", id: number) => {
+    if (!confirm("Are you sure you want to delete this item?")) return;
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No token");
+
+      let url = "";
+      if (type === "leadSource") {
+        url = `${BASE}/deals/dealCategory/LeadSource/${id}`; // assumed delete path
+      } else {
+        url = `${BASE}/deals/dealCategory/${id}`; // provided delete endpoint
+      }
+
+      const res = await fetch(url, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(txt || "Delete failed");
+      }
+
+      // Remove locally from lists shown
+      if (type === "leadSource") setLeadSources((s) => s.filter((x) => x.id !== id));
+      else {
+        setDealCategories((s) => s.filter((x) => x.id !== id));
+        setClientCategories((s) => s.filter((x) => x.id !== id));
+      }
+
+      // also if current selected equals deleted, clear selection
+      setPayload((p) => {
+        const currentLeadSource = p.leadSource;
+        const currentClientCategory = p.clientCategory;
+        const currentDealCategory = p.deal?.dealCategory;
+        const newP = { ...p };
+        if (type === "leadSource" && currentLeadSource) {
+          // if the deleted id matched current value we can't compare by id because selection stores text; skip
+        }
+        if (type !== "leadSource") {
+          if (currentClientCategory && dealCategories.findIndex((d) => d.id === id && d.categoryName === currentClientCategory) !== -1) {
+            newP.clientCategory = "";
+          }
+          if (currentDealCategory && dealCategories.findIndex((d) => d.id === id && d.categoryName === currentDealCategory) !== -1) {
+            newP.deal = { ...(newP.deal as DealPayload), dealCategory: "" };
+          }
+        }
+        return newP;
+      });
+
+      alert("Deleted successfully.");
+    } catch (err: any) {
+      alert("Error deleting: " + (err?.message || err));
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/20" onClick={onClose} />
 
-      <div className="fixed inset-0 flex items-start justify-center px-4 pt-10">
-        <div className="max-w-4xl w-full bg-white rounded-lg shadow-lg border overflow-auto" style={{ maxHeight: "90vh" }}>
-          {/* Header */}
+      <div className="fixed inset-0 flex items-start justify-center px-4 pt-8">
+        <div className="max-w-4xl w-full bg-white rounded-lg shadow-lg border overflow-auto" style={{ maxHeight: "92vh" }}>
           <div className="flex items-center justify-between p-4 border-b">
             <h3 className="text-lg font-semibold">Add Lead Contact Information</h3>
             <button onClick={onClose} className="text-muted-foreground p-1 rounded hover:bg-slate-100">
@@ -512,28 +696,43 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
             {/* Lead Contact Detail */}
             <div className="rounded-lg border p-4">
               <h4 className="font-medium mb-3">Lead Contact Detail</h4>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm text-muted-foreground">Name *</label>
-                  <Input name="name" value={payload.name} onChange={(e) => updateField("name", e.target.value)} />
+                  <Input value={payload.name} onChange={(e) => update("name", e.target.value)} />
                 </div>
+
                 <div>
                   <label className="text-sm text-muted-foreground">Email *</label>
-                  <Input name="email" type="email" value={payload.email} onChange={(e) => updateField("email", e.target.value)} />
+                  <Input value={payload.email} type="email" onChange={(e) => update("email", e.target.value)} />
                 </div>
+
                 <div>
                   <label className="text-sm text-muted-foreground">Client Category</label>
-                  <Input name="clientCategory" value={payload.clientCategory} onChange={(e) => updateField("clientCategory", e.target.value)} />
+                  <div className="flex gap-2">
+                    <select value={payload.clientCategory} onChange={(e) => update("clientCategory", e.target.value)} className="w-full border rounded-md p-2">
+                      <option value="">--</option>
+                      {clientCategories.map((c) => <option key={c.id} value={c.categoryName}>{c.categoryName}</option>)}
+                    </select>
+                    <button type="button" onClick={() => openAddModal("clientCategory")} className="px-3 rounded border">Add</button>
+                  </div>
                 </div>
 
                 <div>
                   <label className="text-sm text-muted-foreground">Lead Source</label>
-                  <Input name="leadSource" value={payload.leadSource} onChange={(e) => updateField("leadSource", e.target.value)} />
+                  <div className="flex gap-2">
+                    <select value={payload.leadSource} onChange={(e) => update("leadSource", e.target.value)} className="w-full border rounded-md p-2">
+                      <option value="">--</option>
+                      {leadSources.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+                    </select>
+                    <button type="button" onClick={() => openAddModal("leadSource")} className="px-3 rounded border">Add</button>
+                  </div>
                 </div>
 
                 <div>
                   <label className="text-sm text-muted-foreground">Added By</label>
-                  <select name="addedBy" value={payload.addedBy} onChange={(e) => updateField("addedBy", e.target.value)} className="w-full border rounded-md p-2 text-sm">
+                  <select value={payload.addedBy} onChange={(e) => update("addedBy", e.target.value)} className="w-full border rounded-md p-2">
                     <option value="">--</option>
                     {employees.map((emp) => <option key={emp.employeeId} value={emp.employeeId}>{emp.name} ({emp.employeeId})</option>)}
                   </select>
@@ -541,42 +740,48 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
 
                 <div>
                   <label className="text-sm text-muted-foreground">Lead Owner</label>
-                  <select name="leadOwner" value={payload.leadOwner} onChange={(e) => updateField("leadOwner", e.target.value)} className="w-full border rounded-md p-2 text-sm">
+                  <select value={payload.leadOwner} onChange={(e) => update("leadOwner", e.target.value)} className="w-full border rounded-md p-2">
                     <option value="">--</option>
                     {employees.map((emp) => <option key={emp.employeeId} value={emp.employeeId}>{emp.name} ({emp.employeeId})</option>)}
                   </select>
                 </div>
 
                 <div className="flex items-center gap-2 md:col-span-2">
-                  <Checkbox checked={payload.createDeal} onCheckedChange={(c) => { updateField("createDeal", !!c); if (!!c) updateField("autoConvertToClient", true); }} />
+                  <Checkbox checked={payload.createDeal} onCheckedChange={(c) => update("createDeal", !!c)} />
                   <span className="text-sm">Create Deal</span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Checkbox checked={payload.autoConvertToClient} onCheckedChange={(c) => updateField("autoConvertToClient", !!c)} />
-                  <span className="text-sm">Auto convert lead to client when deal stage is 'Win'</span>
+                  <Checkbox checked={payload.autoConvertToClient} onCheckedChange={(c) => update("autoConvertToClient", !!c)} />
+                  <span className="text-sm">Auto convert lead to client when deal stage is set to 'Win'</span>
                 </div>
               </div>
 
-              {/* Deal fields (if createDeal) */}
+              {/* Deal area */}
               {(payload.createDeal || payload.autoConvertToClient) && (
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="text-sm text-muted-foreground">Deal Name *</label>
-                    <Input name="deal.title" value={payload.deal!.title} onChange={(e) => updateDeal("title", e.target.value)} />
+                    <Input value={payload.deal!.title} onChange={(e) => updateDeal("title", e.target.value)} />
                   </div>
+
                   <div>
                     <label className="text-sm text-muted-foreground">Pipeline *</label>
-                    <Input name="deal.pipeline" value={payload.deal!.pipeline} onChange={(e) => updateDeal("pipeline", e.target.value)} />
+                    <select value={payload.deal!.pipeline} onChange={(e) => updateDeal("pipeline", e.target.value)} className="w-full border rounded-md p-2">
+                      {defaultPipelines.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
                   </div>
+
                   <div>
                     <label className="text-sm text-muted-foreground">Deal Stage *</label>
-                    <Input name="deal.dealStage" value={payload.deal!.dealStage} onChange={(e) => updateDeal("dealStage", e.target.value)} />
+                    <select value={payload.deal!.dealStage} onChange={(e) => updateDeal("dealStage", e.target.value)} className="w-full border rounded-md p-2">
+                      {defaultDealStages.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
                   </div>
 
                   <div>
                     <label className="text-sm text-muted-foreground">Deal Value *</label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex">
                       <div className="px-3 py-2 bg-gray-100 rounded-l">USD $</div>
                       <input type="number" value={payload.deal!.value as any} onChange={(e) => updateDeal("value", e.target.value)} className="flex-1 border p-2 rounded-r" />
                     </div>
@@ -589,21 +794,27 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
 
                   <div>
                     <label className="text-sm text-muted-foreground">Deal Category</label>
-                    <Input name="deal.dealCategory" value={payload.deal!.dealCategory} onChange={(e) => updateDeal("dealCategory", e.target.value)} />
+                    <div className="flex gap-2">
+                      <select value={payload.deal!.dealCategory} onChange={(e) => updateDeal("dealCategory", e.target.value)} className="w-full border rounded-md p-2">
+                        <option value="">--</option>
+                        {dealCategories.map((d) => <option key={d.id} value={d.categoryName}>{d.categoryName}</option>)}
+                      </select>
+                      <button type="button" onClick={() => openAddModal("dealCategory")} className="px-3 rounded border">Add</button>
+                    </div>
                   </div>
 
                   <div>
                     <label className="text-sm text-muted-foreground">Deal Agent *</label>
                     <select value={payload.deal!.dealAgent} onChange={(e) => updateDeal("dealAgent", e.target.value)} className="w-full border rounded-md p-2">
                       <option value="">--</option>
-                      {employees.map((emp) => <option key={emp.employeeId} value={emp.employeeId}>{emp.name} ({emp.employeeId})</option>)}
+                      {employees.map(emp => <option key={emp.employeeId} value={emp.employeeId}>{emp.name} ({emp.employeeId})</option>)}
                     </select>
                   </div>
 
                   <div className="md:col-span-3">
                     <label className="text-sm text-muted-foreground">Deal Watcher(s)</label>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {employees.map((emp) => (
+                      {employees.map(emp => (
                         <label key={emp.employeeId} className="inline-flex items-center gap-2 border rounded px-2 py-1 text-sm">
                           <input type="checkbox" checked={payload.deal!.dealWatchers.includes(emp.employeeId)} onChange={() => toggleWatcher(emp.employeeId)} />
                           <span>{emp.name}</span>
@@ -618,40 +829,50 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
             {/* Company Details */}
             <div className="rounded-lg border p-4">
               <h4 className="font-medium mb-3">Company Details</h4>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm text-muted-foreground">Company Name *</label>
-                  <Input value={payload.companyName} onChange={(e) => updateField("companyName", e.target.value)} />
+                  <Input value={payload.companyName} onChange={(e) => update("companyName", e.target.value)} />
                 </div>
+
                 <div>
                   <label className="text-sm text-muted-foreground">Official Website</label>
-                  <Input value={""} onChange={() => {}} placeholder="--" />
+                  <Input value={payload.officialWebsite} onChange={(e) => update("officialWebsite", e.target.value)} />
                 </div>
 
                 <div>
                   <label className="text-sm text-muted-foreground">Mobile Number</label>
-                  <Input value={payload.mobileNumber} onChange={(e) => updateField("mobileNumber", e.target.value)} />
+                  <Input value={payload.mobileNumber} onChange={(e) => update("mobileNumber", e.target.value)} />
                 </div>
 
                 <div>
                   <label className="text-sm text-muted-foreground">Office Phone No.</label>
-                  <Input value={""} onChange={() => {}} placeholder="--" />
+                  <Input value={payload.officePhone} onChange={(e) => update("officePhone", e.target.value)} />
                 </div>
 
                 <div>
                   <label className="text-sm text-muted-foreground">City</label>
-                  <Input value={payload.city} onChange={(e) => updateField("city", e.target.value)} />
+                  <Input value={payload.city} onChange={(e) => update("city", e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="text-sm text-muted-foreground">State</label>
+                  <Input value={payload.state} onChange={(e) => update("state", e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="text-sm text-muted-foreground">Postal Code</label>
+                  <Input value={payload.postalCode} onChange={(e) => update("postalCode", e.target.value)} />
                 </div>
 
                 <div>
                   <label className="text-sm text-muted-foreground">Country</label>
-                  <Input value={payload.country} onChange={(e) => updateField("country", e.target.value)} />
+                  <Input value={payload.country} onChange={(e) => update("country", e.target.value)} />
                 </div>
 
-                <div className="md:col-span-2">
+                <div className="md:col-span-3">
                   <label className="text-sm text-muted-foreground">Company Address</label>
-                  <textarea value={""} onChange={() => {}} className="w-full border rounded-md p-2 h-24" placeholder="--" />
+                  <textarea value={payload.companyAddress} onChange={(e) => update("companyAddress", e.target.value)} className="w-full border rounded-md p-2 h-28" />
                 </div>
               </div>
             </div>
@@ -659,13 +880,93 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
             {/* Buttons */}
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-              <Button type="submit" onClick={submit} disabled={submitting}>
-                {submitting ? "Saving..." : "Save"}
-              </Button>
+              <Button type="submit" onClick={submit} disabled={submitting}>{submitting ? "Saving..." : "Save"}</Button>
             </div>
           </form>
         </div>
       </div>
+
+      {/* Small Add-List Modal (server-backed) */}
+      {addModalOpen && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/20" onClick={() => setAddModalOpen(null)} />
+          <div className="fixed inset-0 flex items-start justify-center px-4 pt-20">
+            <div className="max-w-2xl w-full bg-white rounded-lg shadow-lg border overflow-auto">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h3 className="text-lg font-semibold">
+                  {addModalOpen === "clientCategory" ? "Client Category" : addModalOpen === "leadSource" ? "Lead Source" : "Deal Category"}
+                </h3>
+                <button onClick={() => setAddModalOpen(null)} className="text-muted-foreground p-1 rounded hover:bg-slate-100">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="p-4">
+                <div className="mb-4">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="bg-blue-50">
+                          <th className="p-2 text-left">#</th>
+                          <th className="p-2 text-left">Name</th>
+                          <th className="p-2 text-left">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(addListItems.length
+                          ? addListItems
+                          : addModalOpen === "clientCategory"
+                          ? clientCategories
+                          : addModalOpen === "leadSource"
+                          ? leadSources
+                          : dealCategories
+                        ).map((item: any, i: number) => (
+                          <tr key={i} className="border-t">
+                            <td className="p-2">{i + 1}</td>
+                            <td className="p-2">{item.categoryName || item.name}</td>
+                            <td className="p-2">
+                              <button
+                                onClick={() =>
+                                  deleteItem(
+                                    addModalOpen === "leadSource" ? "leadSource" : addModalOpen === "clientCategory" ? "clientCategory" : "dealCategory",
+                                    item.id
+                                  )
+                                }
+                                className="text-destructive"
+                              >
+                                🗑
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {(!addListItems.length && !(addModalOpen === "clientCategory" ? clientCategories.length : addModalOpen === "leadSource" ? leadSources.length : dealCategories.length)) && (
+                          <tr>
+                            <td colSpan={3} className="p-4 text-sm text-muted-foreground">No items found.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm text-muted-foreground mb-1">Name *</label>
+                  <input value={addName} onChange={(e) => setAddName(e.target.value)} className="w-full border rounded-md p-2" placeholder="Enter name" />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setAddModalOpen(null)} className="rounded-md px-4 py-2 border">Cancel</button>
+                  <button onClick={() => addItem(addModalOpen)} disabled={loadingAddList} className="rounded-md bg-sky-600 text-white px-4 py-2">
+                    {loadingAddList ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
