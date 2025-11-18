@@ -15,7 +15,8 @@ import {
   Check,
   Plus,
   MoreHorizontal,
-  Trash2
+  Trash2,
+  Download
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -485,6 +486,46 @@ export default function ProfileForm() {
     }
   };
 
+  /**
+   * Download helper:
+   * - Tries to fetch file as blob (with Authorization header).
+   * - Programmatically creates an <a> with blob URL and triggers download.
+   * - Falls back to opening URL in new tab when fetch fails (CORS / blocked).
+   */
+  const handleDownload = async (url?: string, filename?: string) => {
+    if (!url) {
+      setDocActionError("No file URL available to download.");
+      return;
+    }
+    setDocActionError("");
+    try {
+      const token = localStorage.getItem("accessToken") || "";
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      if (!res.ok) {
+        // fallback: open in new tab when fetch returns not-ok (e.g., 403)
+        window.open(url, "_blank");
+        return;
+      }
+
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename || url.split("/").pop() || "download";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1500);
+    } catch (err) {
+      console.error("Download failed, opening in new tab:", err);
+      // fallback: open in new tab
+      window.open(url, "_blank");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-8">
@@ -828,7 +869,17 @@ export default function ProfileForm() {
                     </div>
                     <div className="text-xs text-slate-600">{d.filename}</div>
                     <div className="flex items-center gap-2">
+                      {/* Download button triggers actual local download */}
+                      <button
+                        onClick={() => handleDownload(d.url, d.filename)}
+                        className="text-xs inline-flex items-center gap-1 underline"
+                        type="button"
+                      >
+                        <Download className="w-3 h-3" /> Download
+                      </button>
+
                       <a href={d.url} target="_blank" rel="noreferrer" className="text-xs underline">Open</a>
+
                       <button
                         onClick={() => handleDeleteDocument(d.id)}
                         className="text-xs text-red-600 inline-flex items-center gap-1"
