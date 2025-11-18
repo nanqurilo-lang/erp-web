@@ -1,9 +1,10 @@
+// src/app/finance/credit-notes/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Eye, Download, Mail } from "lucide-react";
+import { Eye, Download, Mail, MoreHorizontal } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,242 +15,294 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const API_BASE = "https://chat.swiftandgo.in";
 
 type Company = {
-  companyName: string;
-  website: string;
-  officePhone: string;
-  taxName: string;
-  gstVatNo: string;
-  address: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  shippingAddress: string;
-  companyLogoUrl: string;
-  country: string | null;
+  companyName?: string;
+  website?: string;
+  officePhone?: string;
+  taxName?: string;
+  gstVatNo?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  shippingAddress?: string;
+  companyLogoUrl?: string | null;
+  country?: string | null;
 };
 
 type Client = {
-  clientId: string;
-  name: string;
-  profilePictureUrl: string;
-  email: string;
-  mobile: string;
-  companyName: string;
-  address: string;
-  country: string;
-  company: Company;
+  clientId?: string;
+  name?: string;
+  profilePictureUrl?: string | null;
+  email?: string;
+  mobile?: string;
+  companyName?: string | null;
+  address?: string | null;
+  country?: string;
+  company?: Company | null;
 };
 
 type Project = {
-  projectName: string;
-  projectCode: string;
-  startDate: string;
-  deadline: string;
-  budget: number;
-  currency: string;
+  projectName?: string | null;
+  projectCode?: string | null;
+  startDate?: string | null;
+  deadline?: string | null;
+  budget?: number | null;
+  currency?: string | null;
 };
 
 type CreditNote = {
   id: number;
-  creditNoteNumber: string;
-  creditNoteDate: string;
-  currency: string;
-  adjustment: number;
-  adjustmentPositive: boolean;
-  tax: number;
-  amount: number;
-  notes: string;
-  fileUrl: string;
-  client: Client;
-  project: Project;
-  totalAmount: number;
-  createdAt: string;
+  creditNoteNumber?: string;
+  creditNoteDate?: string | null;
+  currency?: string | null;
+  adjustment?: number | null;
+  adjustmentPositive?: boolean;
+  tax?: number | null;
+  amount?: number | null;
+  notes?: string | null;
+  fileUrl?: string | null;
+  client?: Client | null;
+  project?: Project | null;
+  totalAmount?: number | null;
+  createdAt?: string | null;
+  invoiceNumber?: string | null; // optional: if your API provides invoice link
 };
 
-export default function CreditNotesList() {
+export default function CreditNotesPage() {
   const router = useRouter();
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function fetchCreditNotes() {
-    try {
-      const res = await fetch("/api/finance/credit-notes", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to fetch credit notes: ${res.statusText}`);
-      }
-
-      const data = await res.json();
-      setCreditNotes(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      console.error(err);
-      setError(err?.message || "Something went wrong while fetching credit notes.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  // UI state for filters (non-functional placeholders but present in UI)
+  const [clientFilter, setClientFilter] = useState<string>("all");
+  const [durationFilter, setDurationFilter] = useState<string>(""); // can be 'this_month', 'custom', etc.
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
   useEffect(() => {
-    fetchCreditNotes();
+    let mounted = true;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const token = localStorage.getItem("accessToken") || "";
+        const res = await fetch(`${API_BASE}/api/credit-notes/getAll`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        });
+
+        if (!res.ok) {
+          throw new Error(`Failed to fetch credit notes (${res.status})`);
+        }
+
+        const data = await res.json();
+        if (!mounted) return;
+        setCreditNotes(Array.isArray(data) ? data : []);
+      } catch (err: any) {
+        console.error("Credit notes fetch error:", err);
+        setError(err?.message || "Failed to load credit notes");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const getAdjustmentBadge = (positive: boolean) => {
-    if (positive) {
-      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Credit</Badge>;
+  const formatDate = (d?: string | null) => {
+    if (!d) return "";
+    try {
+      return new Date(d).toLocaleDateString("en-GB"); // dd/mm/yyyy like screenshot
+    } catch {
+      return d;
     }
-    return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Debit</Badge>;
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+  const getAdjustmentBadge = (positive?: boolean) => {
+    if (positive) {
+      return <Badge className="bg-green-100 text-green-800">Adjustment</Badge>;
+    }
+    return <Badge className="bg-yellow-100 text-yellow-800">Adjustment</Badge>;
   };
 
-  const handleDownload = (fileUrl: string) => {
+  const handleView = (cn: CreditNote) => {
+    // navigate to view page if exists (using creditNoteNumber)
+    if (cn.creditNoteNumber) {
+      router.push(`/credit-notes/${cn.creditNoteNumber}`);
+    } else {
+      // fallback: open file if available
+      if (cn.fileUrl) window.open(cn.fileUrl, "_blank");
+    }
+  };
+
+  const handleDownload = (fileUrl?: string | null) => {
+    if (!fileUrl) return;
     window.open(fileUrl, "_blank");
   };
 
-  if (loading) {
-    return (
-      <div className="container mx-auto p-6">
-        <p className="text-center text-gray-600">Loading credit notes...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto p-6">
-        <p className="text-center text-red-500">Error: {error}</p>
-      </div>
-    );
-  }
+  const handleSend = (cn: CreditNote) => {
+    // open email modal or use mailto — placeholder behaviour
+    if (cn.fileUrl && cn.client?.email) {
+      window.location.href = `mailto:${cn.client.email}?subject=Credit Note ${cn.creditNoteNumber}&body=Please find attached credit note.`;
+    } else {
+      alert("Client email or file not available to send.");
+    }
+  };
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Credit Notes</h1>
-        <p className="text-gray-600 mt-1">Manage and track all your credit notes</p>
-      </div>
+    <div className="min-h-screen bg-slate-50 p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-6">
+          <h2 className="text-2xl font-semibold text-slate-900">Credit Note</h2>
+        </div>
 
-      <div className="border rounded-lg bg-white shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project Code</TableHead>
-              <TableHead>Credit Note</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-              <TableHead className="text-right">Adjustment</TableHead>
-              <TableHead>Credit Note Date</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {creditNotes.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center text-gray-500 py-8">
-                  No credit notes found
-                </TableCell>
-              </TableRow>
-            ) : (
-              creditNotes.map((cn) => (
-                <TableRow key={cn.id} className="hover:bg-gray-50">
-                  <TableCell className="font-medium">
-                    {cn.project?.projectCode || "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{cn.creditNoteNumber || "N/A"}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{cn.project?.projectName || "N/A"}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      {cn.client?.company?.companyLogoUrl ? (
-                        <Image
-                          src={cn.client.company.companyLogoUrl}
-                          alt={cn.client.company.companyName || "Company"}
-                          width={32}
-                          height={32}
-                          className="rounded-full"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                          <span className="text-sm font-semibold text-gray-600">
-                            {cn.client?.name?.charAt(0)?.toUpperCase() || "?"}
-                          </span>
-                        </div>
-                      )}
-                      <div>
-                        <p className="font-medium text-sm">{cn.client?.name || "N/A"}</p>
-                        <p className="text-xs text-gray-500">
-                          {cn.client?.company?.companyName || ""}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-semibold">
-                    {cn.currency} {cn.totalAmount.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right font-semibold">
-                    {cn.currency} {cn.adjustmentPositive ? "+" : "-"}{cn.adjustment.toFixed(2)}
-                  </TableCell>
-                  <TableCell>{formatDate(cn.creditNoteDate)}</TableCell>
-                  <TableCell>{getAdjustmentBadge(cn.adjustmentPositive)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="View Credit Note"
-                        onClick={() => router.push(`/credit-notes/${cn.creditNoteNumber}`)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Download Credit Note"
-                        onClick={() => handleDownload(cn.fileUrl)}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Send Credit Note"
-                      >
-                        <Mail className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+        {/* Filter bar similar to screenshot */}
+        <div className="bg-white border rounded-md mb-4 p-3 flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="text-sm text-slate-600 font-medium">Duration</div>
+            <div className="text-sm text-slate-500">Start Date to End Date</div>
+          </div>
+
+          <div className="ml-4">
+            <Select onValueChange={(v) => setClientFilter(v)} value={clientFilter}>
+              <SelectTrigger className="w-36 h-9">
+                <SelectValue placeholder="Client" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="clientA">Client A</SelectItem>
+                <SelectItem value="clientB">Client B</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="ml-auto flex items-center gap-3">
+            <Button variant="ghost" size="sm">Filters</Button>
+          </div>
+        </div>
+
+        <div className="bg-white border rounded-lg shadow-sm">
+          {loading ? (
+            <div className="p-8 text-center text-slate-600">Loading credit notes...</div>
+          ) : error ? (
+            <div className="p-8 text-center text-red-500">Error: {error}</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Credit Note</TableHead>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead>Credit Note Date</TableHead>
+                  <TableHead>Action</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              </TableHeader>
+
+              <TableBody>
+                {creditNotes.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-slate-500">
+                      No credit notes found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  creditNotes.map((cn) => (
+                    <TableRow key={cn.id} className="hover:bg-slate-50">
+                      <TableCell>
+                        <div className="font-medium">{cn.creditNoteNumber || `#${cn.id}`}</div>
+                      </TableCell>
+
+                      <TableCell>
+                        {/* If invoiceNumber exists show it, else keep placeholder */}
+                        <div className="text-sm text-slate-600">{(cn as any).invoiceNumber || "INV#014"}</div>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          {cn.client?.company?.companyLogoUrl ? (
+                            <Image
+                              src={cn.client.company.companyLogoUrl}
+                              alt={cn.client?.company?.companyName || "Logo"}
+                              width={28}
+                              height={28}
+                              className="rounded-full"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
+                              <span className="text-sm text-slate-600">
+                                {cn.client?.name ? cn.client.name.charAt(0).toUpperCase() : "?"}
+                              </span>
+                            </div>
+                          )}
+
+                          <div>
+                            <div className="font-medium text-sm">{cn.client?.name || "Unknown"}</div>
+                            <div className="text-xs text-slate-500">{cn.project?.projectName || ""}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-right font-semibold">
+                        {cn.currency ?? ""} {((cn.totalAmount ?? cn.amount ?? 0) as number).toFixed(2)}
+                        <div className="text-xs mt-1 text-slate-500">{getAdjustmentBadge(!!cn.adjustmentPositive)}</div>
+                      </TableCell>
+
+                      <TableCell>{formatDate(cn.creditNoteDate)}</TableCell>
+
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="View"
+                            onClick={() => handleView(cn)}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Download"
+                            onClick={() => handleDownload(cn.fileUrl || "")}
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Send"
+                            onClick={() => handleSend(cn)}
+                          >
+                            <Mail className="w-4 h-4" />
+                          </Button>
+
+                          <button className="p-1 rounded hover:bg-slate-100" title="More">
+                            <MoreHorizontal className="w-4 h-4 text-slate-600" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </div>
       </div>
     </div>
   );
