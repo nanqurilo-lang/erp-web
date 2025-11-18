@@ -115,6 +115,10 @@ export default function ProfileForm() {
   const [docPreviewFile, setDocPreviewFile] = useState<File | null>(null);
   const [docPreviewUrl, setDocPreviewUrl] = useState<string>("");
 
+  // Deleting state for documents (track ids being deleted)
+  const [deletingDocIds, setDeletingDocIds] = useState<number[]>([]);
+  const [docActionError, setDocActionError] = useState<string>("");
+
   // load profile + emergency contacts + documents
   useEffect(() => {
     let mounted = true;
@@ -427,10 +431,58 @@ export default function ProfileForm() {
     }
   };
 
-  const handleDeleteDocument = async (docId: number) => {
-    // optional: simple optimistic UI delete + call DELETE endpoint if available
-    // Here just remove from list locally. If you have DELETE endpoint, call it.
-    setDocuments((prev) => prev.filter((d) => d.id !== docId));
+  /**
+   * DELETE document using API:
+   * DELETE https://chat.swiftandgo.in/employee/{{empId}}/documents/{{docId}}
+   */
+  const handleDeleteDocument = async (docId?: number) => {
+    setDocActionError("");
+    if (!docId) {
+      setDocActionError("Invalid document id.");
+      return;
+    }
+
+    // confirmation
+    const ok = confirm("Are you sure you want to delete this document?");
+    if (!ok) return;
+
+    if (!profile.employeeId) {
+      setDocActionError("Employee ID not known. Save profile first.");
+      return;
+    }
+
+    // mark deleting
+    setDeletingDocIds((prev) => [...prev, docId]);
+
+    try {
+      const token = localStorage.getItem("accessToken") || "";
+      const url = `${API_BASE}/employee/${encodeURIComponent(profile.employeeId)}/documents/${encodeURIComponent(docId)}`;
+
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        console.error("Delete failed:", res.status, json);
+        setDocActionError(json?.error || `Delete failed (${res.status})`);
+        // unmark deleting
+        setDeletingDocIds((prev) => prev.filter((id) => id !== docId));
+        return;
+      }
+
+      // remove from local list on success
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+    } catch (err) {
+      console.error("Unexpected delete error:", err);
+      setDocActionError("Unexpected error while deleting document. See console.");
+    } finally {
+      // unmark deleting
+      setDeletingDocIds((prev) => prev.filter((id) => id !== docId));
+    }
   };
 
   if (loading) {
@@ -763,26 +815,41 @@ export default function ProfileForm() {
             {documents.length === 0 ? (
               <div className="col-span-full text-center text-slate-500 py-6">No documents uploaded.</div>
             ) : (
-              documents.map((d) => (
-                <div key={d.id} className="flex flex-col items-start gap-2">
-                  <div className="w-40 h-24 bg-gray-50 rounded-md border overflow-hidden flex items-center justify-center">
-                    {d.mime?.startsWith("image/") && d.url ? (
-                      <img src={d.url} alt={d.filename} className="object-cover w-full h-full" />
-                    ) : (
-                      <div className="text-slate-400 text-sm px-2">{d.filename}</div>
-                    )}
+              documents.map((d) => {
+                const isDeleting = deletingDocIds.includes(d.id);
+                return (
+                  <div key={d.id} className="flex flex-col items-start gap-2">
+                    <div className="w-40 h-24 bg-gray-50 rounded-md border overflow-hidden flex items-center justify-center">
+                      {d.mime?.startsWith("image/") && d.url ? (
+                        <img src={d.url} alt={d.filename} className="object-cover w-full h-full" />
+                      ) : (
+                        <div className="text-slate-400 text-sm px-2">{d.filename}</div>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-600">{d.filename}</div>
+                    <div className="flex items-center gap-2">
+                      <a href={d.url} target="_blank" rel="noreferrer" className="text-xs underline">Open</a>
+                      <button
+                        onClick={() => handleDeleteDocument(d.id)}
+                        className="text-xs text-red-600 inline-flex items-center gap-1"
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? (
+                          <span className="inline-flex items-center gap-1">Deleting...</span>
+                        ) : (
+                          <>
+                            <Trash2 className="w-3 h-3" /> Delete
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-600">{d.filename}</div>
-                  <div className="flex items-center gap-2">
-                    <a href={d.url} target="_blank" rel="noreferrer" className="text-xs underline">Open</a>
-                    <button onClick={() => handleDeleteDocument(d.id)} className="text-xs text-red-600 inline-flex items-center gap-1">
-                      <Trash2 className="w-3 h-3" /> Delete
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
+
+          {docActionError && <p className="text-sm text-red-600 mt-3">{docActionError}</p>}
 
           {/* Save button centered like screenshot */}
           <div className="mt-6 flex justify-center">
