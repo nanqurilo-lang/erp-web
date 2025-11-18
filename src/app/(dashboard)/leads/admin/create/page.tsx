@@ -79,8 +79,12 @@ export default function LeadsPage() {
     { refreshInterval: 30000, revalidateOnFocus: true }
   );
 
-  const { data: employeesData } = useSWR<Employee[]>(`${BASE}/hr/employee`, fetcher, { revalidateOnFocus: false });
-  const employees = employeesData || [];
+  // Use the provided employees endpoint
+  const { data: employeesData } = useSWR<{ content?: Employee[] }>(`${BASE}/employee/all?page=0&size=20`, fetcher, {
+    revalidateOnFocus: false,
+  });
+
+  const employees = (employeesData && employeesData.content) ? employeesData.content : (employeesData as unknown as Employee[]) || [];
 
   const [query, setQuery] = useState("");
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -379,6 +383,8 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
         if (res1.ok) {
           const json = await res1.json();
           if (Array.isArray(json)) setDealCategories(json);
+          // also use as clientCategories
+          if (Array.isArray(json)) setClientCategories(json);
         }
 
         // lead sources
@@ -388,11 +394,8 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
           if (Array.isArray(json2)) setLeadSources(json2);
         }
 
-        // client categories reuse dealCategory endpoint
-        // we can reuse dealCategories for clientCategories or call same endpoint again
-        setClientCategories((prev) => (Array.isArray((prev)) && dealCategories.length ? dealCategories : prev));
       } catch (err) {
-        // ignore — UI will have defaults
+        // ignore — UI will fall back
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -608,7 +611,6 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
         // dealCategory or clientCategory
         setDealCategories((prev) => [{ id: created.id, categoryName: created.categoryName || addName.trim() }, ...prev]);
         setClientCategories((prev) => [{ id: created.id, categoryName: created.categoryName || addName.trim() }, ...prev]);
-        // if dealCategory add, set selected deal.dealCategory to created.categoryName
         setPayload((p) => ({ ...p, deal: { ...(p.deal as DealPayload), dealCategory: created.categoryName || addName.trim() }, clientCategory: created.categoryName || addName.trim() }));
       }
 
@@ -648,26 +650,6 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
         setDealCategories((s) => s.filter((x) => x.id !== id));
         setClientCategories((s) => s.filter((x) => x.id !== id));
       }
-
-      // also if current selected equals deleted, clear selection
-      setPayload((p) => {
-        const currentLeadSource = p.leadSource;
-        const currentClientCategory = p.clientCategory;
-        const currentDealCategory = p.deal?.dealCategory;
-        const newP = { ...p };
-        if (type === "leadSource" && currentLeadSource) {
-          // if the deleted id matched current value we can't compare by id because selection stores text; skip
-        }
-        if (type !== "leadSource") {
-          if (currentClientCategory && dealCategories.findIndex((d) => d.id === id && d.categoryName === currentClientCategory) !== -1) {
-            newP.clientCategory = "";
-          }
-          if (currentDealCategory && dealCategories.findIndex((d) => d.id === id && d.categoryName === currentDealCategory) !== -1) {
-            newP.deal = { ...(newP.deal as DealPayload), dealCategory: "" };
-          }
-        }
-        return newP;
-      });
 
       alert("Deleted successfully.");
     } catch (err: any) {
@@ -811,13 +793,20 @@ function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; 
                     </select>
                   </div>
 
+                  {/* -------------------------
+                      Deal Watchers — fixed layout (wrap, full width)
+                      ------------------------- */}
                   <div className="md:col-span-3">
                     <label className="text-sm text-muted-foreground">Deal Watcher(s)</label>
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                       {employees.map(emp => (
-                        <label key={emp.employeeId} className="inline-flex items-center gap-2 border rounded px-2 py-1 text-sm">
-                          <input type="checkbox" checked={payload.deal!.dealWatchers.includes(emp.employeeId)} onChange={() => toggleWatcher(emp.employeeId)} />
-                          <span>{emp.name}</span>
+                        <label key={emp.employeeId} className="inline-flex items-center gap-2 border rounded px-3 py-2 text-sm bg-white">
+                          <input
+                            type="checkbox"
+                            checked={payload.deal!.dealWatchers.includes(emp.employeeId)}
+                            onChange={() => toggleWatcher(emp.employeeId)}
+                          />
+                          <span className="truncate">{emp.name} ({emp.employeeId})</span>
                         </label>
                       ))}
                     </div>
