@@ -17,7 +17,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AddLeadModal } from "../create/page";
 
+
+
+const BASE = "https://chat.swiftandgo.in";
 type EmployeeMeta = {
   employeeId: string;
   name: string;
@@ -25,6 +29,8 @@ type EmployeeMeta = {
   department: string;
   profileUrl?: string;
 };
+
+type Employee = { employeeId: string; name: string; designation?: string };
 
 type Lead = {
   id: number;
@@ -100,6 +106,12 @@ export default function LeadsPage() {
   const [query, setQuery] = useState("");
   const [openMenuFor, setOpenMenuFor] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+   // Use the provided employees endpoint (paged)
+  const { data: employeesData } = useSWR<{ content?: Employee[] }>(`${BASE}/employee/all?page=0&size=20`, fetcher, {
+    revalidateOnFocus: false,
+  });
+    const employees = (employeesData && (employeesData as any).content) ? (employeesData as any).content : (employeesData as unknown as Employee[]) || [];
+
 
   // Filters state (drawer)
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -108,6 +120,8 @@ export default function LeadsPage() {
   const [endDate, setEndDate] = useState<string>("");
   const [selectedLeadOwner, setSelectedLeadOwner] = useState<string>("All");
   const [selectedAddedBy, setSelectedAddedBy] = useState<string>("All");
+
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   const leads = data || [];
 
@@ -343,11 +357,11 @@ export default function LeadsPage() {
         {/* controls: add left, search top-right */}
         <div className="flex items-start md:items-center justify-between mb-4 gap-3">
           <div className="flex items-center gap-3">
-            <Link href="/leads/admin/create" className="inline-block">
-              <button className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-sky-700">
+            {/* <Link href="/leads/admin/create" className="inline-block"> */}
+              <button     onClick={() => setAddModalOpen(true)} className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-sky-700">
                 + Add Lead
               </button>
-            </Link>
+            {/* </Link> */}
           </div>
 
           <div className="flex items-center gap-2">
@@ -504,7 +518,22 @@ export default function LeadsPage() {
                                 </li>
                               </ul>
                             </div>
+                           
+
                           )}
+{addModalOpen && (
+  <AddLeadModal
+    drawer={true}
+    onClose={() => setAddModalOpen(false)}
+    onCreated={() => {
+      setAddModalOpen(false);
+      mutate();
+    }}
+    employees={employees}
+  />
+)}
+
+                          
                         </div>
                       </TableCell>
                     </TableRow>
@@ -636,3 +665,4 @@ export default function LeadsPage() {
     </main>
   );
 }
+
