@@ -1,586 +1,587 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import useSWR from "swr";
-import { useState, useRef, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft } from "lucide-react";
-
-type EmployeeMeta = {
-  employeeId?: string;
-  name?: string;
-  designation?: string | null;
-  department?: string | null;
-  profileUrl?: string | null;
-};
-
-type Lead = {
-  id: number;
-  name?: string;
-  email?: string;
-  clientCategory?: string;
-  leadSource?: string;
-  leadOwner?: string;
-  addedBy?: string;
-  leadOwnerMeta?: EmployeeMeta;
-  addedByMeta?: EmployeeMeta;
-  createDeal?: boolean;
-  autoConvertToClient?: boolean;
-  companyName?: string;
-  mobileNumber?: string | number;
-  city?: string;
-  country?: string;
-  status?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  notes?: unknown[];
-  deals?: unknown[];
-  officePhone?: string;
-  officialWebsite?: string;
-  postalCode?: string;
-  companyAddress?: string;
-};
-
-const BASE = "https://chat.swiftandgo.in"; // base URL provided
-
-const fetcher = async (url: string) => {
-  const accessToken = localStorage.getItem("accessToken");
-  if (!accessToken) throw new Error("No access token found. Please log in.");
-
-  const res = await fetch(url, {
-    cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    let message = "Failed to load lead details.";
-    try {
-      const json = await res.json();
-      message = json?.message || json?.error || message;
-    } catch {
-      message = (await res.text()) || message;
-    }
-    throw new Error(message);
-  }
-  return res.json();
-};
-
-export default function LeadDetailPage({ params }: { params: { id: string } }) {
-  const router = useRouter();
-  const { data, error, isLoading, mutate } = useSWR<Lead>(`${BASE}/leads/${params.id}`, fetcher, {
-    refreshInterval: 30000,
-    revalidateOnFocus: true,
-  });
-
-  const [activeTab, setActiveTab] = useState<"profile" | "deals" | "notes">("profile");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  // Edit modal state
-  const [editOpen, setEditOpen] = useState(false);
-
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      if (!menuRef.current) return;
-      const t = e.target as Node;
-      if (menuOpen && !menuRef.current.contains(t)) setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [menuOpen]);
-
-  const fmt = (v?: string | null) => (v && v !== "null" ? v : "--");
-  const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleString() : "--");
-
-  // Convert to client
-  const convertToClient = async () => {
-    setMenuOpen(false);
-    if (!confirm("Convert this lead to client?")) return;
-    try {
-      const token = localStorage.getItem("accessToken");
-      if (!token) throw new Error("No access token.");
-      const res = await fetch(`${BASE}/leads/${params.id}/convert`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(await res.text());
-      alert("Converted to client.");
-      await mutate();
-      router.push("/leads");
-    } catch (err: any) {
-      alert("Error: " + (err?.message ?? err));
-    }
-  };
-
-  // Delete
-  const remove = async () => {
-    setMenuOpen(false);
-    if (!confirm("Delete this lead?")) return;
-    try {
-      const token = localStorage.getItem("accessToken");
-      if (!token) throw new Error("No access token.");
-      const res = await fetch(`${BASE}/leads/${params.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(await res.text());
-      alert("Deleted.");
-      router.push("/leads");
-    } catch (err: any) {
-      alert("Error: " + (err?.message ?? err));
-    }
-  };
-
-  return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="container mx-auto max-w-6xl px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} aria-label="Back">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold">{data?.name ?? "—"}</h1>
-            <p className="text-sm text-muted-foreground mt-1">Detailed information about the selected lead.</p>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="mb-4 border-b bg-white rounded-t">
-          <nav className="flex items-center gap-6 px-4">
-            <button
-              onClick={() => setActiveTab("profile")}
-              className={`py-3 text-sm ${activeTab === "profile" ? "border-b-2 border-sky-600 text-sky-600" : "text-muted-foreground"}`}
-            >
-              Profile
-            </button>
-            <button
-              onClick={() => setActiveTab("deals")}
-              className={`py-3 text-sm ${activeTab === "deals" ? "border-b-2 border-sky-600 text-sky-600" : "text-muted-foreground"}`}
-            >
-              Deals
-            </button>
-            <button
-              onClick={() => setActiveTab("notes")}
-              className={`py-3 text-sm ${activeTab === "notes" ? "border-b-2 border-sky-600 text-sky-600" : "text-muted-foreground"}`}
-            >
-              Notes
-            </button>
-          </nav>
-        </div>
-
-        {/* Card with Profile Information */}
-        <Card className="p-6">
-          {isLoading ? (
-            <div className="py-12 text-center text-muted-foreground">Loading lead details…</div>
-          ) : error ? (
-            <div className="py-12 text-center">
-              <p className="text-destructive">Failed to load lead details.</p>
-              <p className="text-sm text-muted-foreground mt-2">{(error as Error)?.message}</p>
-              <div className="mt-4">
-                <Button variant="ghost" onClick={() => router.back()}>
-                  Back to Leads
-                </Button>
-              </div>
-            </div>
-          ) : !data ? (
-            <div className="py-12 text-center text-muted-foreground">No lead found.</div>
-          ) : (
-            <div>
-              {/* header row with title + actions menu */}
-              <div className="flex items-start justify-between mb-6">
-                <h3 className="text-lg font-semibold">Profile Information</h3>
-
-                <div className="relative" ref={menuRef}>
-                  <button
-                    onClick={() => setMenuOpen((s) => !s)}
-                    className="p-2 rounded hover:bg-slate-100"
-                    aria-label="More actions"
-                  >
-                    <svg className="w-5 h-5 text-muted-foreground" viewBox="0 0 24 24" fill="currentColor">
-                      <circle cx="5" cy="12" r="1.5" />
-                      <circle cx="12" cy="12" r="1.5" />
-                      <circle cx="19" cy="12" r="1.5" />
-                    </svg>
-                  </button>
-
-                  {menuOpen && (
-                    <div className="absolute right-0 mt-2 w-44 rounded-md border bg-white shadow-lg z-30">
-                      <ul className="py-1">
-                        <li>
-                          <button
-                            onClick={() => {
-                              setMenuOpen(false);
-                              setEditOpen(true); // open modal (Edit)
-                            }}
-                            className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-sm"
-                          >
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                              <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6-6L20 10M3 21h6l11-11a2 2 0 00-2-2L7 19v2z" />
-                            </svg>
-                            Edit
-                          </button>
-                        </li>
-
-                        <li>
-                          <button
-                            onClick={convertToClient}
-                            className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-sm"
-                          >
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                              <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 11c2.21 0 4-1.79 4-4S14.21 3 12 3 8 4.79 8 7s1.79 4 4 4z" />
-                              <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M6 20v-1a4 4 0 014-4h4a4 4 0 014 4v1" />
-                            </svg>
-                            Change to Client
-                          </button>
-                        </li>
-
-                        <li>
-                          <button
-                            onClick={remove}
-                            className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-sm text-destructive"
-                          >
-                            <svg className="w-4 h-4 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                              <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6v12a2 2 0 002 2h4a2 2 0 002-2V6M10 6V4a2 2 0 012-2h0a2 2 0 012 2v2" />
-                            </svg>
-                            Delete
-                          </button>
-                        </li>
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* information grid */}
-              <div className="rounded-lg border p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <dl className="hidden md:block md:col-span-1 space-y-4 text-sm text-muted-foreground">
-                    <dt>Name</dt>
-                    <dt>Email</dt>
-                    <dt>Lead Owner</dt>
-                    <dt>Source</dt>
-                    <dt>Company Name</dt>
-                    <dt>Website</dt>
-                    <dt>Mobile</dt>
-                    <dt>Office Phone Number</dt>
-                    <dt>City</dt>
-                    <dt>State</dt>
-                    <dt>Country</dt>
-                    <dt>Postal Code</dt>
-                    <dt>Address</dt>
-                  </dl>
-
-                  <div className="md:col-span-2">
-                    <div className="grid gap-y-3">
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Name</div>
-                        <div className="text-sm">{fmt(data?.name)}</div>
-                      </div>
-
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Email</div>
-                        <div className="text-sm">{fmt(data?.email)}</div>
-                      </div>
-
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Lead Owner</div>
-                        <div className="text-sm">{data?.leadOwnerMeta?.name ?? data?.leadOwner ?? "--"}</div>
-                      </div>
-
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Source</div>
-                        <div className="text-sm">{fmt(data?.leadSource)}</div>
-                      </div>
-
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Company Name</div>
-                        <div className="text-sm">{fmt(data?.companyName)}</div>
-                      </div>
-
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Website</div>
-                        <div className="text-sm">{fmt((data as any)?.officialWebsite)}</div>
-                      </div>
-
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Mobile</div>
-                        <div className="text-sm">{fmt(String(data?.mobileNumber ?? ""))}</div>
-                      </div>
-
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Office Phone Number</div>
-                        <div className="text-sm">{fmt(data?.officePhone)}</div>
-                      </div>
-
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">City</div>
-                        <div className="text-sm">{fmt(data?.city)}</div>
-                      </div>
-
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">State</div>
-                        <div className="text-sm">{fmt(data?.state)}</div>
-                      </div>
-
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Country</div>
-                        <div className="text-sm">{fmt(data?.country)}</div>
-                      </div>
-
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Postal Code</div>
-                        <div className="text-sm">{fmt(data?.postalCode)}</div>
-                      </div>
-
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Address</div>
-                        <div className="text-sm">{fmt(data?.companyAddress)}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* footer small details */}
-              <div className="mt-6 text-sm text-muted-foreground grid md:grid-cols-2 gap-2">
-                <div>Created: {fmtDate(data?.createdAt)}</div>
-                <div className="text-right">
-                  Status: <Badge variant="secondary">{data?.status ?? "--"}</Badge>
-                </div>
-              </div>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* Edit Modal */}
-      {editOpen && data && (
-        <EditModal
-          lead={data}
-          onClose={() => setEditOpen(false)}
-          onSaved={async () => {
-            setEditOpen(false);
-            await mutate(); // refresh SWR data
-          }}
-        />
-      )}
-    </main>
-  );
-}
-
-/* ----------------------------
-   EditModal component
-   - pre-fills from `lead`
-   - PUTs to `${BASE}/leads/:id`
-   ---------------------------- */
-function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState({
-    name: lead?.name ?? "",
-    email: lead?.email ?? "",
-    clientCategory: lead?.clientCategory ?? "",
-    leadSource: lead?.leadSource ?? "",
-    leadOwner: lead?.leadOwner ?? "",
-    addedBy: lead?.addedBy ?? "",
-    autoConvertToClient: !!lead?.autoConvertToClient,
-    companyName: lead?.companyName ?? "",
-    officialWebsite: lead?.officialWebsite ?? "",
-    mobileNumber: String(lead?.mobileNumber ?? ""),
-    officePhone: lead?.officePhone ?? "",
-    city: lead?.city ?? "",
-    state: lead?.state ?? "",
-    postalCode: lead?.postalCode ?? "",
-    country: lead?.country ?? "",
-    companyAddress: lead?.companyAddress ?? "",
-  });
-
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    // close on escape
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  const update = (k: keyof typeof form, v: any) => setForm((s) => ({ ...s, [k]: v }));
-
-  const validate = () => {
-    if (!form.name.trim() || !form.email.trim()) return "Name and Email are required.";
-    return null;
-  };
-
-  const submit = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    const v = validate();
-    if (v) {
-      setErrorMsg(v);
-      return;
-    }
-    setErrorMsg(null);
-    setSubmitting(true);
-
-    try {
-      const token = localStorage.getItem("accessToken");
-      if (!token) throw new Error("No access token.");
-
-      // prepare body — convert mobile to number if possible, booleans to boolean
-      const body: any = {
-        name: form.name,
-        email: form.email,
-        clientCategory: form.clientCategory || undefined,
-        leadSource: form.leadSource || undefined,
-        leadOwner: form.leadOwner || undefined,
-        addedBy: form.addedBy || undefined,
-        autoConvertToClient: !!form.autoConvertToClient,
-        companyName: form.companyName || undefined,
-        officialWebsite: form.officialWebsite || undefined,
-        mobileNumber: form.mobileNumber ? Number(form.mobileNumber) : undefined,
-        officePhone: form.officePhone || undefined,
-        city: form.city || undefined,
-        state: form.state || undefined,
-        postalCode: form.postalCode || undefined,
-        country: form.country || undefined,
-        companyAddress: form.companyAddress || undefined,
-      };
-
-      const res = await fetch(`${BASE}/leads/${lead.id}`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(txt || "Update failed");
-      }
-
-      const json = await res.json();
-      alert("Lead updated successfully.");
-      await onSaved();
-    } catch (err: any) {
-      setErrorMsg(err?.message ?? "Failed to update lead.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-
-      <div className="fixed inset-0 flex items-start justify-center px-4 pt-12">
-        <div className="max-w-4xl w-full bg-white rounded-lg shadow-lg border overflow-auto" style={{ maxHeight: "92vh" }}>
-          <div className="flex items-center justify-between p-4 border-b">
-            <h3 className="text-lg font-semibold">Update Lead Contact</h3>
-            <button onClick={onClose} className="text-muted-foreground p-1 rounded hover:bg-slate-100">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <form onSubmit={submit} className="p-6 space-y-6">
-            {errorMsg && <div className="text-destructive text-sm">{errorMsg}</div>}
-
-            {/* Contact Details */}
-            <div className="rounded-lg border p-4">
-              <h4 className="font-medium mb-3">Contact Details</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-muted-foreground">Name *</label>
-                  <input className="w-full border rounded-md p-2" value={form.name} onChange={(e) => update("name", e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground">Email *</label>
-                  <input className="w-full border rounded-md p-2" value={form.email} onChange={(e) => update("email", e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground">Lead Source</label>
-                  <input className="w-full border rounded-md p-2" value={form.leadSource} onChange={(e) => update("leadSource", e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground">Lead Owner</label>
-                  <input className="w-full border rounded-md p-2" value={form.leadOwner} onChange={(e) => update("leadOwner", e.target.value)} />
-                </div>
-
-                <div className="flex items-center gap-2 md:col-span-2">
-                  <input type="checkbox" id="autoConvert" checked={!!form.autoConvertToClient} onChange={(e) => update("autoConvertToClient", e.target.checked)} />
-                  <label htmlFor="autoConvert" className="text-sm">Auto Convert lead to client when the deal stage is set to "WIN".</label>
-                </div>
-              </div>
-            </div>
-
-            {/* Company Details */}
-            <div className="rounded-lg border p-4">
-              <h4 className="font-medium mb-3">Company Details</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm text-muted-foreground">Company Name</label>
-                  <input className="w-full border rounded-md p-2" value={form.companyName} onChange={(e) => update("companyName", e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground">Official Website</label>
-                  <input className="w-full border rounded-md p-2" value={form.officialWebsite} onChange={(e) => update("officialWebsite", e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground">Mobile Number</label>
-                  <input className="w-full border rounded-md p-2" value={form.mobileNumber} onChange={(e) => update("mobileNumber", e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground">Office Phone No.</label>
-                  <input className="w-full border rounded-md p-2" value={form.officePhone} onChange={(e) => update("officePhone", e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground">City</label>
-                  <input className="w-full border rounded-md p-2" value={form.city} onChange={(e) => update("city", e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground">State</label>
-                  <input className="w-full border rounded-md p-2" value={form.state} onChange={(e) => update("state", e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground">Postal Code</label>
-                  <input className="w-full border rounded-md p-2" value={form.postalCode} onChange={(e) => update("postalCode", e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground">Country</label>
-                  <input className="w-full border rounded-md p-2" value={form.country} onChange={(e) => update("country", e.target.value)} />
-                </div>
-
-                <div className="md:col-span-3">
-                  <label className="text-sm text-muted-foreground">Company Address</label>
-                  <textarea className="w-full border rounded-md p-2 h-28" value={form.companyAddress} onChange={(e) => update("companyAddress", e.target.value)} />
-                </div>
-              </div>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-              <Button type="submit" onClick={submit} disabled={submitting}>{submitting ? "Updating..." : "Update"}</Button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
+// "use client";
+
+// import { useRouter } from "next/navigation";
+// import useSWR from "swr";
+// import { useState, useRef, useEffect } from "react";
+// import { Card } from "@/components/ui/card";
+// import { Button } from "@/components/ui/button";
+// import { Badge } from "@/components/ui/badge";
+// import { ArrowLeft } from "lucide-react";
+
+// type EmployeeMeta = {
+//   employeeId?: string;
+//   name?: string;
+//   designation?: string | null;
+//   department?: string | null;
+//   profileUrl?: string | null;
+// };
+
+// type Lead = {
+//   id: number;
+//   name?: string;
+//   email?: string;
+//   clientCategory?: string;
+//   leadSource?: string;
+//   leadOwner?: string;
+//   addedBy?: string;
+//   leadOwnerMeta?: EmployeeMeta;
+//   addedByMeta?: EmployeeMeta;
+//   createDeal?: boolean;
+//   autoConvertToClient?: boolean;
+//   companyName?: string;
+//   mobileNumber?: string | number;
+//   city?: string;
+//   country?: string;
+//   status?: string;
+//   createdAt?: string;
+//   updatedAt?: string;
+//   notes?: unknown[];
+//   deals?: unknown[];
+//   officePhone?: string;
+//   officialWebsite?: string;
+//   postalCode?: string;
+//   companyAddress?: string;
+// };
+
+// const BASE = "https://chat.swiftandgo.in"; // base URL provided
+
+// const fetcher = async (url: string) => {
+//   const accessToken = localStorage.getItem("accessToken");
+//   if (!accessToken) throw new Error("No access token found. Please log in.");
+
+//   const res = await fetch(url, {
+//     cache: "no-store",
+//     headers: {
+//       Authorization: `Bearer ${accessToken}`,
+//       Accept: "application/json",
+//     },
+//   });
+
+//   if (!res.ok) {
+//     let message = "Failed to load lead details.";
+//     try {
+//       const json = await res.json();
+//       message = json?.message || json?.error || message;
+//     } catch {
+//       message = (await res.text()) || message;
+//     }
+//     throw new Error(message);
+//   }
+//   return res.json();
+// };
+
+// export default function LeadDetailPage({ params }: { params: { id: string } }) {
+//   const router = useRouter();
+//   const { data, error, isLoading, mutate } = useSWR<Lead>(`${BASE}/leads/${params.id}`, fetcher, {
+//     refreshInterval: 30000,
+//     revalidateOnFocus: true,
+//   });
+
+//   const [activeTab, setActiveTab] = useState<"profile" | "deals" | "notes">("profile");
+//   const [menuOpen, setMenuOpen] = useState(false);
+//   const menuRef = useRef<HTMLDivElement | null>(null);
+
+//   // Edit modal state
+//   const [editOpen, setEditOpen] = useState(false);
+
+//   useEffect(() => {
+//     const onDoc = (e: MouseEvent) => {
+//       if (!menuRef.current) return;
+//       const t = e.target as Node;
+//       if (menuOpen && !menuRef.current.contains(t)) setMenuOpen(false);
+//     };
+//     document.addEventListener("mousedown", onDoc);
+//     return () => document.removeEventListener("mousedown", onDoc);
+//   }, [menuOpen]);
+
+//   const fmt = (v?: string | null) => (v && v !== "null" ? v : "--");
+//   const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleString() : "--");
+
+//   // Convert to client
+//   const convertToClient = async () => {
+//     setMenuOpen(false);
+//     if (!confirm("Convert this lead to client?")) return;
+//     try {
+//       const token = localStorage.getItem("accessToken");
+//       if (!token) throw new Error("No access token.");
+//       const res = await fetch(`${BASE}/leads/${params.id}/convert`, {
+//         method: "POST",
+//         headers: { Authorization: `Bearer ${token}` },
+//       });
+//       if (!res.ok) throw new Error(await res.text());
+//       alert("Converted to client.");
+//       await mutate();
+//       router.push("/leads");
+//     } catch (err: any) {
+//       alert("Error: " + (err?.message ?? err));
+//     }
+//   };
+
+//   // Delete
+//   const remove = async () => {
+//     setMenuOpen(false);
+//     if (!confirm("Delete this lead?")) return;
+//     try {
+//       const token = localStorage.getItem("accessToken");
+//       if (!token) throw new Error("No access token.");
+//       const res = await fetch(`${BASE}/leads/${params.id}`, {
+//         method: "DELETE",
+//         headers: { Authorization: `Bearer ${token}` },
+//       });
+//       if (!res.ok) throw new Error(await res.text());
+//       alert("Deleted.");
+//       router.push("/leads");
+//     } catch (err: any) {
+//       alert("Error: " + (err?.message ?? err));
+//     }
+//   };
+
+//   return (
+//     <main className="min-h-screen bg-gray-50">
+//       <div className="container mx-auto max-w-6xl px-4 py-8">
+//         {/* Header */}
+//         <div className="flex items-center gap-4 mb-4">
+//           <Button variant="ghost" size="icon" onClick={() => router.back()} aria-label="Back">
+//             <ArrowLeft className="h-5 w-5" />
+//           </Button>
+//           <div>
+//             <h1 className="text-2xl md:text-3xl font-semibold">{data?.name ?? "—"}</h1>
+//             <p className="text-sm text-muted-foreground mt-1">Detailed information about the selected lead.</p>
+//           </div>
+//         </div>
+
+//         {/* Tabs */}
+//         <div className="mb-4 border-b bg-white rounded-t">
+//           <nav className="flex items-center gap-6 px-4">
+//             <button
+//               onClick={() => setActiveTab("profile")}
+//               className={`py-3 text-sm ${activeTab === "profile" ? "border-b-2 border-sky-600 text-sky-600" : "text-muted-foreground"}`}
+//             >
+//               Profile hgjh
+//             </button>
+//             <button
+//               onClick={() => setActiveTab("deals")}
+//               className={`py-3 text-sm ${activeTab === "deals" ? "border-b-2 border-sky-600 text-sky-600" : "text-muted-foreground"}`}
+//             >
+//               Deals
+//             </button>
+//             <button
+//               onClick={() => setActiveTab("notes")}
+//               className={`py-3 text-sm ${activeTab === "notes" ? "border-b-2 border-sky-600 text-sky-600" : "text-muted-foreground"}`}
+//             >
+//               Notes
+//             </button>
+//           </nav>
+//         </div>
+
+//         {/* Card with Profile Information */}
+//         <Card className="p-6">
+//           {isLoading ? (
+//             <div className="py-12 text-center text-muted-foreground">Loading lead details…</div>
+//           ) : error ? (
+//             <div className="py-12 text-center">
+//               <p className="text-destructive">Failed to load lead details.</p>
+//               <p className="text-sm text-muted-foreground mt-2">{(error as Error)?.message}</p>
+//               <div className="mt-4">
+//                 <Button variant="ghost" onClick={() => router.back()}>
+//                   Back to Leads
+//                 </Button>
+//               </div>
+//             </div>
+//           ) : !data ? (
+//             <div className="py-12 text-center text-muted-foreground">No lead found.</div>
+//           ) : (
+//             <div>
+//               {/* header row with title + actions menu */}
+//               <div className="flex items-start justify-between mb-6">
+//                 <h3 className="text-lg font-semibold">Profile Information</h3>
+
+//                 <div className="relative" ref={menuRef}>
+//                   <button
+//                     onClick={() => setMenuOpen((s) => !s)}
+//                     className="p-2 rounded hover:bg-slate-100"
+//                     aria-label="More actions"
+//                   >
+//                     <svg className="w-5 h-5 text-muted-foreground" viewBox="0 0 24 24" fill="currentColor">
+//                       <circle cx="5" cy="12" r="1.5" />
+//                       <circle cx="12" cy="12" r="1.5" />
+//                       <circle cx="19" cy="12" r="1.5" />
+//                     </svg>
+//                   </button>
+
+//                   {menuOpen && (
+//                     <div className="absolute right-0 mt-2 w-44 rounded-md border bg-white shadow-lg z-30">
+//                       <ul className="py-1">
+//                         <li>
+//                           <button
+//                             onClick={() => {
+//                               setMenuOpen(false);
+//                               setEditOpen(true); // open modal (Edit)
+//                             }}
+//                             className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-sm"
+//                           >
+//                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              
+//                               <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6-6L20 10M3 21h6l11-11a2 2 0 00-2-2L7 19v2z" />
+//                             </svg>
+//                             Edit
+//                           </button>
+//                         </li>
+
+//                         <li>
+//                           <button
+//                             onClick={convertToClient}
+//                             className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-sm"
+//                           >
+//                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+//                               <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 11c2.21 0 4-1.79 4-4S14.21 3 12 3 8 4.79 8 7s1.79 4 4 4z" />
+//                               <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M6 20v-1a4 4 0 014-4h4a4 4 0 014 4v1" />
+//                             </svg>
+//                             Change to Client
+//                           </button>
+//                         </li>
+
+//                         <li>
+//                           <button
+//                             onClick={remove}
+//                             className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-sm text-destructive"
+//                           >
+//                             <svg className="w-4 h-4 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+//                               <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6v12a2 2 0 002 2h4a2 2 0 002-2V6M10 6V4a2 2 0 012-2h0a2 2 0 012 2v2" />
+//                             </svg>
+//                             Delete
+//                           </button>
+//                         </li>
+//                       </ul>
+//                     </div>
+//                   )}
+//                 </div>
+//               </div>
+
+//               {/* information grid */}
+//               <div className="rounded-lg border p-4">
+//                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+//                   <dl className="hidden md:block md:col-span-1 space-y-4 text-sm text-muted-foreground">
+//                     <dt>Name</dt>
+//                     <dt>Email</dt>
+//                     <dt>Lead Owner</dt>
+//                     <dt>Source</dt>
+//                     <dt>Company Name</dt>
+//                     <dt>Website</dt>
+//                     <dt>Mobile</dt>
+//                     <dt>Office Phone Number</dt>
+//                     <dt>City</dt>
+//                     <dt>State</dt>
+//                     <dt>Country</dt>
+//                     <dt>Postal Code</dt>
+//                     <dt>Address</dt>
+//                   </dl>
+
+//                   <div className="md:col-span-2">
+//                     <div className="grid gap-y-3">
+//                       <div className="flex items-start gap-6">
+//                         <div className="w-48 md:hidden text-sm text-muted-foreground">Name</div>
+//                         <div className="text-sm">{fmt(data?.name)}</div>
+//                       </div>
+
+//                       <div className="flex items-start gap-6">
+//                         <div className="w-48 md:hidden text-sm text-muted-foreground">Email</div>
+//                         <div className="text-sm">{fmt(data?.email)}</div>
+//                       </div>
+
+//                       <div className="flex items-start gap-6">
+//                         <div className="w-48 md:hidden text-sm text-muted-foreground">Lead Owner</div>
+//                         <div className="text-sm">{data?.leadOwnerMeta?.name ?? data?.leadOwner ?? "--"}</div>
+//                       </div>
+
+//                       <div className="flex items-start gap-6">
+//                         <div className="w-48 md:hidden text-sm text-muted-foreground">Source</div>
+//                         <div className="text-sm">{fmt(data?.leadSource)}</div>
+//                       </div>
+
+//                       <div className="flex items-start gap-6">
+//                         <div className="w-48 md:hidden text-sm text-muted-foreground">Company Name</div>
+//                         <div className="text-sm">{fmt(data?.companyName)}</div>
+//                       </div>
+
+//                       <div className="flex items-start gap-6">
+//                         <div className="w-48 md:hidden text-sm text-muted-foreground">Website</div>
+//                         <div className="text-sm">{fmt((data as any)?.officialWebsite)}</div>
+//                       </div>
+
+//                       <div className="flex items-start gap-6">
+//                         <div className="w-48 md:hidden text-sm text-muted-foreground">Mobile</div>
+//                         <div className="text-sm">{fmt(String(data?.mobileNumber ?? ""))}</div>
+//                       </div>
+
+//                       <div className="flex items-start gap-6">
+//                         <div className="w-48 md:hidden text-sm text-muted-foreground">Office Phone Number</div>
+//                         <div className="text-sm">{fmt(data?.officePhone)}</div>
+//                       </div>
+
+//                       <div className="flex items-start gap-6">
+//                         <div className="w-48 md:hidden text-sm text-muted-foreground">City</div>
+//                         <div className="text-sm">{fmt(data?.city)}</div>
+//                       </div>
+
+//                       <div className="flex items-start gap-6">
+//                         <div className="w-48 md:hidden text-sm text-muted-foreground">State</div>
+//                         <div className="text-sm">{fmt(data?.state)}</div>
+//                       </div>
+
+//                       <div className="flex items-start gap-6">
+//                         <div className="w-48 md:hidden text-sm text-muted-foreground">Country</div>
+//                         <div className="text-sm">{fmt(data?.country)}</div>
+//                       </div>
+
+//                       <div className="flex items-start gap-6">
+//                         <div className="w-48 md:hidden text-sm text-muted-foreground">Postal Code</div>
+//                         <div className="text-sm">{fmt(data?.postalCode)}</div>
+//                       </div>
+
+//                       <div className="flex items-start gap-6">
+//                         <div className="w-48 md:hidden text-sm text-muted-foreground">Address</div>
+//                         <div className="text-sm">{fmt(data?.companyAddress)}</div>
+//                       </div>
+//                     </div>
+//                   </div>
+//                 </div>
+//               </div>
+
+//               {/* footer small details */}
+//               <div className="mt-6 text-sm text-muted-foreground grid md:grid-cols-2 gap-2">
+//                 <div>Created: {fmtDate(data?.createdAt)}</div>
+//                 <div className="text-right">
+//                   Status: <Badge variant="secondary">{data?.status ?? "--"}</Badge>
+//                 </div>
+//               </div>
+//             </div>
+//           )}
+//         </Card>
+//       </div>
+
+//       {/* Edit Modal */}
+//       {editOpen && data && (
+//         <EditModal
+//           lead={data}
+//           onClose={() => setEditOpen(false)}
+//           onSaved={async () => {
+//             setEditOpen(false);
+//             await mutate(); // refresh SWR data
+//           }}
+//         />
+//       )}
+//     </main>
+//   );
+// }
+
+// /* ----------------------------
+//    EditModal component
+//    - pre-fills from `lead`
+//    - PUTs to `${BASE}/leads/:id`
+//    ---------------------------- */
+// // function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void; onSaved: () => void }) {
+// //   const [form, setForm] = useState({
+// //     name: lead?.name ?? "",
+// //     email: lead?.email ?? "",
+// //     clientCategory: lead?.clientCategory ?? "",
+// //     leadSource: lead?.leadSource ?? "",
+// //     leadOwner: lead?.leadOwner ?? "",
+// //     addedBy: lead?.addedBy ?? "",
+// //     autoConvertToClient: !!lead?.autoConvertToClient,
+// //     companyName: lead?.companyName ?? "",
+// //     officialWebsite: lead?.officialWebsite ?? "",
+// //     mobileNumber: String(lead?.mobileNumber ?? ""),
+// //     officePhone: lead?.officePhone ?? "",
+// //     city: lead?.city ?? "",
+// //     state: lead?.state ?? "",
+// //     postalCode: lead?.postalCode ?? "",
+// //     country: lead?.country ?? "",
+// //     companyAddress: lead?.companyAddress ?? "",
+// //   });
+
+// //   const [submitting, setSubmitting] = useState(false);
+// //   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+// //   useEffect(() => {
+// //     // close on escape
+// //     const onKey = (e: KeyboardEvent) => {
+// //       if (e.key === "Escape") onClose();
+// //     };
+// //     document.addEventListener("keydown", onKey);
+// //     return () => document.removeEventListener("keydown", onKey);
+// //   }, [onClose]);
+
+// //   const update = (k: keyof typeof form, v: any) => setForm((s) => ({ ...s, [k]: v }));
+
+// //   const validate = () => {
+// //     if (!form.name.trim() || !form.email.trim()) return "Name and Email are required.";
+// //     return null;
+// //   };
+
+// //   const submit = async (e?: React.FormEvent) => {
+// //     e?.preventDefault();
+// //     const v = validate();
+// //     if (v) {
+// //       setErrorMsg(v);
+// //       return;
+// //     }
+// //     setErrorMsg(null);
+// //     setSubmitting(true);
+
+// //     try {
+// //       const token = localStorage.getItem("accessToken");
+// //       if (!token) throw new Error("No access token.");
+
+// //       // prepare body — convert mobile to number if possible, booleans to boolean
+// //       const body: any = {
+// //         name: form.name,
+// //         email: form.email,
+// //         clientCategory: form.clientCategory || undefined,
+// //         leadSource: form.leadSource || undefined,
+// //         leadOwner: form.leadOwner || undefined,
+// //         addedBy: form.addedBy || undefined,
+// //         autoConvertToClient: !!form.autoConvertToClient,
+// //         companyName: form.companyName || undefined,
+// //         officialWebsite: form.officialWebsite || undefined,
+// //         mobileNumber: form.mobileNumber ? Number(form.mobileNumber) : undefined,
+// //         officePhone: form.officePhone || undefined,
+// //         city: form.city || undefined,
+// //         state: form.state || undefined,
+// //         postalCode: form.postalCode || undefined,
+// //         country: form.country || undefined,
+// //         companyAddress: form.companyAddress || undefined,
+// //       };
+
+// //       const res = await fetch(`${BASE}/leads/${lead.id}`, {
+// //         method: "PUT",
+// //         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+// //         body: JSON.stringify(body),
+// //       });
+
+// //       if (!res.ok) {
+// //         const txt = await res.text().catch(() => "");
+// //         throw new Error(txt || "Update failed");
+// //       }
+
+// //       const json = await res.json();
+// //       alert("Lead updated successfully.");
+// //       await onSaved();
+// //     } catch (err: any) {
+// //       setErrorMsg(err?.message ?? "Failed to update lead.");
+// //     } finally {
+// //       setSubmitting(false);
+// //     }
+// //   };
+
+// //   return (
+// //     <div className="fixed inset-0 z-50">
+// //       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+
+// //       <div className="fixed inset-0 flex items-start justify-center px-4 pt-12">
+// //         <div className="max-w-4xl w-full bg-white rounded-lg shadow-lg border overflow-auto" style={{ maxHeight: "92vh" }}>
+// //           <div className="flex items-center justify-between p-4 border-b">
+// //             <h3 className="text-lg font-semibold">Update Lead Contact</h3>
+// //             <button onClick={onClose} className="text-muted-foreground p-1 rounded hover:bg-slate-100">
+// //               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+// //                 <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+// //               </svg>
+// //             </button>
+// //           </div>
+
+// //           <form onSubmit={submit} className="p-6 space-y-6">
+// //             {errorMsg && <div className="text-destructive text-sm">{errorMsg}</div>}
+
+// //             {/* Contact Details */}
+// //             <div className="rounded-lg border p-4">
+// //               <h4 className="font-medium mb-3">Contact Details</h4>
+// //               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+// //                 <div>
+// //                   <label className="text-sm text-muted-foreground">Name *</label>
+// //                   <input className="w-full border rounded-md p-2" value={form.name} onChange={(e) => update("name", e.target.value)} />
+// //                 </div>
+
+// //                 <div>
+// //                   <label className="text-sm text-muted-foreground">Email *</label>
+// //                   <input className="w-full border rounded-md p-2" value={form.email} onChange={(e) => update("email", e.target.value)} />
+// //                 </div>
+
+// //                 <div>
+// //                   <label className="text-sm text-muted-foreground">Lead Source</label>
+// //                   <input className="w-full border rounded-md p-2" value={form.leadSource} onChange={(e) => update("leadSource", e.target.value)} />
+// //                 </div>
+
+// //                 <div>
+// //                   <label className="text-sm text-muted-foreground">Lead Owner</label>
+// //                   <input className="w-full border rounded-md p-2" value={form.leadOwner} onChange={(e) => update("leadOwner", e.target.value)} />
+// //                 </div>
+
+// //                 <div className="flex items-center gap-2 md:col-span-2">
+// //                   <input type="checkbox" id="autoConvert" checked={!!form.autoConvertToClient} onChange={(e) => update("autoConvertToClient", e.target.checked)} />
+// //                   <label htmlFor="autoConvert" className="text-sm">Auto Convert lead to client when the deal stage is set to "WIN".</label>
+// //                 </div>
+// //               </div>
+// //             </div>
+
+// //             {/* Company Details */}
+// //             <div className="rounded-lg border p-4">
+// //               <h4 className="font-medium mb-3">Company Details</h4>
+// //               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+// //                 <div>
+// //                   <label className="text-sm text-muted-foreground">Company Name</label>
+// //                   <input className="w-full border rounded-md p-2" value={form.companyName} onChange={(e) => update("companyName", e.target.value)} />
+// //                 </div>
+
+// //                 <div>
+// //                   <label className="text-sm text-muted-foreground">Official Website</label>
+// //                   <input className="w-full border rounded-md p-2" value={form.officialWebsite} onChange={(e) => update("officialWebsite", e.target.value)} />
+// //                 </div>
+
+// //                 <div>
+// //                   <label className="text-sm text-muted-foreground">Mobile Number</label>
+// //                   <input className="w-full border rounded-md p-2" value={form.mobileNumber} onChange={(e) => update("mobileNumber", e.target.value)} />
+// //                 </div>
+
+// //                 <div>
+// //                   <label className="text-sm text-muted-foreground">Office Phone No.</label>
+// //                   <input className="w-full border rounded-md p-2" value={form.officePhone} onChange={(e) => update("officePhone", e.target.value)} />
+// //                 </div>
+
+// //                 <div>
+// //                   <label className="text-sm text-muted-foreground">City</label>
+// //                   <input className="w-full border rounded-md p-2" value={form.city} onChange={(e) => update("city", e.target.value)} />
+// //                 </div>
+
+// //                 <div>
+// //                   <label className="text-sm text-muted-foreground">State</label>
+// //                   <input className="w-full border rounded-md p-2" value={form.state} onChange={(e) => update("state", e.target.value)} />
+// //                 </div>
+
+// //                 <div>
+// //                   <label className="text-sm text-muted-foreground">Postal Code</label>
+// //                   <input className="w-full border rounded-md p-2" value={form.postalCode} onChange={(e) => update("postalCode", e.target.value)} />
+// //                 </div>
+
+// //                 <div>
+// //                   <label className="text-sm text-muted-foreground">Country</label>
+// //                   <input className="w-full border rounded-md p-2" value={form.country} onChange={(e) => update("country", e.target.value)} />
+// //                 </div>
+
+// //                 <div className="md:col-span-3">
+// //                   <label className="text-sm text-muted-foreground">Company Address</label>
+// //                   <textarea className="w-full border rounded-md p-2 h-28" value={form.companyAddress} onChange={(e) => update("companyAddress", e.target.value)} />
+// //                 </div>
+// //               </div>
+// //             </div>
+
+// //             {/* Buttons */}
+// //             <div className="flex justify-end gap-3">
+// //               <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
+// //               <Button type="submit" onClick={submit} disabled={submitting}>{submitting ? "Updating..." : "Update"}</Button>
+// //             </div>
+// //           </form>
+// //         </div>
+// //       </div>
+// //     </div>
+// //   );
+// // }
