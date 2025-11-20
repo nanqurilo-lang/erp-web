@@ -43,6 +43,38 @@ type Lead = {
   companyAddress?: string;
 };
 
+type Followup = {
+  id: number;
+  nextDate?: string;
+  startTime?: string;
+  remarks?: string;
+  sendReminder?: boolean;
+  reminderSent?: boolean;
+  createdAt?: string;
+};
+
+type Deal = {
+  id: number;
+  title?: string;
+  value?: number;
+  dealStage?: string;
+  dealAgent?: string;
+  dealWatchers?: string[];
+  leadId?: number;
+  leadName?: string;
+  leadMobile?: string;
+  pipeline?: string;
+  dealCategory?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  followups?: Followup[];
+  tags?: string[];
+  comments?: unknown[];
+  assignedEmployeesMeta?: EmployeeMeta[];
+  dealAgentMeta?: EmployeeMeta;
+  dealWatchersMeta?: EmployeeMeta[];
+};
+
 const BASE = "https://chat.swiftandgo.in"; // change if needed
 
 const fetcher = async (url: string) => {
@@ -58,7 +90,7 @@ const fetcher = async (url: string) => {
   });
 
   if (!res.ok) {
-    let message = "Failed to load lead details.";
+    let message = "Failed to load data.";
     try {
       const json = await res.json();
       message = json?.message || json?.error || message;
@@ -70,6 +102,19 @@ const fetcher = async (url: string) => {
   return res.json();
 };
 
+function fmt(v?: string | null) {
+  return v && v !== "null" ? v : "--";
+}
+function fmtDate(d?: string | null) {
+  return d ? new Date(d).toLocaleString() : "--";
+}
+function fmtShortDate(d?: string | null) {
+  return d ? new Date(d).toLocaleDateString() : "--";
+}
+function fmtCurrency(n?: number | null) {
+  if (n == null || isNaN(Number(n))) return "--";
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+}
 
 function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
@@ -124,7 +169,6 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
       const token = localStorage.getItem("accessToken");
       if (!token) throw new Error("No access token.");
 
-      // prepare body — convert mobile to number if possible, booleans to boolean
       const body: any = {
         name: form.name,
         email: form.email,
@@ -155,7 +199,7 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
         throw new Error(txt || "Update failed");
       }
 
-      const json = await res.json();
+      await res.json();
       alert("Lead updated successfully.");
       await onSaved();
     } catch (err: any) {
@@ -277,12 +321,6 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
   );
 }
 
-
-
-
-
-
-
 export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { data, error, isLoading, mutate } = useSWR<Lead>(`/api/leads/admin/get/${params.id}`, fetcher, {
@@ -296,6 +334,13 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
 
   const [editOpen, setEditOpen] = useState(false);
 
+  // Deals SWR: only fetch when in deals tab
+  const { data: dealsData, error: dealsError, isLoading: dealsLoading, mutate: mutateDeals } = useSWR<Deal[]>(
+    activeTab === "deals" ? `${BASE}/deals/lead/${params.id}` : null,
+    fetcher,
+    { refreshInterval: 30000, revalidateOnFocus: true }
+  );
+
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       if (!menuRef.current) return;
@@ -305,9 +350,6 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [menuOpen]);
-
-  const fmt = (v?: string | null) => (v && v !== "null" ? v : "--");
-  const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleString() : "--");
 
   const goEdit = () => {
     setMenuOpen(false);
@@ -389,7 +431,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
           </nav>
         </div>
 
-        {/* Card with Profile Information */}
+        {/* Card with Profile Information or Deals */}
         <Card className="p-6">
           {isLoading ? (
             <div className="py-12 text-center text-muted-foreground">Loading lead details…</div>
@@ -409,7 +451,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
             <div>
               {/* header row with title + actions menu */}
               <div className="flex items-start justify-between mb-6">
-                <h3 className="text-lg font-semibold">Profile Information</h3>
+                <h3 className="text-lg font-semibold">{activeTab === "profile" ? "Profile Information" : activeTab === "deals" ? "Deals" : "Notes"}</h3>
 
                 <div className="relative" ref={menuRef}>
                   <button
@@ -429,7 +471,6 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                       <ul className="py-1">
                         <li>
                           <button
-                            // onClick={goEdit}/
                             onClick={() => {
                               setMenuOpen(false);
                               setEditOpen(true); // open modal (Edit)
@@ -473,111 +514,273 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                 </div>
               </div>
 
-              {/* information grid */}
-              <div className="rounded-lg border p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <dl className="hidden md:block md:col-span-1 space-y-4 text-sm text-muted-foreground">
-                    <dt>Name</dt>
-                    <dt>Email</dt>
-                    <dt>Lead Owner</dt>
-                    <dt>Source</dt>
-                    <dt>Company Name</dt>
-                    <dt>Website</dt>
-                    <dt>Mobile</dt>
-                    <dt>Office Phone Number</dt>
-                    <dt>City</dt>
-                    <dt>State</dt>
-                    <dt>Country</dt>
-                    <dt>Postal Code</dt>
-                    <dt>Address</dt>
-                  </dl>
+              {activeTab === "profile" && (
+                <>
+                  {/* information grid */}
+                  <div className="rounded-lg border p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <dl className="hidden md:block md:col-span-1 space-y-4 text-sm text-muted-foreground">
+                        <dt>Name</dt>
+                        <dt>Email</dt>
+                        <dt>Lead Owner</dt>
+                        <dt>Source</dt>
+                        <dt>Company Name</dt>
+                        <dt>Website</dt>
+                        <dt>Mobile</dt>
+                        <dt>Office Phone Number</dt>
+                        <dt>City</dt>
+                        <dt>State</dt>
+                        <dt>Country</dt>
+                        <dt>Postal Code</dt>
+                        <dt>Address</dt>
+                      </dl>
 
-                  <div className="md:col-span-2">
-                    <div className="grid gap-y-3">
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Name</div>
-                        <div className="text-sm">{fmt(data?.name)}</div>
-                      </div>
+                      <div className="md:col-span-2">
+                        <div className="grid gap-y-3">
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Name</div>
+                            <div className="text-sm">{fmt(data?.name)}</div>
+                          </div>
 
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Email</div>
-                        <div className="text-sm">{fmt(data?.email)}</div>
-                      </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Email</div>
+                            <div className="text-sm">{fmt(data?.email)}</div>
+                          </div>
 
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Lead Owner</div>
-                        <div className="text-sm">{data?.leadOwnerMeta?.name ?? data?.leadOwner ?? "--"}</div>
-                      </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Lead Owner</div>
+                            <div className="text-sm">{data?.leadOwnerMeta?.name ?? data?.leadOwner ?? "--"}</div>
+                          </div>
 
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Source</div>
-                        <div className="text-sm">{fmt(data?.leadSource)}</div>
-                      </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Source</div>
+                            <div className="text-sm">{fmt(data?.leadSource)}</div>
+                          </div>
 
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Company Name</div>
-                        <div className="text-sm">{fmt(data?.companyName)}</div>
-                      </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Company Name</div>
+                            <div className="text-sm">{fmt(data?.companyName)}</div>
+                          </div>
 
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Website</div>
-                        <div className="text-sm">{fmt((data as any)?.officialWebsite)}</div>
-                      </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Website</div>
+                            <div className="text-sm">{fmt((data as any)?.officialWebsite)}</div>
+                          </div>
 
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Mobile</div>
-                        <div className="text-sm">{fmt(data?.mobileNumber)}</div>
-                      </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Mobile</div>
+                            <div className="text-sm">{fmt(data?.mobileNumber)}</div>
+                          </div>
 
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Office Phone Number</div>
-                        <div className="text-sm">{fmt(data?.officePhone)}</div>
-                      </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Office Phone Number</div>
+                            <div className="text-sm">{fmt(data?.officePhone)}</div>
+                          </div>
 
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">City</div>
-                        <div className="text-sm">{fmt(data?.city)}</div>
-                      </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">City</div>
+                            <div className="text-sm">{fmt(data?.city)}</div>
+                          </div>
 
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">State</div>
-                        <div className="text-sm">{fmt(data?.state)}</div>
-                      </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">State</div>
+                            <div className="text-sm">{fmt(data?.state)}</div>
+                          </div>
 
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Country</div>
-                        <div className="text-sm">{fmt(data?.country)}</div>
-                      </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Country</div>
+                            <div className="text-sm">{fmt(data?.country)}</div>
+                          </div>
 
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Postal Code</div>
-                        <div className="text-sm">{fmt(data?.postalCode)}</div>
-                      </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Postal Code</div>
+                            <div className="text-sm">{fmt(data?.postalCode)}</div>
+                          </div>
 
-                      <div className="flex items-start gap-6">
-                        <div className="w-48 md:hidden text-sm text-muted-foreground">Address</div>
-                        <div className="text-sm">{fmt(data?.companyAddress)}</div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Address</div>
+                            <div className="text-sm">{fmt(data?.companyAddress)}</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* footer small details */}
-              <div className="mt-6 text-sm text-muted-foreground grid md:grid-cols-2 gap-2">
-                <div>Created: {fmtDate(data?.createdAt)}</div>
-                <div className="text-right">
-                  Status: <Badge variant="secondary">{data?.status ?? "--"}</Badge>
-                </div>
-              </div>
+                  {/* footer small details */}
+                  <div className="mt-6 text-sm text-muted-foreground grid md:grid-cols-2 gap-2">
+                    <div>Created: {fmtDate(data?.createdAt)}</div>
+                    <div className="text-right">
+                      Status: <Badge variant="secondary">{data?.status ?? "--"}</Badge>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeTab === "deals" && (
+                <>
+                  {/* Deals header (Add Deal + Pipeline selector) */}
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <Button onClick={() => router.push(`/deals/create?leadId=${params.id}`)}>+ Add Deal</Button>
+                      <div>
+                        <label className="text-sm text-muted-foreground mr-2">Pipeline</label>
+                        <select className="border rounded p-2 text-sm">
+                          <option>{data?.deals && (data as any).deals?.length ? data?.deals : data?.pipeline ?? "Default Pipeline"}</option>
+                          <option>Sales</option>
+                          <option>Default Pipeline</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="text-sm text-muted-foreground">Result per page - 8</div>
+                  </div>
+
+                  <div className="rounded-lg border overflow-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-sky-50 text-left">
+                        <tr>
+                          <th className="px-4 py-2">Deal Name</th>
+                          <th className="px-4 py-2">Lead Name</th>
+                          <th className="px-4 py-2">Contact Details</th>
+                          <th className="px-4 py-2">Value</th>
+                          <th className="px-4 py-2">Close Date</th>
+                          <th className="px-4 py-2">Follow Up</th>
+                          <th className="px-4 py-2">Deal Agent</th>
+                          <th className="px-4 py-2">Deal Watcher</th>
+                          <th className="px-4 py-2">Stage</th>
+                          <th className="px-4 py-2">Action</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {dealsLoading ? (
+                          <tr>
+                            <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">Loading deals…</td>
+                          </tr>
+                        ) : dealsError ? (
+                          <tr>
+                            <td colSpan={10} className="px-4 py-6 text-center text-destructive">Failed to load deals: {(dealsError as Error)?.message}</td>
+                          </tr>
+                        ) : !dealsData || dealsData.length === 0 ? (
+                          <tr>
+                            <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">No deals found for this lead.</td>
+                          </tr>
+                        ) : (
+                          dealsData.map((d) => (
+                            <tr key={d.id} className="border-t">
+                              <td className="px-4 py-3">
+                                <div className="font-medium">{d.title ?? `Deal ${d.id}`}</div>
+                                <div className="text-muted-foreground text-xs">{d.dealCategory ?? "--"}</div>
+                              </td>
+
+                              <td className="px-4 py-3">{d.leadName ?? data?.name ?? "--"}</td>
+
+                              <td className="px-4 py-3">
+                                <div className="text-xs">{fmt(d.leadMobile as any)}</div>
+                                <div className="text-muted-foreground text-xs">{(data?.email as string) ?? "--"}</div>
+                              </td>
+
+                              <td className="px-4 py-3">{fmtCurrency(d.value ?? 0)}</td>
+
+                              <td className="px-4 py-3">{/* close date not provided in payload - placeholder */}
+                                {d.updatedAt ? fmtShortDate(d.updatedAt) : "--"}
+                              </td>
+
+                              <td className="px-4 py-3">
+                                {d.followups && d.followups.length > 0 ? (
+                                  <div className="text-sm">{fmtShortDate(d.followups[0].nextDate)}</div>
+                                ) : (
+                                  <div className="text-muted-foreground">------</div>
+                                )}
+                              </td>
+
+                              <td className="px-4 py-3">
+                                <div className="text-sm">{d.dealAgentMeta?.name ?? d.dealAgent ?? "--"}</div>
+                                <div className="text-muted-foreground text-xs">{d.dealAgentMeta?.designation ?? ""}</div>
+                              </td>
+
+                              <td className="px-4 py-3">
+                                {d.dealWatchersMeta && d.dealWatchersMeta.length > 0 ? (
+                                  <div>
+                                    <div className="text-sm">{d.dealWatchersMeta[0].name}</div>
+                                    <div className="text-muted-foreground text-xs">{d.dealWatchersMeta[0].designation}</div>
+                                  </div>
+                                ) : (
+                                  <div className="text-muted-foreground">--</div>
+                                )}
+                              </td>
+
+                              <td className="px-4 py-3">
+                                <select defaultValue={d.dealStage} className="border rounded p-1 text-sm">
+                                  <option>{d.dealStage ?? "Generated"}</option>
+                                  <option>Generated</option>
+                                  <option>Qualified</option>
+                                  <option>Proposal</option>
+                                  <option>Won</option>
+                                  <option>Lost</option>
+                                </select>
+                              </td>
+
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => router.push(`/deals/${d.id}`)}
+                                    className="text-sm px-2 py-1 border rounded hover:bg-slate-50"
+                                  >
+                                    View
+                                  </button>
+
+                                  <button
+                                    onClick={async () => {
+                                      // simple delete confirmation example (optional)
+                                      if (!confirm("Delete this deal?")) return;
+                                      try {
+                                        const token = localStorage.getItem("accessToken");
+                                        if (!token) throw new Error("No access token.");
+                                        const res = await fetch(`${BASE}/deals/${d.id}`, {
+                                          method: "DELETE",
+                                          headers: { Authorization: `Bearer ${token}` },
+                                        });
+                                        if (!res.ok) throw new Error(await res.text());
+                                        alert("Deal deleted.");
+                                        await mutateDeals();
+                                      } catch (err: any) {
+                                        alert("Error: " + (err?.message ?? err));
+                                      }
+                                    }}
+                                    className="text-sm px-2 py-1 border rounded text-destructive hover:bg-slate-50"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* pagination / footer */}
+                  <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+                    <div>Page 1 of 1</div>
+                    <div className="flex items-center gap-2">
+                      <button className="px-2 py-1" disabled>‹</button>
+                      <button className="px-2 py-1" disabled>›</button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeTab === "notes" && (
+                <div className="py-8 text-center text-muted-foreground">Notes coming soon.</div>
+              )}
             </div>
           )}
         </Card>
       </div>
 
-
-
-       {/* Edit Modal */}
+      {/* Edit Modal */}
       {editOpen && data && (
         <EditModal
           lead={data}
