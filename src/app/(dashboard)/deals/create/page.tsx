@@ -81,9 +81,7 @@ export default function CreateDealPage() {
   const handleWatcherChange = (employeeId: string, checked: boolean) => {
     setFormData((prev) => {
       const current = prev.dealWatchers || [];
-      const updated = checked
-        ? [...current, employeeId]
-        : current.filter((id) => id !== employeeId);
+      const updated = checked ? [...current, employeeId] : current.filter((id) => id !== employeeId);
       return { ...prev, dealWatchers: updated };
     });
   };
@@ -112,6 +110,7 @@ export default function CreateDealPage() {
       const token = localStorage.getItem("accessToken");
       if (!token) {
         setError("No access token found. Please log in.");
+        setLoading(false);
         return;
       }
 
@@ -140,7 +139,8 @@ export default function CreateDealPage() {
       if (!res.ok) throw new Error("Failed to create deal");
 
       setSuccess("Deal created successfully!");
-      setTimeout(() => router.push("/deals/get"), 2000);
+      // keep same behavior: redirect to deals listing after success
+      setTimeout(() => router.push("/deals/get"), 1000);
     } catch (err) {
       console.error(err);
       setError("Failed to create deal. Please try again.");
@@ -158,169 +158,229 @@ export default function CreateDealPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Create New Deal</h1>
-
-      <form onSubmit={handleSubmit} className="bg-white p-6 border rounded-2xl shadow-sm">
-        {error && <div className="mb-4 text-red-600 text-sm font-semibold">{error}</div>}
-        {success && <div className="mb-4 text-green-600 text-sm font-semibold">{success}</div>}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Basic Info */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleInputChange}
-              required
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Lead ID</label>
-            <input
-              type="number"
-              name="leadId"
-              value={formData.leadId}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Pipeline *</label>
-            <input
-              type="text"
-              name="pipeline"
-              value={formData.pipeline}
-              onChange={handleInputChange}
-              required
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Deal Stage *</label>
-            <select
-              name="dealStage"
-              value={formData.dealStage}
-              onChange={handleInputChange}
-              required
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
-            >
-              {stages.map((stage) => (
-                <option key={stage.id} value={stage.name}>
-                  {stage.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-            <input
-              type="text"
-              name="dealCategory"
-              value={formData.dealCategory}
-              onChange={handleInputChange}
-              required
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Deal Agent *</label>
-            <select
-              name="dealAgent"
-              value={formData.dealAgent}
-              onChange={handleInputChange}
-              required
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
-            >
-              <option value="">Select Deal Agent</option>
-              {employees.map((emp) => (
-                <option key={emp.employeeId} value={emp.employeeId}>
-                  {emp.name} ({emp.employeeId})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Value ($) *</label>
-            <input
-              type="number"
-              name="value"
-              value={formData.value}
-              onChange={handleInputChange}
-              required
-              min="0"
-              step="0.01"
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Expected Close Date *
-            </label>
-            <input
-              type="date"
-              name="expectedCloseDate"
-              value={formData.expectedCloseDate}
-              onChange={handleInputChange}
-              required
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Deal Contact</label>
-            <input
-              type="text"
-              name="dealContact"
-              value={formData.dealContact}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
-            />
-          </div>
-        </div>
-
-        {/* Watchers */}
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Deal Watchers</label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-            {employees.map((emp) => (
-              <label key={emp.employeeId} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={formData.dealWatchers.includes(emp.employeeId)}
-                  onChange={(e) => handleWatcherChange(emp.employeeId, e.target.checked)}
-                />
-                {emp.name} ({emp.employeeId})
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-6 flex gap-4">
+    <div className="min-h-screen bg-gray-50 flex items-start justify-center py-10 px-4">
+      {/* Outer centered container to mimic a modal page */}
+      <div className="w-full max-w-4xl">
+        {/* Header similar to modal top */}
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-semibold">Add Deal Information</h1>
           <button
-            type="submit"
-            disabled={loading}
-            className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition ${
-              loading ? "opacity-50 cursor-not-allowed" : ""
-            }`}
+            onClick={() => router.back()}
+            aria-label="Close"
+            className="text-gray-400 hover:text-gray-600"
           >
-            {loading ? "Creating..." : "Create Deal"}
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
-          <Link href="/deals/get" className="px-4 py-2 text-blue-600 hover:underline">
-            Cancel
-          </Link>
         </div>
-      </form>
+
+        {/* Main rounded card */}
+        <form onSubmit={handleSubmit} className="bg-white border rounded-2xl shadow-sm">
+          {/* inner rounded panel */}
+          <div className="rounded-lg border mx-6 my-6 p-6">
+            <h3 className="text-base font-medium mb-4">Deal Details</h3>
+
+            {/* 3-column layout like image */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Lead Contact */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-2">Lead Contact *</label>
+                <select
+                  name="dealContact"
+                  value={formData.dealContact}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-md bg-white"
+                >
+                  <option value="">{/* default empty like screenshot */}--</option>
+                  {/* If you want to include the lead list, map here */}
+                </select>
+              </div>
+
+              {/* Deal Name */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-2">Deal Name *</label>
+                <input
+                  type="text"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-md"
+                  placeholder="--"
+                />
+              </div>
+
+              {/* Pipeline */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-2">Pipeline *</label>
+                <select
+                  name="pipeline"
+                  value={formData.pipeline}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-md bg-white"
+                >
+                  <option value="">--</option>
+                  <option value="Default Pipeline">Default Pipeline</option>
+                  <option value="Sales">Sales</option>
+                </select>
+              </div>
+
+              {/* Deal Stages */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-2">Deal Stages *</label>
+                <select
+                  name="dealStage"
+                  value={formData.dealStage}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-md bg-white"
+                >
+                  {stages.map((s) => (
+                    <option key={s.id} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Deal Category with small Add button */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500 mb-2">Deal Category</label>
+                  <select
+                    name="dealCategory"
+                    value={formData.dealCategory}
+                    onChange={handleInputChange}
+                    className="w-full p-2 border rounded-md bg-white"
+                  >
+                    <option value="">--</option>
+                    <option value="Corporate">Corporate</option>
+                    <option value="Retail">Retail</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="px-3 py-2 bg-gray-200 rounded-md text-sm"
+                  onClick={() => alert("Add category (not implemented)")}
+                >
+                  Add
+                </button>
+              </div>
+
+              {/* Deal Agent */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-2">Deal Agent</label>
+                <select
+                  name="dealAgent"
+                  value={formData.dealAgent}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-md bg-white"
+                >
+                  <option value="">--</option>
+                  {employees.map((emp) => (
+                    <option key={emp.employeeId} value={emp.employeeId}>
+                      {emp.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Deal Value with USD prefix */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-2">Deal Value</label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border bg-gray-100 text-sm">USD $</span>
+                  <input
+                    type="number"
+                    name="value"
+                    value={formData.value}
+                    onChange={handleInputChange}
+                    className="w-full p-2 border rounded-r-md"
+                    placeholder=""
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              {/* Close Date */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-2">Close Date *</label>
+                <input
+                  type="date"
+                  name="expectedCloseDate"
+                  value={formData.expectedCloseDate}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-md"
+                />
+              </div>
+
+              {/* Deal Watcher */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-2">Deal Watcher</label>
+                <select
+                  name="dealWatchers" // single-select shown like screenshot; multi-checker is below
+                  value={formData.dealWatchers[0] ?? ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, dealWatchers: e.target.value ? [e.target.value] : [] }))
+                  }
+                  className="w-full p-2 border rounded-md bg-white"
+                >
+                  <option value="">--</option>
+                  {employees.map((emp) => (
+                    <option key={emp.employeeId} value={emp.employeeId}>
+                      {emp.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Watchers multi-select area (kept below, like screenshot secondary section) */}
+          <div className="mx-6 mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Deal Watchers</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {employees.map((emp) => (
+                <label key={emp.employeeId} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={formData.dealWatchers.includes(emp.employeeId)}
+                    onChange={(e) => handleWatcherChange(emp.employeeId, e.target.checked)}
+                  />
+                  <span className="text-xs">{emp.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer buttons (Cancel + Update) */}
+          <div className="px-6 pb-8 flex items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="px-6 py-2 border rounded-full text-blue-600 hover:bg-blue-50"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className={`px-6 py-2 rounded-full text-white ${
+                loading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+              }`}
+            >
+              {loading ? "Creating..." : "Update"}
+            </button>
+          </div>
+        </form>
+
+        {/* messages */}
+        <div className="mt-4 text-center">
+          {error && <div className="text-sm text-red-600 font-medium">{error}</div>}
+          {success && <div className="text-sm text-green-600 font-medium">{success}</div>}
+        </div>
+      </div>
     </div>
   );
 }
