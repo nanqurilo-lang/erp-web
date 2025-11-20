@@ -65,6 +65,7 @@ type Deal = {
   leadMobile?: string;
   pipeline?: string;
   dealCategory?: string;
+  closeDate?: string | null;
   createdAt?: string;
   updatedAt?: string;
   followups?: Followup[];
@@ -76,6 +77,7 @@ type Deal = {
 };
 
 const BASE = "https://chat.swiftandgo.in"; // change if needed
+const CREATE_URL = `${BASE}/deals`; // adjust if your create endpoint differs
 
 const fetcher = async (url: string) => {
   const accessToken = localStorage.getItem("accessToken");
@@ -116,31 +118,39 @@ function fmtCurrency(n?: number | null) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 }
 
-function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void; onSaved: () => void }) {
+/* ---------------- AddDealModal (inline) ----------------
+   UI matches your Add Deal modal. On submit POSTs to CREATE_URL,
+   and calls onCreated(createdDeal) so parent updates SWR cache.
+*/
+function AddDealModal({
+  lead,
+  onClose,
+  onCreated,
+  possibleAgents,
+  possibleWatchers,
+}: {
+  lead: Lead;
+  onClose: () => void;
+  onCreated: (d: Deal) => void;
+  possibleAgents: EmployeeMeta[];
+  possibleWatchers: EmployeeMeta[];
+}) {
   const [form, setForm] = useState({
-    name: lead?.name ?? "",
-    email: lead?.email ?? "",
-    clientCategory: lead?.clientCategory ?? "",
-    leadSource: lead?.leadSource ?? "",
-    leadOwner: lead?.leadOwner ?? "",
-    addedBy: lead?.addedBy ?? "",
-    autoConvertToClient: !!lead?.autoConvertToClient,
-    companyName: lead?.companyName ?? "",
-    officialWebsite: lead?.officialWebsite ?? "",
-    mobileNumber: String(lead?.mobileNumber ?? ""),
-    officePhone: lead?.officePhone ?? "",
-    city: lead?.city ?? "",
-    state: lead?.state ?? "",
-    postalCode: lead?.postalCode ?? "",
-    country: lead?.country ?? "",
-    companyAddress: lead?.companyAddress ?? "",
+    leadContact: lead?.id ?? "",
+    title: "",
+    pipeline: lead?.pipeline ?? "Default Pipeline",
+    dealStage: "Qualified",
+    dealCategory: "",
+    dealAgent: "",
+    dealWatcher: "",
+    value: "",
+    closeDate: "",
   });
 
   const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // close on escape
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -151,7 +161,10 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
   const update = (k: keyof typeof form, v: any) => setForm((s) => ({ ...s, [k]: v }));
 
   const validate = () => {
-    if (!form.name.trim() || !form.email.trim()) return "Name and Email are required.";
+    if (!form.title.trim()) return "Deal Name is required.";
+    if (!form.pipeline.trim()) return "Pipeline is required.";
+    if (!form.dealStage.trim()) return "Deal stage is required.";
+    if (!form.closeDate.trim()) return "Close date is required.";
     return null;
   };
 
@@ -159,10 +172,10 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
     e?.preventDefault();
     const v = validate();
     if (v) {
-      setErrorMsg(v);
+      setError(v);
       return;
     }
-    setErrorMsg(null);
+    setError(null);
     setSubmitting(true);
 
     try {
@@ -170,40 +183,33 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
       if (!token) throw new Error("No access token.");
 
       const body: any = {
-        name: form.name,
-        email: form.email,
-        clientCategory: form.clientCategory || undefined,
-        leadSource: form.leadSource || undefined,
-        leadOwner: form.leadOwner || undefined,
-        addedBy: form.addedBy || undefined,
-        autoConvertToClient: !!form.autoConvertToClient,
-        companyName: form.companyName || undefined,
-        officialWebsite: form.officialWebsite || undefined,
-        mobileNumber: form.mobileNumber ? Number(form.mobileNumber) : undefined,
-        officePhone: form.officePhone || undefined,
-        city: form.city || undefined,
-        state: form.state || undefined,
-        postalCode: form.postalCode || undefined,
-        country: form.country || undefined,
-        companyAddress: form.companyAddress || undefined,
+        title: form.title,
+        pipeline: form.pipeline || undefined,
+        dealStage: form.dealStage || undefined,
+        dealCategory: form.dealCategory || undefined,
+        dealAgent: form.dealAgent || undefined,
+        dealWatchers: form.dealWatcher ? [form.dealWatcher] : undefined,
+        value: form.value ? Number(form.value) : undefined,
+        closeDate: form.closeDate || undefined,
+        leadId: lead.id,
       };
 
-      const res = await fetch(`${BASE}/leads/${lead.id}`, {
-        method: "PUT",
+      const res = await fetch(CREATE_URL, {
+        method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
-        throw new Error(txt || "Update failed");
+        throw new Error(txt || "Failed to create deal.");
       }
 
-      await res.json();
-      alert("Lead updated successfully.");
-      await onSaved();
+      const json = await res.json();
+      onCreated(json as Deal);
+      onClose();
     } catch (err: any) {
-      setErrorMsg(err?.message ?? "Failed to update lead.");
+      setError(err?.message ?? "Failed to create deal.");
     } finally {
       setSubmitting(false);
     }
@@ -212,11 +218,10 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-
       <div className="fixed inset-0 flex items-start justify-center px-4 pt-12">
-        <div className="max-w-4xl w-full bg-white rounded-lg shadow-lg border overflow-auto" style={{ maxHeight: "92vh" }}>
+        <div className="max-w-3xl w-full bg-white rounded-lg shadow-lg border overflow-auto" style={{ maxHeight: "92vh" }}>
           <div className="flex items-center justify-between p-4 border-b">
-            <h3 className="text-lg font-semibold">Update Lead Contact</h3>
+            <h3 className="text-lg font-semibold">Add Deal Information</h3>
             <button onClick={onClose} className="text-muted-foreground p-1 rounded hover:bg-slate-100">
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -225,94 +230,93 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
           </div>
 
           <form onSubmit={submit} className="p-6 space-y-6">
-            {errorMsg && <div className="text-destructive text-sm">{errorMsg}</div>}
+            {error && <div className="text-destructive text-sm">{error}</div>}
 
-            {/* Contact Details */}
             <div className="rounded-lg border p-4">
-              <h4 className="font-medium mb-3">Contact Details</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-muted-foreground">Name *</label>
-                  <input className="w-full border rounded-md p-2" value={form.name} onChange={(e) => update("name", e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground">Email *</label>
-                  <input className="w-full border rounded-md p-2" value={form.email} onChange={(e) => update("email", e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground">Lead Source</label>
-                  <input className="w-full border rounded-md p-2" value={form.leadSource} onChange={(e) => update("leadSource", e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground">Lead Owner</label>
-                  <input className="w-full border rounded-md p-2" value={form.leadOwner} onChange={(e) => update("leadOwner", e.target.value)} />
-                </div>
-
-                <div className="flex items-center gap-2 md:col-span-2">
-                  <input type="checkbox" id="autoConvert" checked={!!form.autoConvertToClient} onChange={(e) => update("autoConvertToClient", e.target.checked)} />
-                  <label htmlFor="autoConvert" className="text-sm">Auto Convert lead to client when the deal stage is set to "WIN".</label>
-                </div>
-              </div>
-            </div>
-
-            {/* Company Details */}
-            <div className="rounded-lg border p-4">
-              <h4 className="font-medium mb-3">Company Details</h4>
+              <h4 className="font-medium mb-3">Deal Details</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-sm text-muted-foreground">Company Name</label>
-                  <input className="w-full border rounded-md p-2" value={form.companyName} onChange={(e) => update("companyName", e.target.value)} />
+                  <label className="text-sm text-muted-foreground">Lead Contact *</label>
+                  <select className="w-full border rounded p-2" value={String(form.leadContact)} onChange={(e) => update("leadContact", Number(e.target.value))}>
+                    <option value="">{lead?.name ?? "--"}</option>
+                  </select>
                 </div>
 
                 <div>
-                  <label className="text-sm text-muted-foreground">Official Website</label>
-                  <input className="w-full border rounded-md p-2" value={form.officialWebsite} onChange={(e) => update("officialWebsite", e.target.value)} />
+                  <label className="text-sm text-muted-foreground">Deal Name *</label>
+                  <input className="w-full border rounded p-2" value={form.title} onChange={(e) => update("title", e.target.value)} />
                 </div>
 
                 <div>
-                  <label className="text-sm text-muted-foreground">Mobile Number</label>
-                  <input className="w-full border rounded-md p-2" value={form.mobileNumber} onChange={(e) => update("mobileNumber", e.target.value)} />
+                  <label className="text-sm text-muted-foreground">Pipeline *</label>
+                  <select className="w-full border rounded p-2" value={form.pipeline} onChange={(e) => update("pipeline", e.target.value)}>
+                    <option>Default Pipeline</option>
+                    <option>Sales</option>
+                  </select>
                 </div>
 
                 <div>
-                  <label className="text-sm text-muted-foreground">Office Phone No.</label>
-                  <input className="w-full border rounded-md p-2" value={form.officePhone} onChange={(e) => update("officePhone", e.target.value)} />
+                  <label className="text-sm text-muted-foreground">Deal Stages *</label>
+                  <select className="w-full border rounded p-2" value={form.dealStage} onChange={(e) => update("dealStage", e.target.value)}>
+                    <option>Qualified</option>
+                    <option>Generated</option>
+                    <option>Proposal</option>
+                    <option>Won</option>
+                    <option>Lost</option>
+                  </select>
                 </div>
 
                 <div>
-                  <label className="text-sm text-muted-foreground">City</label>
-                  <input className="w-full border rounded-md p-2" value={form.city} onChange={(e) => update("city", e.target.value)} />
+                  <label className="text-sm text-muted-foreground">Deal Category</label>
+                  <div className="flex">
+                    <select className="flex-1 border rounded-l p-2" value={form.dealCategory} onChange={(e) => update("dealCategory", e.target.value)}>
+                      <option value="">--</option>
+                      <option value="Corporate">Corporate</option>
+                    </select>
+                    <button type="button" className="px-3 py-2 bg-gray-200 rounded-r text-sm" onClick={() => alert("Add category not implemented")}>
+                      Add
+                    </button>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="text-sm text-muted-foreground">State</label>
-                  <input className="w-full border rounded-md p-2" value={form.state} onChange={(e) => update("state", e.target.value)} />
+                  <label className="text-sm text-muted-foreground">Deal Agent</label>
+                  <select className="w-full border rounded p-2" value={form.dealAgent} onChange={(e) => update("dealAgent", e.target.value)}>
+                    <option value="">--</option>
+                    {possibleAgents.map((a) => (
+                      <option key={a.employeeId} value={a.employeeId}>{a.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
-                  <label className="text-sm text-muted-foreground">Postal Code</label>
-                  <input className="w-full border rounded-md p-2" value={form.postalCode} onChange={(e) => update("postalCode", e.target.value)} />
+                  <label className="text-sm text-muted-foreground">Deal Value</label>
+                  <div className="flex">
+                    <span className="inline-flex items-center px-3 rounded-l border bg-slate-100">USD $</span>
+                    <input className="w-full border rounded-r p-2" value={form.value} onChange={(e) => update("value", e.target.value)} type="number" />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="text-sm text-muted-foreground">Country</label>
-                  <input className="w-full border rounded-md p-2" value={form.country} onChange={(e) => update("country", e.target.value)} />
+                  <label className="text-sm text-muted-foreground">Close Date *</label>
+                  <input className="w-full border rounded p-2" value={form.closeDate} onChange={(e) => update("closeDate", e.target.value)} type="date" />
                 </div>
 
-                <div className="md:col-span-3">
-                  <label className="text-sm text-muted-foreground">Company Address</label>
-                  <textarea className="w-full border rounded-md p-2 h-28" value={form.companyAddress} onChange={(e) => update("companyAddress", e.target.value)} />
+                <div>
+                  <label className="text-sm text-muted-foreground">Deal Watcher</label>
+                  <select className="w-full border rounded p-2" value={form.dealWatcher} onChange={(e) => update("dealWatcher", e.target.value)}>
+                    <option value="">--</option>
+                    {possibleWatchers.map((w) => (
+                      <option key={w.employeeId} value={w.employeeId}>{w.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
 
-            {/* Buttons */}
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-              <Button type="submit" onClick={submit} disabled={submitting}>{submitting ? "Updating..." : "Update"}</Button>
+              <Button type="submit" onClick={submit} disabled={submitting}>{submitting ? "Creating..." : "Create"}</Button>
             </div>
           </form>
         </div>
@@ -320,6 +324,8 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
     </div>
   );
 }
+
+/* ---------------- Main Page Component ---------------- */
 
 export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -340,6 +346,9 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     fetcher,
     { refreshInterval: 30000, revalidateOnFocus: true }
   );
+
+  // Add Deal modal state
+  const [addDealOpen, setAddDealOpen] = useState(false);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -392,6 +401,42 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
       alert("Error: " + (err?.message ?? err));
     }
   };
+
+  // when a new deal is created, prepend it to the SWR cache so table updates immediately
+  const handleCreatedDeal = async (created: Deal) => {
+    if (mutateDeals) {
+      mutateDeals((curr: Deal[] | undefined) => (curr ? [created, ...curr] : [created]), false);
+    }
+  };
+
+  // build possible agents/watchers lists from currently available data (from deals or lead meta)
+  const possibleAgents: EmployeeMeta[] = [];
+  const possibleWatchers: EmployeeMeta[] = [];
+
+  if (data?.leadOwnerMeta) {
+    possibleAgents.push(data.leadOwnerMeta);
+  }
+  if (dealsData && dealsData.length) {
+    dealsData.forEach((d) => {
+      if (d.dealAgentMeta) possibleAgents.push(d.dealAgentMeta);
+      if (d.dealWatchersMeta) possibleWatchers.push(...d.dealWatchersMeta);
+      if (d.assignedEmployeesMeta) possibleWatchers.push(...d.assignedEmployeesMeta);
+    });
+  } else if (data?.addedByMeta) {
+    possibleWatchers.push(data.addedByMeta);
+  }
+
+  const uniq = (arr: EmployeeMeta[]) => {
+    const map = new Map<string, EmployeeMeta>();
+    arr.forEach((a) => {
+      if (!a.employeeId) return;
+      if (!map.has(a.employeeId)) map.set(a.employeeId, a);
+    });
+    return Array.from(map.values());
+  };
+
+  const agents = uniq(possibleAgents);
+  const watchers = uniq(possibleWatchers);
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -621,7 +666,8 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                   {/* Deals header (Add Deal + Pipeline selector) */}
                   <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <Button onClick={() => router.push(`/deals/create?leadId=${params.id}`)}>+ Add Deal</Button>
+                      {/* Open inline modal instead of redirect */}
+                      <Button onClick={() => setAddDealOpen(true)}>+ Add Deal</Button>
                       <div>
                         <label className="text-sm text-muted-foreground mr-2">Pipeline</label>
                         <select className="border rounded p-2 text-sm">
@@ -682,9 +728,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
 
                               <td className="px-4 py-3">{fmtCurrency(d.value ?? 0)}</td>
 
-                              <td className="px-4 py-3">{/* close date not provided in payload - placeholder */}
-                                {d.updatedAt ? fmtShortDate(d.updatedAt) : "--"}
-                              </td>
+                              <td className="px-4 py-3">{d.closeDate ? fmtShortDate(d.closeDate) : d.updatedAt ? fmtShortDate(d.updatedAt) : "--"}</td>
 
                               <td className="px-4 py-3">
                                 {d.followups && d.followups.length > 0 ? (
@@ -732,7 +776,6 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
 
                                   <button
                                     onClick={async () => {
-                                      // simple delete confirmation example (optional)
                                       if (!confirm("Delete this deal?")) return;
                                       try {
                                         const token = localStorage.getItem("accessToken");
@@ -789,6 +832,17 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
             setEditOpen(false);
             await mutate(); // refresh SWR data
           }}
+        />
+      )}
+
+      {/* Add Deal Modal (inline) */}
+      {addDealOpen && data && (
+        <AddDealModal
+          lead={data}
+          onClose={() => setAddDealOpen(false)}
+          onCreated={handleCreatedDeal}
+          possibleAgents={agents}
+          possibleWatchers={watchers}
         />
       )}
     </main>
