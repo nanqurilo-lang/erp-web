@@ -439,7 +439,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                               <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6-6L20 10M3 21h6l11-11a2 2 0 00-2-2L7 19v2z" />
                             </svg>
-                            Edit6
+                            Edit
                           </button>
                         </li>
 

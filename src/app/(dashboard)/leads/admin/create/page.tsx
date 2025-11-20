@@ -233,10 +233,10 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
             </div>
 
             {/* Company Details */}
-            <div className="rounded-lg border p-4">
+            <div className="rounded-lg  border p-4">
               <h4 className="font-medium mb-3">Company Details</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
+              <div className="grid grid-cols-1 md:grid-cols-3 text-left gap-4">
+                <div >
                   <label className="text-sm text-muted-foreground">Company Name</label>
                   <input className="w-full border rounded-md p-2" value={form.companyName} onChange={(e) => update("companyName", e.target.value)} />
                 </div>
@@ -247,7 +247,7 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
                 </div>
 
                 <div>
-                  <label className="text-sm text-muted-foreground">Mobile Number</label>
+                  <label className="text-sm text-muted-foreground ">Mobile Number</label>
                   <input className="w-full border rounded-md p-2" value={form.mobileNumber} onChange={(e) => update("mobileNumber", e.target.value)} />
                 </div>
 
@@ -364,7 +364,7 @@ export default function LeadsPage() {
             onClick={() => setAddModalOpen(true)}
             className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-sky-700"
           >
-            + Add Lead jhbhsdk
+            + Add Lead
           </button>
         </div>
 
@@ -631,10 +631,19 @@ function LeadRow({
    AddLeadModal component
    (with server-backed add/list/delete for categories & lead sources)
    ---------------------------- */
-export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () => void; onCreated: () => void; employees: Employee[] }) {
+export function AddLeadModal({
+  onClose,
+  onCreated,
+  employees,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+  employees: Employee[];
+}) {
   const defaultPipelines = ["Default Pipeline", "Sales Pipeline", "Enterprise Pipeline"];
   const defaultDealStages = ["Generated", "Qualification", "Proposal", "Win", "Lost"];
 
+  // server-backed lists
   const [dealCategories, setDealCategories] = useState<DealCategoryItem[]>([]);
   const [leadSources, setLeadSources] = useState<LeadSourceItem[]>([]);
   const [clientCategories, setClientCategories] = useState<DealCategoryItem[]>([]);
@@ -696,6 +705,7 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
     companyAddress: "",
   });
 
+  // small add-list modal state
   const [addModalOpen, setAddModalOpen] = useState<null | "clientCategory" | "leadSource" | "dealCategory">(null);
   const [addName, setAddName] = useState("");
   const [loadingAddList, setLoadingAddList] = useState(false);
@@ -708,16 +718,28 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
   const [watcherFilter, setWatcherFilter] = useState("");
   const watcherRef = useRef<HTMLDivElement | null>(null);
 
-  // animation & focus
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (watcherDropdownOpen && watcherRef.current && !watcherRef.current.contains(t)) {
+        setWatcherDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [watcherDropdownOpen]);
+
+  // slide + focus + prevent background scroll
   const [visible, setVisible] = useState(false);
   const firstInputRef = useRef<HTMLInputElement | null>(null);
-
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
     const t = setTimeout(() => firstInputRef.current?.focus(), 120);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     document.addEventListener("keydown", onKey);
     return () => {
       clearTimeout(t);
@@ -726,22 +748,15 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
     };
   }, [onClose]);
 
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      const t = e.target as HTMLElement;
-      if (watcherDropdownOpen && watcherRef.current && !watcherRef.current.contains(t)) setWatcherDropdownOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [watcherDropdownOpen]);
-
+  /* ----- helpers ----- */
   const update = (k: string, v: any) => setPayload((p) => ({ ...p, [k]: v }));
   const updateDeal = (k: keyof DealPayload, v: any) => setPayload((p) => ({ ...p, deal: { ...(p.deal as DealPayload), [k]: v } }));
 
   const toggleWatcher = (id: string) => {
     setPayload((p) => {
       const s = new Set(p.deal!.dealWatchers || []);
-      s.has(id) ? s.delete(id) : s.add(id);
+      if (s.has(id)) s.delete(id);
+      else s.add(id);
       return { ...p, deal: { ...(p.deal as DealPayload), dealWatchers: Array.from(s) } };
     });
   };
@@ -770,9 +785,11 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
     }
     setError(null);
     setSubmitting(true);
+
     try {
       const token = localStorage.getItem("accessToken");
       if (!token) throw new Error("No access token found.");
+
       const body: any = {
         name: payload.name,
         email: payload.email,
@@ -783,19 +800,16 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
         leadOwner: payload.leadOwner || undefined,
         createDeal: !!payload.createDeal,
         autoConvertToClient: !!payload.autoConvertToClient,
-        deal:
-          payload.createDeal || payload.autoConvertToClient
-            ? {
-                title: payload.deal!.title,
-                pipeline: payload.deal!.pipeline,
-                dealStage: payload.deal!.dealStage,
-                dealCategory: payload.deal!.dealCategory,
-                value: Number(payload.deal!.value),
-                expectedCloseDate: payload.deal!.expectedCloseDate,
-                dealAgent: payload.deal!.dealAgent,
-                dealWatchers: payload.deal!.dealWatchers || [],
-              }
-            : undefined,
+        deal: payload.createDeal || payload.autoConvertToClient ? {
+          title: payload.deal!.title,
+          pipeline: payload.deal!.pipeline,
+          dealStage: payload.deal!.dealStage,
+          dealCategory: payload.deal!.dealCategory,
+          value: Number(payload.deal!.value),
+          expectedCloseDate: payload.deal!.expectedCloseDate,
+          dealAgent: payload.deal!.dealAgent,
+          dealWatchers: payload.deal!.dealWatchers || [],
+        } : undefined,
         companyName: payload.companyName,
         officialWebsite: payload.officialWebsite || undefined,
         officePhone: payload.officePhone || undefined,
@@ -826,7 +840,7 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
     }
   };
 
-  // small add-list helpers (same as before)
+  /* ----- small add-list helpers ----- */
   const openAddModal = async (type: "clientCategory" | "leadSource" | "dealCategory") => {
     setAddModalOpen(type);
     setAddName("");
@@ -835,6 +849,7 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
     try {
       const token = localStorage.getItem("accessToken");
       if (!token) throw new Error("No token");
+
       if (type === "leadSource") {
         const res = await fetch(`${BASE}/deals/dealCategory/LeadSource`, { headers: { Authorization: `Bearer ${token}` } });
         if (res.ok) {
@@ -861,6 +876,7 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
     try {
       const token = localStorage.getItem("accessToken");
       if (!token) throw new Error("No token");
+
       let url = "";
       let body: any = {};
       if (type === "leadSource") {
@@ -888,11 +904,7 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
       } else {
         setDealCategories((prev) => [{ id: created.id, categoryName: created.categoryName || addName.trim() }, ...prev]);
         setClientCategories((prev) => [{ id: created.id, categoryName: created.categoryName || addName.trim() }, ...prev]);
-        setPayload((p) => ({
-          ...p,
-          deal: { ...(p.deal as DealPayload), dealCategory: created.categoryName || addName.trim() },
-          clientCategory: created.categoryName || addName.trim(),
-        }));
+        setPayload((p) => ({ ...p, deal: { ...(p.deal as DealPayload), dealCategory: created.categoryName || addName.trim() }, clientCategory: created.categoryName || addName.trim() }));
       }
 
       setAddName("");
@@ -936,29 +948,28 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
     }
   };
 
-  /* ---------- UI content (compact + neat) ---------- */
-
+  /* ---------------- UI: compact + left-aligned titles ---------------- */
   const FormContent = (
     <form onSubmit={submit} className="space-y-6">
       {error && <div className="text-destructive text-sm">{error}</div>}
 
       {/* Contact Card */}
-      <div className="bg-white rounded-lg border p-5 shadow-sm">
-        <h4 className="text-sm font-medium mb-4">Lead Contact Detail</h4>
+      <div className="bg-white rounded-lg border p-6 shadow-sm flex flex-col">
+        <h4 className="text-sm font-medium mb-4 text-left order-first">Lead Contact Detail</h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Name *</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">Name *</label>
             <input ref={firstInputRef} className="w-full border rounded-md px-3 py-2 text-sm" value={payload.name} onChange={(e) => update("name", e.target.value)} />
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Email *</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">Email *</label>
             <input className="w-full border rounded-md px-3 py-2 text-sm" value={payload.email} type="email" onChange={(e) => update("email", e.target.value)} />
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Client Category</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">Client Category</label>
             <div className="flex gap-2">
               <select className="flex-1 border rounded-md px-3 py-2 text-sm" value={payload.clientCategory} onChange={(e) => update("clientCategory", e.target.value)}>
                 <option value="">--</option>
@@ -969,9 +980,9 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Lead Source</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">Lead Source</label>
             <div className="flex gap-2">
-              <select className="flex-1 border rounded-md px-3 py-2 text-sm" value={payload.leadSource} onChange={(e) => update("leadSource", e.target.value)}>
+              <select className="flex-1 border  rounded-md px-3 py-2 text-sm" value={payload.leadSource} onChange={(e) => update("leadSource", e.target.value)}>
                 <option value="">--</option>
                 {leadSources.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
               </select>
@@ -980,7 +991,7 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Added By</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">Added By</label>
             <select className="w-full border rounded-md px-3 py-2 text-sm" value={payload.addedBy} onChange={(e) => update("addedBy", e.target.value)}>
               <option value="">--</option>
               {employees.map((emp) => <option key={emp.employeeId} value={emp.employeeId}>{emp.name} ({emp.employeeId})</option>)}
@@ -988,7 +999,7 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Lead Owner</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">Lead Owner</label>
             <select className="w-full border rounded-md px-3 py-2 text-sm" value={payload.leadOwner} onChange={(e) => update("leadOwner", e.target.value)}>
               <option value="">--</option>
               {employees.map((emp) => <option key={emp.employeeId} value={emp.employeeId}>{emp.name} ({emp.employeeId})</option>)}
@@ -1009,30 +1020,31 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
 
       {/* Deal Card */}
       {(payload.createDeal || payload.autoConvertToClient) && (
-        <div className="bg-white rounded-lg border p-5 shadow-sm">
-          <h4 className="text-sm font-medium mb-4">Deal Details</h4>
+        <div className="bg-white rounded-lg border p-5 shadow-sm flex flex-col">
+          <h4 className="text-sm font-medium mb-4 text-left order-first">Deal Details</h4>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Deal Name *</label>
+              <label className="block text-xs text-left text-muted-foreground mb-1">Deal Name *</label>
               <input className="w-full border rounded-md px-3 py-2 text-sm" value={payload.deal!.title} onChange={(e) => updateDeal("title", e.target.value)} />
             </div>
 
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Pipeline *</label>
+              <label className="block text-xs text-left text-muted-foreground mb-1">Pipeline *</label>
               <select className="w-full border rounded-md px-3 py-2 text-sm" value={payload.deal!.pipeline} onChange={(e) => updateDeal("pipeline", e.target.value)}>
-                {defaultPipelines.map(p => <option key={p} value={p}>{p}</option>)}
+                {defaultPipelines.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Deal Stage *</label>
+              <label className="block text-xs text-left text-muted-foreground mb-1">Deal Stage *</label>
               <select className="w-full border rounded-md px-3 py-2 text-sm" value={payload.deal!.dealStage} onChange={(e) => updateDeal("dealStage", e.target.value)}>
-                {defaultDealStages.map(s => <option key={s} value={s}>{s}</option>)}
+                {defaultDealStages.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Deal Value *</label>
+              <label className="block text-xs text-left text-muted-foreground mb-1">Deal Value *</label>
               <div className="flex">
                 <div className="px-3 py-2 bg-gray-100 rounded-l text-sm">USD $</div>
                 <input className="flex-1 border rounded-r px-3 py-2 text-sm" type="number" value={payload.deal!.value as any} onChange={(e) => updateDeal("value", e.target.value)} />
@@ -1040,12 +1052,12 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
             </div>
 
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Close Date *</label>
+              <label className="block text-xs text-left text-muted-foreground mb-1">Close Date *</label>
               <input className="w-full border rounded-md px-3 py-2 text-sm" type="date" value={payload.deal!.expectedCloseDate} onChange={(e) => updateDeal("expectedCloseDate", e.target.value)} />
             </div>
 
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Deal Category</label>
+              <label className="block text-xs text-left text-muted-foreground mb-1">Deal Category</label>
               <div className="flex gap-2">
                 <select className="flex-1 border rounded-md px-3 py-2 text-sm" value={payload.deal!.dealCategory} onChange={(e) => updateDeal("dealCategory", e.target.value)}>
                   <option value="">--</option>
@@ -1056,19 +1068,19 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
             </div>
 
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Deal Agent *</label>
+              <label className="block text-xs text-left text-muted-foreground mb-1">Deal Agent *</label>
               <select className="w-full border rounded-md px-3 py-2 text-sm" value={payload.deal!.dealAgent} onChange={(e) => updateDeal("dealAgent", e.target.value)}>
                 <option value="">--</option>
-                {employees.map(emp => <option key={emp.employeeId} value={emp.employeeId}>{emp.name} ({emp.employeeId})</option>)}
+                {employees.map((emp) => <option key={emp.employeeId} value={emp.employeeId}>{emp.name} ({emp.employeeId})</option>)}
               </select>
             </div>
 
             <div className="md:col-span-3">
-              <label className="block text-xs text-muted-foreground mb-1">Deal Watcher(s)</label>
+              <label className="block text-xs text-left text-muted-foreground mb-1">Deal Watcher(s)</label>
               <div ref={watcherRef} className="relative">
                 <button type="button" onClick={() => setWatcherDropdownOpen((s) => !s)} className="w-full flex items-center justify-between border rounded-md px-3 py-2 text-sm bg-white">
                   <div className="truncate">
-                    {payload.deal!.dealWatchers.length === 0 ? "-- select --" : payload.deal!.dealWatchers.map(id => employees.find(emp => emp.employeeId === id)?.name ?? id).join(", ")}
+                    {payload.deal!.dealWatchers.length === 0 ? "-- select --" : payload.deal!.dealWatchers.map((id) => employees.find((emp) => emp.employeeId === id)?.name ?? id).join(", ")}
                   </div>
                   <div className="ml-2">
                     {payload.deal!.dealWatchers.length > 0 && (<button type="button" onClick={(e) => { e.stopPropagation(); clearWatchers(); }} className="text-xs px-2 py-1 rounded hover:bg-slate-100">Clear</button>)}
@@ -1081,7 +1093,7 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
                       <input className="w-full border rounded-md p-2 text-sm" placeholder="Search employees..." value={watcherFilter} onChange={(e) => setWatcherFilter(e.target.value)} />
                     </div>
                     <ul className="p-2 space-y-1">
-                      {employees.filter(emp => emp.name.toLowerCase().includes(watcherFilter.trim().toLowerCase()) || emp.employeeId.toLowerCase().includes(watcherFilter.trim().toLowerCase())).map(emp => {
+                      {employees.filter((emp) => emp.name.toLowerCase().includes(watcherFilter.trim().toLowerCase()) || emp.employeeId.toLowerCase().includes(watcherFilter.trim().toLowerCase())).map((emp) => {
                         const checked = payload.deal!.dealWatchers.includes(emp.employeeId);
                         return (
                           <li key={emp.employeeId}>
@@ -1100,58 +1112,59 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
                   </div>
                 )}
               </div>
-              <div className="mt-2 text-sm text-muted-foreground">Selected: {payload.deal!.dealWatchers.length === 0 ? "—" : payload.deal!.dealWatchers.map(id => employees.find(emp => emp.employeeId === id)?.name ?? id).join(", ")}</div>
+
+              <div className="mt-2 text-sm text-muted-foreground">Selected: {payload.deal!.dealWatchers.length === 0 ? "—" : payload.deal!.dealWatchers.map((id) => employees.find((emp) => emp.employeeId === id)?.name ?? id).join(", ")}</div>
             </div>
           </div>
         </div>
       )}
 
       {/* Company */}
-      <div className="bg-white rounded-lg border p-5 shadow-sm">
-        <h4 className="text-sm font-medium mb-4">Company Details</h4>
+      <div className="bg-white rounded-lg border p-5 shadow-sm flex flex-col">
+        <h4 className="text-sm font-medium mb-4 text-left order-first">Company Details</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1">Company Name *</label>
+          <div >
+            <label className="block text-xs text-left text-muted-foreground mb-1">Company Name *</label>
             <input className="w-full border rounded-md px-3 py-2 text-sm" value={payload.companyName} onChange={(e) => update("companyName", e.target.value)} />
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Official Website</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">Official Website</label>
             <input className="w-full border rounded-md px-3 py-2 text-sm" value={payload.officialWebsite} onChange={(e) => update("officialWebsite", e.target.value)} />
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Mobile Number</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">Mobile Number</label>
             <input className="w-full border rounded-md px-3 py-2 text-sm" value={payload.mobileNumber} onChange={(e) => update("mobileNumber", e.target.value)} />
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Office Phone No.</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">Office Phone No.</label>
             <input className="w-full border rounded-md px-3 py-2 text-sm" value={payload.officePhone} onChange={(e) => update("officePhone", e.target.value)} />
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">City</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">City</label>
             <input className="w-full border rounded-md px-3 py-2 text-sm" value={payload.city} onChange={(e) => update("city", e.target.value)} />
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">State</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">State</label>
             <input className="w-full border rounded-md px-3 py-2 text-sm" value={payload.state} onChange={(e) => update("state", e.target.value)} />
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Postal Code</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">Postal Code</label>
             <input className="w-full border rounded-md px-3 py-2 text-sm" value={payload.postalCode} onChange={(e) => update("postalCode", e.target.value)} />
           </div>
 
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Country</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">Country</label>
             <input className="w-full border rounded-md px-3 py-2 text-sm" value={payload.country} onChange={(e) => update("country", e.target.value)} />
           </div>
 
           <div className="md:col-span-3">
-            <label className="block text-xs text-muted-foreground mb-1">Company Address</label>
+            <label className="block text-xs text-left text-muted-foreground mb-1">Company Address</label>
             <textarea className="w-full border rounded-md p-3 text-sm h-28" value={payload.companyAddress} onChange={(e) => update("companyAddress", e.target.value)} />
           </div>
         </div>
@@ -1164,10 +1177,10 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
     </form>
   );
 
-  // Small add-list modal (same as before)
+  /* -------- Small add-list modal (unchanged logic) -------- */
   const SmallAddListModal = addModalOpen ? (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-red/20" onClick={() => setAddModalOpen(null)} />
+      <div className="absolute inset-0 bg-yellow/20" onClick={() => setAddModalOpen(null)} />
       <div className="fixed inset-0 flex items-start justify-center px-4 pt-20">
         <div className="max-w-2xl w-full bg-white rounded-lg shadow-lg border overflow-auto">
           <div className="flex items-center justify-between p-4 border-b">
@@ -1225,12 +1238,14 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
     </div>
   ) : null;
 
-  /* ---------- final render: overlay + 80% wide panel (left sidebar remains visible) ---------- */
+  /* ---------------- final render ---------------- */
   return (
     <>
       <div className="fixed inset-0 z-50" aria-modal="true" role="dialog">
+        {/* backdrop */}
         <div className="absolute inset-0 bg-yellow/50 transition-opacity" onClick={onClose} />
 
+        {/* slide-in panel: 80% width on desktop, full on mobile */}
         <aside
           className={[
             "absolute right-0 top-0 h-full bg-gray-50 flex flex-col",
@@ -1240,21 +1255,23 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
           ].join(" ")}
           style={{ willChange: "transform" }}
         >
-          {/* header */}
-          <div className="flex items-center justify-between p-4 border-b bg-white sticky top-0 z-10">
+          {/* header (left-aligned title) */}
+          <div className="flex items-start justify-between p-4 border-b bg-white sticky top-0 z-10">
             <div>
-              <h3 className="text-lg font-semibold">Add Lead Contact Information</h3>
+              <h3 className="text-lg font-semibold text-left">Add Lead Contact Information</h3>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={onClose} className="p-2 rounded hover:bg-slate-100">✕</button>
             </div>
           </div>
 
+          {/* body */}
           <div className="p-6 overflow-auto flex-1">
             {FormContent}
           </div>
 
-          <div className="p-4 border-t bg-white sticky bottom-0">
+          {/* sticky footer */}
+          {/* <div className="p-4 border-t bg-white sticky bottom-0">
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">Fields marked * are required</div>
               <div className="flex items-center gap-3">
@@ -1262,14 +1279,18 @@ export function AddLeadModal({ onClose, onCreated, employees }: { onClose: () =>
                 <button onClick={submit} className="px-4 py-2 rounded-md bg-sky-600 text-white text-sm" disabled={submitting}>{submitting ? "Saving..." : "Save"}</button>
               </div>
             </div>
-          </div>
+          </div> */}
         </aside>
       </div>
 
+      {/* small add-list modal */}
       {SmallAddListModal}
     </>
   );
 }
+
+
+
 
 
 
