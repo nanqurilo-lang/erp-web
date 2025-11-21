@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -8,7 +8,19 @@ import { Deal } from "@/types/deals";
 import DealTags from "../../_components/DealTags";
 import CommentForm from "../../_components/comment";
 
+type DocumentItem = {
+  id: number;
+  filename: string;
+  url: string;
+  uploadedAt: string;
+};
+
 type TabKey = "files" | "followups" | "people" | "notes" | "comments" | "tags";
+
+const BASE_URL = "https://chat.swiftandgo.in";
+
+// Developer-provided local screenshot path — will be transformed by your infra when sent to API.
+const UPLOADED_LOCAL_PATH = "/mnt/data/Screenshot 2025-11-21 135924.png";
 
 export default function DealDetailPage() {
   const params = useParams();
@@ -18,6 +30,12 @@ export default function DealDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("files");
+
+  // documents state & employees who can access the docs
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [docEmployeeIds, setDocEmployeeIds] = useState<string[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [docsError, setDocsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!dealId) {
@@ -58,6 +76,52 @@ export default function DealDetailPage() {
     fetchDeal();
   }, [dealId]);
 
+  // fetch documents list & employeeIds
+  useEffect(() => {
+    if (!dealId) return;
+    const fetchDocs = async () => {
+      setDocsLoading(true);
+      setDocsError(null);
+      try {
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+          setDocsError("No access token found");
+          setDocsLoading(false);
+          return;
+        }
+
+        const res = await fetch(`${BASE_URL}/deals/${dealId}/documents`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          throw new Error(`Failed to fetch documents: ${res.status} ${txt}`);
+        }
+
+        const json = await res.json();
+        // Based on your example, GET returns { employeeIds: [...] } for access — and actual docs come from POST responses.
+        // Some backends return list of documents; handle both possibilities:
+        if (Array.isArray(json)) {
+          // if backend returns array of documents directly
+          setDocuments(json);
+        } else {
+          // If response contains employeeIds only, store them
+          if (Array.isArray(json.employeeIds)) setDocEmployeeIds(json.employeeIds);
+          // If it also returns docs: treat that
+          if (Array.isArray((json as any).documents)) setDocuments((json as any).documents);
+        }
+      } catch (err: any) {
+        console.error(err);
+        setDocsError(err.message || "Failed to load documents");
+      } finally {
+        setDocsLoading(false);
+      }
+    };
+
+    fetchDocs();
+  }, [dealId]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen text-lg font-semibold">
@@ -77,7 +141,7 @@ export default function DealDetailPage() {
     );
   }
 
-  // helper to display earliest followup date/time (if you want to expand later)
+  // helper to find earliest followup
   const earliestFollowup = (followups?: any[]) => {
     if (!followups || followups.length === 0) return null;
     const valid = followups.filter((f) => f?.nextDate).slice();
@@ -87,18 +151,78 @@ export default function DealDetailPage() {
 
   const nextFollow = earliestFollowup(deal.followups);
 
-  // local uploaded image path (developer-provided). Use as decorative top banner fallback or avatar fallback.
-  const uploadedScreenshot = "/mnt/data/Screenshot 2025-11-21 135924.png";
-
-  // mailto / tel links (defensive)
   const mailTo = deal.leadEmail ? `mailto:${deal.leadEmail}` : undefined;
   const telTo = deal.leadMobile ? `tel:${deal.leadMobile}` : undefined;
 
+  // Upload document (POST). Per your instruction we send the developer local path as the url.
+  const uploadDocument = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        alert("No access token found");
+        return;
+      }
+      // Here we simulate upload using the developer-provided local path and filename.
+      const filename = UPLOADED_LOCAL_PATH.split("/").pop() || "screenshot.png";
+      const body = {
+        filename,
+        url: UPLOADED_LOCAL_PATH, // developer-provided path; infra will transform it
+      };
+
+      const res = await fetch(`${BASE_URL}/deals/${dealId}/documents`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Failed to upload document: ${res.status} ${txt}`);
+      }
+
+      const json = await res.json();
+      // Example POST response you gave:
+      // { id, filename, url, uploadedAt }
+      setDocuments((prev) => [json as DocumentItem, ...prev]);
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Failed to upload document");
+    }
+  };
+
+  const deleteDocument = async (docId: number) => {
+    if (!confirm("Are you sure you want to delete this document?")) return;
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        alert("No access token found");
+        return;
+      }
+
+      const res = await fetch(`${BASE_URL}/deals/${dealId}/documents/${docId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Failed to delete document: ${res.status} ${txt}`);
+      }
+
+      // Remove locally
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Failed to delete document");
+    }
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* Top thin success bar to match screenshot */}
-      <div className="h-1 w-full bg-emerald-500 rounded-t-md mb-4" />
-
+      {/* header without green line (removed per request) */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <Link
@@ -134,7 +258,6 @@ export default function DealDetailPage() {
               </div>
 
               <div className="flex items-start gap-3">
-                {/* three-dot action like screenshot */}
                 <button className="p-2 rounded-md hover:bg-slate-50">
                   <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none">
                     <circle cx="5" cy="12" r="1.5" />
@@ -164,7 +287,7 @@ export default function DealDetailPage() {
 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Company Name</span>
-                  <span className="text-gray-900">{deal.leadCompany || "—"}</span>
+                  <span className="text-gray-900">{(deal as any).leadCompany || "—"}</span>
                 </div>
 
                 <div className="flex justify-between">
@@ -185,7 +308,7 @@ export default function DealDetailPage() {
                   <span className="text-gray-600">Deal Watcher</span>
                   <span className="text-gray-900">
                     {(deal.dealWatchersMeta && deal.dealWatchersMeta.map((d) => d.name).join(", ")) ||
-                      (deal.dealWatchers && deal.dealWatchers.join(", ")) ||
+                      (deal.dealWatchers && (deal.dealWatchers as string[]).join(", ")) ||
                       "—"}
                   </span>
                 </div>
@@ -207,7 +330,7 @@ export default function DealDetailPage() {
             </div>
           </div>
 
-          {/* Tabs area (Files / Follow Up / People / Notes / Comments / Tags) */}
+          {/* Tabs area */}
           <div className="bg-white border rounded-2xl p-4 shadow-sm">
             <div className="border-b -mx-4 px-4">
               <nav className="flex gap-6 text-sm">
@@ -253,24 +376,59 @@ export default function DealDetailPage() {
             <div className="p-6 min-h-[180px]">
               {activeTab === "files" && (
                 <div>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm text-violet-600 hover:bg-violet-50"
-                    onClick={() => {
-                      // keep behavior minimal — implement upload flow in your app
-                      console.log("Upload file clicked for deal", dealId);
-                    }}
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path d="M12 4v12" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M8 8l4-4 4 4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M20 20H4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Upload File
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm text-violet-600 hover:bg-violet-50"
+                      onClick={uploadDocument}
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M12 4v12" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M8 8l4-4 4 4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M20 20H4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Upload File
+                    </button>
+                    <div className="text-sm text-gray-500">Uploads will use the developer-provided file path.</div>
+                  </div>
+
                   <div className="mt-6 text-sm text-gray-500">
-                    {/* placeholder content - your existing file list component can be plugged here */}
-                    No files uploaded yet.
+                    {docsLoading && <div>Loading documents...</div>}
+                    {docsError && <div className="text-red-600">{docsError}</div>}
+                    {!docsLoading && documents.length === 0 && <div>No files uploaded yet.</div>}
+                    <div className="space-y-3 mt-4">
+                      {documents.map((doc) => (
+                        <div key={doc.id} className="flex items-center justify-between p-3 border rounded-md">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-md overflow-hidden bg-slate-100 flex items-center justify-center text-xs text-gray-400">
+                              {/* show thumbnail placeholder or remote url if available */}
+                              <img src={doc.url} alt={doc.filename} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="text-sm">
+                              <div className="font-medium">{doc.filename}</div>
+                              <div className="text-xs text-gray-500">Uploaded: {new Date(doc.uploadedAt).toLocaleString()}</div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <a
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-sky-600 hover:underline"
+                            >
+                              View
+                            </a>
+                            <button
+                              onClick={() => deleteDocument(doc.id)}
+                              className="text-sm text-red-600 hover:underline"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -303,7 +461,6 @@ export default function DealDetailPage() {
                           <div key={a.employeeId} className="flex items-center gap-3 py-2">
                             <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100">
                               {a.profileUrl ? (
-                                // using <img> instead of next/Image to avoid remote domain config issues in dev
                                 <img src={a.profileUrl} alt={a.name} className="w-full h-full object-cover" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">N</div>
@@ -323,12 +480,7 @@ export default function DealDetailPage() {
                 </div>
               )}
 
-              {activeTab === "notes" && (
-                <div className="text-sm text-gray-500">
-                  {/* plug your notes component here if exists */}
-                  No notes yet.
-                </div>
-              )}
+              {activeTab === "notes" && <div className="text-sm text-gray-500">No notes yet.</div>}
 
               {activeTab === "comments" && (
                 <div>
@@ -350,16 +502,12 @@ export default function DealDetailPage() {
                 </div>
               )}
 
-              {activeTab === "tags" && (
-                <div>
-                  <DealTags dealId={dealId} />
-                </div>
-              )}
+              {activeTab === "tags" && <div><DealTags dealId={dealId} /></div>}
             </div>
           </div>
         </div>
 
-        {/* Right: Lead Contact Details card */}
+        {/* Right: Lead Contact Details card (preview removed earlier) */}
         <aside className="space-y-4">
           <div className="bg-white border rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-semibold mb-4">Lead Contact Details</h3>
@@ -379,7 +527,7 @@ export default function DealDetailPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Company Name</span>
-                <span className="text-gray-900">{deal.leadCompany || "—"}</span>
+                <span className="text-gray-900">{(deal as any).leadCompany || "—"}</span>
               </div>
 
               <div className="mt-4 flex gap-3">
@@ -413,17 +561,7 @@ export default function DealDetailPage() {
             </div>
           </div>
 
-          {/* Decorative preview or avatar using uploaded screenshot (per developer instruction) */}
-          <div className="bg-white border rounded-2xl p-4 shadow-sm flex items-center gap-3">
-            <div className="w-16 h-16 rounded-md overflow-hidden bg-slate-100">
-              {/* Use <img> to avoid domain config issues; developer path provided will be transformed */}
-              <img src={uploadedScreenshot} alt="screenshot preview" className="w-full h-full object-cover" />
-            </div>
-            <div className="text-sm text-gray-600">
-              <div className="font-medium text-gray-900">{deal.dealAgentMeta?.name || deal.dealAgent || "Agent"}</div>
-              <div className="text-xs">Preview</div>
-            </div>
-          </div>
+          {/* Preview removed as requested */}
         </aside>
       </div>
     </div>
