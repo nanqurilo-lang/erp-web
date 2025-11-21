@@ -26,31 +26,54 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LayoutGrid, TableIcon, MoreVertical } from "lucide-react"
 
+type Followup = {
+  id: number
+  nextDate?: string
+  startTime?: string
+  remarks?: string
+  sendReminder?: boolean
+  reminderSent?: boolean
+  createdAt?: string
+}
+
+type PriorityObject = {
+  id: number
+  status: string
+  color?: string
+  dealId?: number | null
+  isGlobal?: boolean
+}
+
 type Deal = {
-  id: string
-  title: string
+  id: number | string
+  title?: string
   value?: number
   dealStage?: string
   dealCategory?: string
   pipeline?: string
   dealAgent?: string
   dealAgentMeta?: {
+    employeeId?: string
     name?: string
-    profileUrl?: string
+    designation?: string | null
+    department?: string | null
+    profileUrl?: string | null
   }
   createdAt?: string
+  leadId?: number
   leadName?: string
-  contactEmail?: string
-  contactPhone?: string
+  leadMobile?: string
+  leadEmail?: string
   expectedCloseDate?: string
-  nextFollowUp?: string
-  dealWatcher?: string
-  priority?: string | number | null
-  tags?: string
+  followups?: Followup[]
+  tags?: string[]
+  dealWatchers?: string[] // array of employee ids
+  dealWatchersMeta?: { employeeId?: string; name?: string; profileUrl?: string | null }[]
+  assignedEmployeesMeta?: { employeeId?: string; name?: string; profileUrl?: string | null }[]
+  priority?: string | number | PriorityObject | null
 }
 
 type PriorityItem = {
@@ -63,7 +86,7 @@ type PriorityItem = {
 
 const BASE_URL = "https://chat.swiftandgo.in"
 
-// Sample local image paths you uploaded (kept as fallbacks)
+// Use uploaded images as fallback avatars (local paths provided earlier)
 const sampleDesktopImage = "/mnt/data/Screenshot 2025-11-21 122016.png"
 const sampleMobileImage = "/mnt/data/Screenshot 2025-11-21 122307.png"
 
@@ -83,28 +106,27 @@ export default function DealsPage() {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!res.ok) {
-      const text = await res.text().catch(() => "")
-      throw new Error(`Failed to fetch ${url} - ${res.status} ${text}`)
+      const txt = await res.text().catch(() => "")
+      throw new Error(`Failed to fetch ${url}: ${res.status} ${txt}`)
     }
     return res.json()
   }
 
-  // deals (existing logic preserved; endpoint kept as your relative /api/deals/get)
+  // Fetch deals (kept same endpoint as you used)
   const { data: deals = [], error: dealsError, isLoading: dealsLoading, mutate: mutateDeals } = useSWR(
     token ? "/api/deals/get" : null,
     authFetcher
   )
 
-  // priorities from backend (global list)
+  // Fetch global priorities list
   const { data: priorities = [] as PriorityItem[] } = useSWR(
     token ? `${BASE_URL}/deals/admin/priorities` : null,
     authFetcher
   )
 
-  // create a map for quick lookup by status or id
   const priorityByStatus = useMemo(() => {
     const m = new Map<string, PriorityItem>()
-    for (const p of (priorities || [])) {
+    for (const p of priorities || []) {
       if (p.status) m.set(String(p.status).toLowerCase(), p)
     }
     return m
@@ -112,7 +134,7 @@ export default function DealsPage() {
 
   const priorityById = useMemo(() => {
     const m = new Map<number, PriorityItem>()
-    for (const p of (priorities || [])) {
+    for (const p of priorities || []) {
       m.set(p.id, p)
     }
     return m
@@ -126,6 +148,14 @@ export default function DealsPage() {
     return Array.from(s.values()).sort()
   }, [deals])
 
+  const getNextFollowupDate = (followups?: Followup[]) => {
+    if (!followups || followups.length === 0) return null
+    const valid = followups.filter((f) => f && f.nextDate).slice()
+    if (valid.length === 0) return null
+    valid.sort((a, b) => new Date(a.nextDate as string).getTime() - new Date(b.nextDate as string).getTime())
+    return valid[0].nextDate || null
+  }
+
   const filteredDeals = useMemo(() => {
     const q = query.trim().toLowerCase()
     return (deals as Deal[]).filter((d) => {
@@ -137,10 +167,10 @@ export default function DealsPage() {
         d.dealAgent,
         d.dealCategory,
         d.pipeline,
-        d.id,
+        String(d.id),
         d.leadName,
-        d.contactEmail,
-        d.contactPhone,
+        d.leadEmail,
+        d.leadMobile,
       ]
         .filter(Boolean)
         .join(" ")
@@ -162,89 +192,105 @@ export default function DealsPage() {
     )
   }
 
-  // safe normalization for priority strings
+  // Normalize priority input to status string
   const normalizePriorityString = (p?: unknown) => {
     if (p === null || p === undefined) return "low"
     if (typeof p === "string") return p.toLowerCase()
+    if (typeof p === "number") {
+      const byId = priorityById.get(p)
+      if (byId?.status) return String(byId.status).toLowerCase()
+      return "low"
+    }
     try {
+      const o = p as PriorityObject
+      if (o && o.status) return String(o.status).toLowerCase()
       return String(p).toLowerCase()
     } catch {
       return "low"
     }
   }
 
-  // get color for priority: prefer backend color if available, else fallbacks
   const getPriorityColor = (p?: unknown) => {
-    // if p is an id number, try lookup
+    if (p && typeof p === "object" && "color" in (p as any) && (p as any).color) {
+      return (p as any).color as string
+    }
     if (typeof p === "number") {
       const item = priorityById.get(p)
       if (item?.color) return item.color
-      if (item?.status) return (priorityByStatus.get(item.status.toLowerCase())?.color) || "#34D399"
     }
-
     const s = normalizePriorityString(p)
     const item = priorityByStatus.get(s)
     if (item?.color) return item.color
-    // fallback palette
     switch (s) {
       case "high":
-        return "#ef4444" // red-500
+        return "#ef4444"
       case "medium":
-        return "#f59e0b" // yellow-400
+        return "#f59e0b"
       default:
-        return "#10b981" // green-500
+        return "#10b981"
     }
   }
 
-  // when user changes priority from the select
-  const handlePriorityChange = async (dealId: string, newPriorityStatusOrId: string | number) => {
+  // POST assign priority: per your latest API: POST ${baseUrl}/deals/{{dealId}}/priority/assign with body { priorityId: <number> }
+  const handlePriorityAssign = async (dealId: number | string, newPriorityIdOrVal: string | number) => {
     if (!token) return
     try {
-      // find priority id if user selected by status string
-      let priorityIdToSend: number | null = null
-      if (typeof newPriorityStatusOrId === "number") {
-        priorityIdToSend = newPriorityStatusOrId
-      } else {
-        // try to find priority id by status string (case-insensitive)
-        const statusKey = String(newPriorityStatusOrId).toLowerCase()
-        const found = priorityByStatus.get(statusKey)
-        if (found) priorityIdToSend = found.id
-      }
+      // prefer numeric id
+      const asNum = Number(newPriorityIdOrVal)
+      let priorityIdToSend: number | null = !Number.isNaN(asNum) ? asNum : null
 
-      // If still null, try to find by matching status text directly in priorities list
       if (priorityIdToSend === null) {
-        const found = (priorities || []).find(
-          (p: PriorityItem) => p.status && String(p.status).toLowerCase() === String(newPriorityStatusOrId).toLowerCase()
-        )
+        // resolve status -> id
+        const found = priorityByStatus.get(String(newPriorityIdOrVal).toLowerCase())
         if (found) priorityIdToSend = found.id
       }
 
-      // Best-effort: if we have an id, send it. Otherwise attempt sending status string as fallback.
-      const url = `${BASE_URL}/deals/${dealId}/priority`
-      const body = priorityIdToSend !== null ? { priorityId: priorityIdToSend } : { status: String(newPriorityStatusOrId) }
+      if (priorityIdToSend === null) {
+        console.error("Could not resolve priorityId for:", newPriorityIdOrVal)
+        return
+      }
 
+      const url = `${BASE_URL}/deals/${dealId}/priority/assign`
       const res = await fetch(url, {
-        method: "PUT",
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ priorityId: priorityIdToSend }),
       })
-
-     
-      
 
       if (!res.ok) {
         const txt = await res.text().catch(() => "")
-        console.error("Failed to update priority:", res.status, txt)
+        console.error("Failed to assign priority:", res.status, txt)
         return
       }
 
-      // revalidate deals to pick up updated priority
       await mutateDeals()
     } catch (err) {
-      console.error("Error updating priority:", err)
+      console.error("Error assigning priority:", err)
+    }
+  }
+
+  // PUT stage: per your API: PUT ${baseUrl}/deals/:dealId/stage?stage=Win
+  const handleStageChange = async (dealId: number | string, newStage: string) => {
+    if (!token) return
+    try {
+      const url = `${BASE_URL}/deals/${dealId}/stage?stage=${encodeURIComponent(newStage)}`
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "")
+        console.error("Failed to update stage:", res.status, txt)
+        return
+      }
+      await mutateDeals()
+    } catch (err) {
+      console.error("Error updating stage:", err)
     }
   }
 
@@ -300,7 +346,7 @@ export default function DealsPage() {
         </Tabs>
       </div>
 
-      {/* table */}
+      {/* main table */}
       <div className="overflow-x-auto rounded-xl border">
         <Table>
           <TableHeader>
@@ -322,21 +368,34 @@ export default function DealsPage() {
 
           <TableBody>
             {filteredDeals.map((deal: Deal) => {
-              // compute priority display value (can be id or status)
-              const priorityValue =
-                deal.priority ?? // could be string like "Low" or id like 3
-                (typeof deal.priority === "undefined" ? "Low" : deal.priority)
+              const nextFollowUp = getNextFollowupDate(deal.followups)
+              const nextFollowUpDisplay = nextFollowUp ? new Date(nextFollowUp).toLocaleDateString() : "—"
 
-              // color from priorities list if matching status or id
-              const color = getPriorityColor(priorityValue)
+              const watchersNames =
+                deal.dealWatchersMeta && deal.dealWatchersMeta.length > 0
+                  ? deal.dealWatchersMeta.map((w) => w.name).filter(Boolean).join(", ")
+                  : (deal.dealWatchers || []).join(", ") || "—"
+
+              let prioritySelectValue: string
+              if (deal.priority === null || typeof deal.priority === "undefined") {
+                const fallback = priorities?.find((p) => String(p.status).toLowerCase() === "low") || priorities?.[0]
+                prioritySelectValue = fallback ? String(fallback.id) : "Low"
+              } else if (typeof deal.priority === "object" && "id" in (deal.priority as any)) {
+                prioritySelectValue = String((deal.priority as PriorityObject).id)
+              } else if (typeof deal.priority === "number") {
+                prioritySelectValue = String(deal.priority)
+              } else {
+                const found = priorityByStatus.get(String(deal.priority).toLowerCase())
+                prioritySelectValue = found ? String(found.id) : String(deal.priority)
+              }
+
+              const priorityColor = getPriorityColor(deal.priority)
 
               return (
-                <TableRow key={deal.id} className="align-top">
-                  {/* Deal Name */}
+                <TableRow key={String(deal.id)} className="align-top">
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 flex-shrink-0">
-                        {/* use img tag to avoid next/image config issues with local paths */}
                         <img
                           src={(deal.dealAgentMeta?.profileUrl as string) || sampleDesktopImage}
                           alt={deal.dealAgentMeta?.name || deal.dealAgent || "agent"}
@@ -352,27 +411,23 @@ export default function DealsPage() {
                     </div>
                   </TableCell>
 
-                  {/* Lead Name */}
                   <TableCell>{deal.leadName || "—"}</TableCell>
 
-                  {/* Contact Details */}
                   <TableCell className="text-sm text-muted-foreground">
-                    <div>{deal.contactEmail || "—"}</div>
-                    <div>{deal.contactPhone || "—"}</div>
+                    <div>{deal.leadEmail || "—"}</div>
+                    <div>{deal.leadMobile || "—"}</div>
                   </TableCell>
 
-                  {/* Value */}
                   <TableCell className="whitespace-nowrap">
                     {typeof deal.value === "number" ? `$${deal.value.toLocaleString()}` : "—"}
                   </TableCell>
 
-                  {/* Close Date */}
-                  <TableCell>{deal.expectedCloseDate ? new Date(deal.expectedCloseDate).toLocaleDateString() : "—"}</TableCell>
+                  <TableCell>
+                    {deal.expectedCloseDate ? new Date(deal.expectedCloseDate).toLocaleDateString() : "—"}
+                  </TableCell>
 
-                  {/* Next Follow Up */}
-                  <TableCell>{deal.nextFollowUp ? new Date(deal.nextFollowUp).toLocaleDateString() : "—"}</TableCell>
+                  <TableCell>{nextFollowUpDisplay}</TableCell>
 
-                  {/* Deal Agent */}
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 flex-shrink-0">
@@ -389,16 +444,14 @@ export default function DealsPage() {
                     </div>
                   </TableCell>
 
-                  {/* Deal Watcher */}
-                  <TableCell>{deal.dealWatcher || "—"}</TableCell>
+                  <TableCell className="text-sm">{watchersNames}</TableCell>
 
-                  {/* Stage (compact select) */}
+                  {/* Stage select - now persists via PUT */}
                   <TableCell>
                     <Select
                       value={deal.dealStage || "Qualified"}
-                      onValueChange={() => {
-                        /* UI-only for stage here to preserve logic (no server update was requested).
-                           If you want stage to persist, I can add a PATCH call. */
+                      onValueChange={(val) => {
+                        handleStageChange(deal.id, val)
                       }}
                     >
                       <SelectTrigger className="w-36" aria-label="Deal stage">
@@ -422,34 +475,26 @@ export default function DealsPage() {
                     </Select>
                   </TableCell>
 
-                  {/* Priority Status (dot + select, persists via PUT) */}
+                  {/* Priority select - now uses POST /priority/assign with body { priorityId } */}
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <span
-                        className="inline-block w-3 h-3 rounded-full"
-                        style={{ backgroundColor: color }}
-                        aria-hidden
-                      />
+                      <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: priorityColor }} />
                       <div className="flex-1">
                         <Select
-                          value={
-                            // if priority is an id present in priorityById, use id; else use status string fallback
-                            typeof priorityValue === "number" && priorityById.get(priorityValue)
-                              ? String(priorityValue)
-                              : (typeof priorityValue === "string" ? priorityValue : String(priorityValue ?? "Low"))
-                          }
+                          value={prioritySelectValue}
                           onValueChange={(val) => {
-                            // if the value is a numeric id string, send as number
-                            const asNumber = Number(val)
-                            const toSend = !Number.isNaN(asNumber) && priorityById.get(asNumber) ? asNumber : val
-                            handlePriorityChange(deal.id, toSend)
+                            const asNum = Number(val)
+                            const toSend = !Number.isNaN(asNum) ? asNum : (() => {
+                              const resolved = priorityByStatus.get(String(val).toLowerCase())
+                              return resolved ? resolved.id : null
+                            })()
+                            if (toSend !== null) handlePriorityAssign(deal.id, toSend)
                           }}
                         >
                           <SelectTrigger className="w-32 text-sm py-1" aria-label="Priority status">
                             <SelectValue placeholder="Priority" />
                           </SelectTrigger>
                           <SelectContent>
-                            {/* populate from backend priorities if available, otherwise sensible defaults */}
                             {(priorities && priorities.length > 0
                               ? priorities
                               : [
@@ -471,33 +516,35 @@ export default function DealsPage() {
                     </div>
                   </TableCell>
 
-                  {/* Tags */}
-                  <TableCell className="text-sm text-muted-foreground">{deal.tags || "—"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {(deal.tags && deal.tags.length > 0 && deal.tags.join(", ")) || "—"}
+                  </TableCell>
 
-                  {/* Actions */}
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="p-2">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/deals/get/${deal.id}`}>View</Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/deals/create/${deal.id}`}>Edit</Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            console.log("Delete clicked for", deal.id)
-                          }}
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="p-2">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/deals/get/${deal.id}`}>View</Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/deals/create/${deal.id}`}>Edit</Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              console.log("Delete clicked for", deal.id)
+                            }}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               )
