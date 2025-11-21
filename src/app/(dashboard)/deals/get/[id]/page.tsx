@@ -15,6 +15,17 @@ type DocumentItem = {
   uploadedAt: string;
 };
 
+type Followup = {
+  id?: number;
+  nextDate: string; // yyyy-mm-dd
+  startTime: string; // HH:mm
+  remarks?: string;
+  sendReminder?: boolean;
+  remindBefore?: number;
+  remindUnit?: "DAYS" | "HOURS" | "MINUTES" | string;
+  status?: string;
+};
+
 type TabKey = "files" | "followups" | "people" | "notes" | "comments" | "tags";
 
 const BASE_URL = "https://chat.swiftandgo.in";
@@ -42,6 +53,16 @@ export default function DealDetailPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // followups state
+  const [followups, setFollowups] = useState<Followup[]>([]);
+  const [followupsLoading, setFollowupsLoading] = useState(false);
+  const [followupsError, setFollowupsError] = useState<string | null>(null);
+
+  // followup modal state
+  const [isFollowupModalOpen, setIsFollowupModalOpen] = useState(false);
+  const [editingFollowup, setEditingFollowup] = useState<Followup | null>(null);
+  const [followupSaving, setFollowupSaving] = useState(false);
 
   useEffect(() => {
     if (!dealId) {
@@ -122,6 +143,40 @@ export default function DealDetailPage() {
     };
 
     fetchDocs();
+  }, [dealId]);
+
+  // fetch followups
+  useEffect(() => {
+    if (!dealId) return;
+    const fetchFollowups = async () => {
+      setFollowupsLoading(true);
+      setFollowupsError(null);
+      try {
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+          setFollowupsError("No access token found");
+          setFollowupsLoading(false);
+          return;
+        }
+        const res = await fetch(`${BASE_URL}/deals/${dealId}/followups`, {
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        });
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          throw new Error(`Failed to fetch followups: ${res.status} ${txt}`);
+        }
+        const json = await res.json();
+        // backend returns array per your example
+        if (Array.isArray(json)) setFollowups(json);
+      } catch (err: any) {
+        console.error(err);
+        setFollowupsError(err.message || "Failed to load followups");
+      } finally {
+        setFollowupsLoading(false);
+      }
+    };
+
+    fetchFollowups();
   }, [dealId]);
 
   if (loading) {
@@ -268,6 +323,134 @@ export default function DealDetailPage() {
       alert(err?.message || "Failed to delete document");
     }
   };
+
+  // --- FOLLOWUPS: Open modal for new or edit
+  const openAddFollowup = () => {
+    setEditingFollowup({
+      nextDate: "",
+      startTime: "",
+      remarks: "",
+      sendReminder: true,
+      remindBefore: 1,
+      remindUnit: "DAYS",
+    });
+    setIsFollowupModalOpen(true);
+  };
+
+  const openEditFollowup = (f: any) => {
+    setEditingFollowup({
+      id: f.id,
+      nextDate: f.nextDate ? f.nextDate.split("T")[0] : f.nextDate || "",
+      startTime: f.startTime ? f.startTime.slice(0, 5) : f.startTime || "",
+      remarks: f.remarks || "",
+      sendReminder: !!f.sendReminder,
+      remindBefore: f.remindBefore ?? 1,
+      remindUnit: f.remindUnit ?? "DAYS",
+      status: f.status,
+    });
+    setIsFollowupModalOpen(true);
+  };
+
+  const closeFollowupModal = () => {
+    setIsFollowupModalOpen(false);
+    setEditingFollowup(null);
+  };
+
+  // Save (create or update)
+  const saveFollowup = async () => {
+    if (!editingFollowup) return;
+    setFollowupSaving(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        alert("No access token found");
+        setFollowupSaving(false);
+        return;
+      }
+
+      // payload per your POST example (send times in expected formats)
+      const payload: any = {
+        nextDate: editingFollowup.nextDate,
+        startTime: editingFollowup.startTime,
+        remarks: editingFollowup.remarks,
+        sendReminder: editingFollowup.sendReminder,
+        remindBefore: editingFollowup.remindBefore,
+        remindUnit: editingFollowup.remindUnit,
+      };
+
+      if (editingFollowup.id) {
+        // update
+        const res = await fetch(`${BASE_URL}/deals/${dealId}/followups/${editingFollowup.id}`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          throw new Error(`Failed to update followup: ${res.status} ${txt}`);
+        }
+        // update locally - refetch or patch the local array
+        const updated = await res.json();
+        setFollowups((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      } else {
+        // create
+        const res = await fetch(`${BASE_URL}/deals/${dealId}/followups`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          throw new Error(`Failed to create followup: ${res.status} ${txt}`);
+        }
+        const created = await res.json();
+        // per your example response: it returns the posted followup (or at least the dates)
+        // push to list and close modal
+        setFollowups((prev) => [created, ...prev]);
+      }
+
+      closeFollowupModal();
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Failed to save followup");
+    } finally {
+      setFollowupSaving(false);
+    }
+  };
+
+  const deleteFollowup = async (id?: number) => {
+    if (!id) return;
+    if (!confirm("Are you sure you want to delete this follow up?")) return;
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        alert("No access token found");
+        return;
+      }
+      const res = await fetch(`${BASE_URL}/deals/${dealId}/followups/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Failed to delete followup: ${res.status} ${txt}`);
+      }
+      setFollowups((prev) => prev.filter((f) => f.id !== id));
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Failed to delete followup");
+    }
+  };
+
+  // Small UI helpers
+  const formatDate = (d?: string) => (d ? new Date(d).toLocaleDateString() : "—");
+  const formatTime = (t?: string) => (t ? t : "—");
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -524,20 +707,84 @@ export default function DealDetailPage() {
               )}
 
               {activeTab === "followups" && (
-                <div className="space-y-3 text-sm text-gray-700">
-                  {deal.followups && deal.followups.length > 0 ? (
-                    deal.followups.map((f: any, i: number) => (
-                      <div key={i} className="p-3 border rounded-md">
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <div>{f.nextDate ? new Date(f.nextDate).toLocaleDateString() : "—"}</div>
-                          <div>{f.startTime || "—"}</div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={openAddFollowup}
+                      className="inline-flex items-center gap-2 text-blue-600"
+                    >
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M12 5v14" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M5 12h14" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Add a Follow Up
+                    </button>
+                  </div>
+
+                  <div className="rounded-md border overflow-hidden">
+                    <div className="bg-blue-50 text-sm text-gray-700 grid grid-cols-[1fr_1fr_1fr_80px] gap-4 p-3 items-center font-medium">
+                      <div>Created</div>
+                      <div>Follow Up</div>
+                      <div>Remark</div>
+                      <div className="text-center">Status</div>
+                    </div>
+
+                    <div>
+                      {followupsLoading && <div className="p-4">Loading followups...</div>}
+                      {followupsError && <div className="p-4 text-red-600">{followupsError}</div>}
+                      {!followupsLoading && followups.length === 0 && (
+                        <div className="p-4 text-sm text-gray-500">No follow ups</div>
+                      )}
+
+                      {followups.map((f) => (
+                        <div key={f.id} className="grid grid-cols-[1fr_1fr_1fr_80px] gap-4 items-center p-4 border-t">
+                          <div>{formatDate(f.nextDate)}</div>
+                          <div>{formatDate(f.nextDate)}</div>
+                          <div>{f.remarks || "---"}</div>
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`inline-block w-3 h-3 rounded-full ${f.status === "PENDING" ? "bg-yellow-400" : f.status === "CANCELLED" ? "bg-gray-400" : f.status === "COMPLETED" ? "bg-green-400" : "bg-gray-300"}`}
+                              />
+                              <span className="text-sm">{f.status ?? "Pending"}</span>
+                            </div>
+
+                            {/* action menu */}
+                            <div className="relative">
+                              <button
+                                onClick={(e) => {
+                                  // show simple menu via prompt-like toggling — keep simple
+                                  const menu = document.getElementById(`followup-menu-${f.id}`);
+                                  if (menu) {
+                                    menu.classList.toggle("hidden");
+                                  }
+                                }}
+                                className="p-1 rounded hover:bg-slate-50 text-gray-500"
+                                aria-label="Actions"
+                              >
+                                ⋮
+                              </button>
+                              <div id={`followup-menu-${f.id}`} className="hidden absolute right-0 mt-2 w-32 bg-white border rounded-md shadow-sm z-10">
+                                <button
+                                  onClick={() => openEditFollowup(f)}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => deleteFollowup(f.id)}
+                                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-slate-50"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="mt-2 text-sm">{f.remarks || "—"}</div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-sm text-gray-500">No follow ups</div>
-                  )}
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -654,6 +901,103 @@ export default function DealDetailPage() {
           {/* Preview removed as requested */}
         </aside>
       </div>
+
+      {/* Followup modal — styled like your screenshot */}
+      {isFollowupModalOpen && editingFollowup && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
+          <div className="absolute inset-0 bg-black/40" onClick={closeFollowupModal} />
+          <div className="relative bg-white w-full max-w-3xl rounded-2xl shadow-xl border p-6 mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold">Add Follow Up</h3>
+              <button onClick={closeFollowupModal} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <label className="text-sm text-gray-600">Lead Name</label>
+                <div className="font-medium mt-1">{deal.leadName || "—"}</div>
+              </div>
+
+              <div></div>
+
+              <div>
+                <label className="block text-sm text-gray-600">Next Follow Up *</label>
+                <input
+                  type="date"
+                  value={editingFollowup.nextDate}
+                  onChange={(e) => setEditingFollowup({ ...editingFollowup, nextDate: e.target.value })}
+                  className="mt-1 block w-full rounded-md border px-3 py-2"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600">Start Time *</label>
+                <input
+                  type="time"
+                  value={editingFollowup.startTime}
+                  onChange={(e) => setEditingFollowup({ ...editingFollowup, startTime: e.target.value })}
+                  className="mt-1 block w-full rounded-md border px-3 py-2"
+                />
+              </div>
+
+              <div className="col-span-2 flex items-center gap-3">
+                <input
+                  id="sendReminder"
+                  type="checkbox"
+                  checked={!!editingFollowup.sendReminder}
+                  onChange={(e) => setEditingFollowup({ ...editingFollowup, sendReminder: e.target.checked })}
+                />
+                <label htmlFor="sendReminder" className="text-sm text-gray-700">Send Reminder</label>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600">Remind Before *</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={editingFollowup.remindBefore ?? 1}
+                  onChange={(e) => setEditingFollowup({ ...editingFollowup, remindBefore: Number(e.target.value) })}
+                  className="mt-1 block w-full rounded-md border px-3 py-2"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600">Days / Hours / Minutes</label>
+                <select
+                  value={editingFollowup.remindUnit}
+                  onChange={(e) => setEditingFollowup({ ...editingFollowup, remindUnit: e.target.value })}
+                  className="mt-1 block w-full rounded-md border px-3 py-2"
+                >
+                  <option value="DAYS">Days</option>
+                  <option value="HOURS">Hours</option>
+                  <option value="MINUTES">Minutes</option>
+                </select>
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm text-gray-600">Remark</label>
+                <textarea
+                  value={editingFollowup.remarks}
+                  onChange={(e) => setEditingFollowup({ ...editingFollowup, remarks: e.target.value })}
+                  className="mt-1 block w-full rounded-md border px-3 py-2 min-h-[100px]"
+                  placeholder="---"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-center gap-6">
+              <button onClick={closeFollowupModal} className="px-6 py-2 border rounded-md text-sm">Cancel</button>
+              <button
+                onClick={saveFollowup}
+                disabled={followupSaving}
+                className={`px-6 py-2 rounded-md text-sm text-white ${followupSaving ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}
+              >
+                {followupSaving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
