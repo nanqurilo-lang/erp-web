@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -19,7 +19,7 @@ type TabKey = "files" | "followups" | "people" | "notes" | "comments" | "tags";
 
 const BASE_URL = "https://chat.swiftandgo.in";
 
-// Use the file path from your uploaded asset (developer instruction)
+// Developer-provided local path (used as fallback / infra-transformed url)
 const UPLOADED_LOCAL_PATH = "/mnt/data/Screenshot 2025-11-21 135924.png";
 
 export default function DealDetailPage() {
@@ -36,6 +36,12 @@ export default function DealDetailPage() {
   const [docEmployeeIds, setDocEmployeeIds] = useState<string[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [docsError, setDocsError] = useState<string | null>(null);
+
+  // file picker states
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!dealId) {
@@ -150,44 +156,69 @@ export default function DealDetailPage() {
   const mailTo = deal.leadEmail ? `mailto:${deal.leadEmail}` : undefined;
   const telTo = deal.leadMobile ? `tel:${deal.leadMobile}` : undefined;
 
+  // open file picker (does not upload)
+  const handleOpenFilePicker = () => {
+    setSelectedFile(null);
+    setSelectedFileName(null);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) {
+      setSelectedFile(f);
+      setSelectedFileName(f.name);
+    } else {
+      setSelectedFile(null);
+      setSelectedFileName(null);
+    }
+  };
+
   /**
-   * uploadDocument:
-   * - Sends multipart/form-data to backend endpoint.
-   * - Appends:
-   *    - 'file' part (placeholder File created from the local path string) to satisfy backend's required 'file'.
-   *    - 'filename' and 'url' fields (url is the developer-provided local path).
+   * Confirm upload:
+   * - If user selected a real file, append it to FormData as 'file' (real binary).
+   * - If no file selected, fallback to developer local path behavior:
+   *    - create a placeholder File (text blob with path) to satisfy 'file' part
+   *    - append 'url' with UPLOADED_LOCAL_PATH (infra will transform)
    *
-   * Note: If you want to upload actual file bytes from user's machine, replace the placeholder file
-   * creation with a real <input type="file"> flow and append the selected File object as 'file'.
+   * Important: Do NOT set Content-Type header; browser will set multipart boundary.
    */
   const uploadDocument = async () => {
     try {
+      setUploading(true);
       const token = localStorage.getItem("accessToken");
       if (!token) {
         alert("No access token found");
+        setUploading(false);
         return;
       }
 
-      const filename = UPLOADED_LOCAL_PATH.split("/").pop() || "upload.png";
-
+      // Prepare form data
       const fd = new FormData();
+      let filename = UPLOADED_LOCAL_PATH.split("/").pop() || "upload.png";
 
-      // Create a placeholder File to satisfy backend 'file' part requirement.
-      // This File contains the local path text — if backend needs real image bytes,
-      // use a real file input instead.
-      const placeholderContent = `LOCAL_PATH:${UPLOADED_LOCAL_PATH}`;
-      const blob = new Blob([placeholderContent], { type: "text/plain" });
-      const fileObj = new File([blob], filename, { type: "text/plain" });
-
-      fd.append("file", fileObj); // required by backend (MissingServletRequestPartException if absent)
-      fd.append("filename", filename);
-      fd.append("url", UPLOADED_LOCAL_PATH); // infra will transform this to actual hosted url
+      if (selectedFile) {
+        // use the real selected file from user
+        fd.append("file", selectedFile);
+        filename = selectedFile.name;
+        // some backends expect a 'url' or filename field as metadata; include both
+        fd.append("filename", filename);
+        fd.append("url", selectedFile.name); // url field contains name when sending real file
+      } else {
+        // fallback: create placeholder file (so Spring receives 'file' part)
+        const placeholderContent = `LOCAL_PATH:${UPLOADED_LOCAL_PATH}`;
+        const blob = new Blob([placeholderContent], { type: "text/plain" });
+        const fileObj = new File([blob], filename, { type: "text/plain" });
+        fd.append("file", fileObj);
+        fd.append("filename", filename);
+        fd.append("url", UPLOADED_LOCAL_PATH); // infra will transform path -> real url
+      }
 
       const res = await fetch(`${BASE_URL}/deals/${dealId}/documents`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          // IMPORTANT: DO NOT set Content-Type; browser sets boundary automatically.
+          // DO NOT set Content-Type here
         },
         body: fd,
       });
@@ -198,11 +229,17 @@ export default function DealDetailPage() {
       }
 
       const json = await res.json();
-      // backend returns { id, filename, url, uploadedAt } per your example
       setDocuments((prev) => [json as DocumentItem, ...prev]);
+
+      // reset selection after success
+      setSelectedFile(null);
+      setSelectedFileName(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err: any) {
       console.error(err);
       alert(err?.message || "Failed to upload document");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -388,19 +425,62 @@ export default function DealDetailPage() {
               {activeTab === "files" && (
                 <div>
                   <div className="flex items-center gap-3">
+                    {/* hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="*/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+
+                    {/* This button opens file picker; does NOT upload immediately */}
                     <button
                       type="button"
                       className="inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm text-violet-600 hover:bg-violet-50"
-                      onClick={uploadDocument}
+                      onClick={handleOpenFilePicker}
                     >
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path d="M12 4v12" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         <path d="M8 8l4-4 4 4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         <path d="M20 20H4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                      Upload File
+                      Choose File
                     </button>
-                    <div className="text-sm text-gray-500">Uploads will use the developer-provided file path.</div>
+
+                    {/* Show selected filename or fallback info */}
+                    <div className="text-sm text-gray-500">
+                      {selectedFileName ? (
+                        <span>Selected: {selectedFileName}</span>
+                      ) : (
+                        <span>No file selected (will use developer local file if you press Upload without selecting).</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Confirm / Upload button (user must click to actually upload) */}
+                  <div className="mt-3 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={uploadDocument}
+                      disabled={uploading}
+                      className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm text-white ${uploading ? "bg-gray-400" : "bg-violet-600 hover:bg-violet-700"}`}
+                    >
+                      {uploading ? "Uploading..." : "Upload"}
+                    </button>
+
+                    {/* Optional: button to clear selection */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setSelectedFileName(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm text-gray-600 hover:bg-slate-50"
+                    >
+                      Clear
+                    </button>
                   </div>
 
                   <div className="mt-6 text-sm text-gray-500">
