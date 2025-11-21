@@ -23,7 +23,7 @@ type Followup = {
   sendReminder?: boolean;
   remindBefore?: number;
   remindUnit?: "DAYS" | "HOURS" | "MINUTES" | string;
-  status?: string;
+  status?: "PENDING" | "CANCELLED" | "COMPLETED" | string;
 };
 
 type TabKey = "files" | "followups" | "people" | "notes" | "comments" | "tags";
@@ -333,6 +333,7 @@ export default function DealDetailPage() {
       sendReminder: true,
       remindBefore: 1,
       remindUnit: "DAYS",
+      status: "PENDING",
     });
     setIsFollowupModalOpen(true);
   };
@@ -346,7 +347,7 @@ export default function DealDetailPage() {
       sendReminder: !!f.sendReminder,
       remindBefore: f.remindBefore ?? 1,
       remindUnit: f.remindUnit ?? "DAYS",
-      status: f.status,
+      status: f.status ?? "PENDING",
     });
     setIsFollowupModalOpen(true);
   };
@@ -378,6 +379,9 @@ export default function DealDetailPage() {
         remindUnit: editingFollowup.remindUnit,
       };
 
+      // include status when editing (PUT) — backend expects status in update example
+      if (editingFollowup.status) payload.status = editingFollowup.status;
+
       if (editingFollowup.id) {
         // update
         const res = await fetch(`${BASE_URL}/deals/${dealId}/followups/${editingFollowup.id}`, {
@@ -392,7 +396,7 @@ export default function DealDetailPage() {
           const txt = await res.text().catch(() => "");
           throw new Error(`Failed to update followup: ${res.status} ${txt}`);
         }
-        // update locally - refetch or patch the local array
+        // update locally - use response if provided
         const updated = await res.json();
         setFollowups((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       } else {
@@ -410,8 +414,6 @@ export default function DealDetailPage() {
           throw new Error(`Failed to create followup: ${res.status} ${txt}`);
         }
         const created = await res.json();
-        // per your example response: it returns the posted followup (or at least the dates)
-        // push to list and close modal
         setFollowups((prev) => [created, ...prev]);
       }
 
@@ -723,11 +725,12 @@ export default function DealDetailPage() {
                   </div>
 
                   <div className="rounded-md border overflow-hidden">
-                    <div className="bg-blue-50 text-sm text-gray-700 grid grid-cols-[1fr_1fr_1fr_80px] gap-4 p-3 items-center font-medium">
+                    <div className="bg-blue-50 text-sm text-gray-700 grid grid-cols-[1fr_1fr_1fr_1fr_80px] gap-3 p-2 items-center font-medium">
                       <div>Created</div>
                       <div>Follow Up</div>
                       <div>Remark</div>
-                      <div className="text-center">Status</div>
+                      <div className="text-center" >Status</div>
+                      <div className="text-center">Action</div>
                     </div>
 
                     <div>
@@ -738,47 +741,46 @@ export default function DealDetailPage() {
                       )}
 
                       {followups.map((f) => (
-                        <div key={f.id} className="grid grid-cols-[1fr_1fr_1fr_80px] gap-4 items-center p-4 border-t">
+                        <div key={f.id} className="grid grid-cols-[1fr_1fr_1fr_1fr_80px] gap-4 items-center p-4 border-t">
                           <div>{formatDate(f.nextDate)}</div>
-                          <div>{formatDate(f.nextDate)}</div>
+                          <div>{formatTime(f.startTime)}</div>
                           <div>{f.remarks || "---"}</div>
                           <div className="flex items-center justify-center gap-2">
                             <div className="flex items-center gap-2">
                               <span
                                 className={`inline-block w-3 h-3 rounded-full ${f.status === "PENDING" ? "bg-yellow-400" : f.status === "CANCELLED" ? "bg-gray-400" : f.status === "COMPLETED" ? "bg-green-400" : "bg-gray-300"}`}
                               />
-                              <span className="text-sm">{f.status ?? "Pending"}</span>
+                              <span className="text-sm">{f.status ?? "PENDING"}</span>
                             </div>
+                          </div>
 
-                            {/* action menu */}
-                            <div className="relative">
+                          {/* action menu */}
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                const menu = document.getElementById(`followup-menu-${f.id}`);
+                                if (menu) {
+                                  menu.classList.toggle("hidden");
+                                }
+                              }}
+                              className="p-1 rounded hover:bg-slate-50 text-gray-500"
+                              aria-label="Actions"
+                            >
+                              ⋮
+                            </button>
+                            <div id={`followup-menu-${f.id}`} className="hidden absolute right-0 mt-2 w-36 bg-white border rounded-md shadow-sm z-10">
                               <button
-                                onClick={(e) => {
-                                  // show simple menu via prompt-like toggling — keep simple
-                                  const menu = document.getElementById(`followup-menu-${f.id}`);
-                                  if (menu) {
-                                    menu.classList.toggle("hidden");
-                                  }
-                                }}
-                                className="p-1 rounded hover:bg-slate-50 text-gray-500"
-                                aria-label="Actions"
+                                onClick={() => openEditFollowup(f)}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
                               >
-                                ⋮
+                                Edit
                               </button>
-                              <div id={`followup-menu-${f.id}`} className="hidden absolute right-0 mt-2 w-32 bg-white border rounded-md shadow-sm z-10">
-                                <button
-                                  onClick={() => openEditFollowup(f)}
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => deleteFollowup(f.id)}
-                                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-slate-50"
-                                >
-                                  Delete
-                                </button>
-                              </div>
+                              <button
+                                onClick={() => deleteFollowup(f.id)}
+                                className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-slate-50"
+                              >
+                                Delete
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -906,86 +908,108 @@ export default function DealDetailPage() {
       {isFollowupModalOpen && editingFollowup && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
           <div className="absolute inset-0 bg-black/40" onClick={closeFollowupModal} />
-          <div className="relative bg-white w-full max-w-3xl rounded-2xl shadow-xl border p-6 mx-4">
+          <div className="relative bg-white w-full max-w-4xl rounded-2xl shadow-xl border p-6 mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold">Add Follow Up</h3>
+              <h3 className="text-xl font-semibold">
+                {editingFollowup.id ? "Edit Follow Up" : "Add Follow Up"}
+              </h3>
               <button onClick={closeFollowupModal} className="text-gray-400 hover:text-gray-600">✕</button>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className="text-sm text-gray-600">Lead Name</label>
-                <div className="font-medium mt-1">{deal.leadName || "—"}</div>
-              </div>
+            {/* big rounded inner card similar to screenshot */}
+            <div className="rounded-lg border p-6 mb-6">
+              <div className="text-sm font-medium mb-4">Follow Up Details</div>
 
-              <div></div>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="text-sm text-gray-600">Next Follow Up *</label>
+                  <input
+                    type="date"
+                    value={editingFollowup.nextDate}
+                    onChange={(e) => setEditingFollowup({ ...editingFollowup, nextDate: e.target.value })}
+                    className="mt-2 block w-full rounded-md border px-3 py-2"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm text-gray-600">Next Follow Up *</label>
-                <input
-                  type="date"
-                  value={editingFollowup.nextDate}
-                  onChange={(e) => setEditingFollowup({ ...editingFollowup, nextDate: e.target.value })}
-                  className="mt-1 block w-full rounded-md border px-3 py-2"
-                />
-              </div>
+                <div>
+                  <label className="text-sm text-gray-600">Start Time *</label>
+                  <input
+                    type="time"
+                    value={editingFollowup.startTime}
+                    onChange={(e) => setEditingFollowup({ ...editingFollowup, startTime: e.target.value })}
+                    className="mt-2 block w-full rounded-md border px-3 py-2"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm text-gray-600">Start Time *</label>
-                <input
-                  type="time"
-                  value={editingFollowup.startTime}
-                  onChange={(e) => setEditingFollowup({ ...editingFollowup, startTime: e.target.value })}
-                  className="mt-1 block w-full rounded-md border px-3 py-2"
-                />
-              </div>
+                <div>
+                  <label className="text-sm text-gray-600">Status</label>
+                  <div className="mt-2 flex items-center gap-3">
+                    <span
+                      className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border ${editingFollowup.status === "PENDING" ? "bg-yellow-50 border-yellow-200" : editingFollowup.status === "COMPLETED" ? "bg-green-50 border-green-200" : editingFollowup.status === "CANCELLED" ? "bg-gray-50 border-gray-200" : "bg-white"}`}
+                    >
+                      <span className={`inline-block w-2 h-2 rounded-full ${editingFollowup.status === "PENDING" ? "bg-yellow-400" : editingFollowup.status === "COMPLETED" ? "bg-green-400" : editingFollowup.status === "CANCELLED" ? "bg-gray-400" : "bg-gray-300"}`} />
+                      <span className="text-sm">{editingFollowup.status ?? "PENDING"}</span>
+                    </span>
 
-              <div className="col-span-2 flex items-center gap-3">
-                <input
-                  id="sendReminder"
-                  type="checkbox"
-                  checked={!!editingFollowup.sendReminder}
-                  onChange={(e) => setEditingFollowup({ ...editingFollowup, sendReminder: e.target.checked })}
-                />
-                <label htmlFor="sendReminder" className="text-sm text-gray-700">Send Reminder</label>
-              </div>
+                    <select
+                      value={editingFollowup.status}
+                      onChange={(e) => setEditingFollowup({ ...editingFollowup, status: e.target.value as any })}
+                      className="mt-0 block rounded-md border px-3 py-2"
+                    >
+                      <option value="PENDING">Pending</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </select>
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-sm text-gray-600">Remind Before *</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={editingFollowup.remindBefore ?? 1}
-                  onChange={(e) => setEditingFollowup({ ...editingFollowup, remindBefore: Number(e.target.value) })}
-                  className="mt-1 block w-full rounded-md border px-3 py-2"
-                />
-              </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="sendReminder"
+                    type="checkbox"
+                    checked={!!editingFollowup.sendReminder}
+                    onChange={(e) => setEditingFollowup({ ...editingFollowup, sendReminder: e.target.checked })}
+                  />
+                  <label htmlFor="sendReminder" className="text-sm text-gray-700">Send Reminder</label>
+                </div>
 
-              <div>
-                <label className="block text-sm text-gray-600">Days / Hours / Minutes</label>
-                <select
-                  value={editingFollowup.remindUnit}
-                  onChange={(e) => setEditingFollowup({ ...editingFollowup, remindUnit: e.target.value })}
-                  className="mt-1 block w-full rounded-md border px-3 py-2"
-                >
-                  <option value="DAYS">Days</option>
-                  <option value="HOURS">Hours</option>
-                  <option value="MINUTES">Minutes</option>
-                </select>
-              </div>
+                <div>
+                  <label className="block text-sm text-gray-600">Remind Before *</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={editingFollowup.remindBefore ?? 1}
+                    onChange={(e) => setEditingFollowup({ ...editingFollowup, remindBefore: Number(e.target.value) })}
+                    className="mt-2 block w-full rounded-md border px-3 py-2"
+                  />
+                </div>
 
-              <div className="col-span-2">
-                <label className="block text-sm text-gray-600">Remark</label>
-                <textarea
-                  value={editingFollowup.remarks}
-                  onChange={(e) => setEditingFollowup({ ...editingFollowup, remarks: e.target.value })}
-                  className="mt-1 block w-full rounded-md border px-3 py-2 min-h-[100px]"
-                  placeholder="---"
-                />
+                <div>
+                  <label className="block text-sm text-gray-600">Days / Hours / Minutes</label>
+                  <select
+                    value={editingFollowup.remindUnit}
+                    onChange={(e) => setEditingFollowup({ ...editingFollowup, remindUnit: e.target.value })}
+                    className="mt-2 block w-full rounded-md border px-3 py-2"
+                  >
+                    <option value="DAYS">Days</option>
+                    <option value="HOURS">Hours</option>
+                    <option value="MINUTES">Minutes</option>
+                  </select>
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-sm text-gray-600">Remark</label>
+                  <textarea
+                    value={editingFollowup.remarks}
+                    onChange={(e) => setEditingFollowup({ ...editingFollowup, remarks: e.target.value })}
+                    className="mt-2 block w-full rounded-md border px-3 py-2 min-h-[120px]"
+                    placeholder="---"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 flex justify-center gap-6">
+            <div className="mt-4 flex justify-center gap-6">
               <button onClick={closeFollowupModal} className="px-6 py-2 border rounded-md text-sm">Cancel</button>
               <button
                 onClick={saveFollowup}
