@@ -79,6 +79,19 @@ type Deal = {
 
 type DealCategory = { id: number; categoryName: string };
 
+type Note = {
+  id?: number;
+  noteTitle: string;
+  noteType: "PUBLIC" | "PRIVATE";
+  noteDetails?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/* Uploaded screenshot local paths (tool will transform to URLs) */
+const NOTE_SCREENSHOT_PATH = "/mnt/data/Screenshot 2025-11-21 102619.png";
+const NOTE_SCREENSHOT_PATH_2 = "/mnt/data/Screenshot 2025-11-21 102635.png";
+
 const BASE = "https://chat.swiftandgo.in"; // change if needed
 const CREATE_URL = `${BASE}/deals`; // adjust if your create endpoint differs
 const EMP_API = `${BASE}/employee/all?page=0&size=20`;
@@ -123,12 +136,7 @@ function fmtCurrency(n?: number | null) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 }
 
-/* ---------------- EditModal (unchanged) ---------------- */
-// ... (keep the same EditModal component as before) ...
-// For brevity in this message, assume EditModal component is unchanged from your existing file.
-// (In your project paste the same EditModal code as before)
-
-/* ---------------- Deal View Modal (UPDATED: clickable email/call + file upload) ---------------- */
+/* ---------------- DealViewModal (kept intact, clickable email/call + files) ---------------- */
 function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null; onClose: () => void }) {
   const [files, setFiles] = useState<{ name: string; url?: string }[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -136,7 +144,6 @@ function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null
   const [fileError, setFileError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Optionally load existing files for the deal if backend supports /deals/{id}/files GET
     const loadFiles = async () => {
       try {
         const token = localStorage.getItem("accessToken");
@@ -146,7 +153,6 @@ function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null
         });
         if (!res.ok) return;
         const json = await res.json();
-        // expect json to be array of { name, url } or adapt based on your API
         if (Array.isArray(json)) setFiles(json);
       } catch (err) {
         // ignore silently
@@ -174,7 +180,6 @@ function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null
       const fd = new FormData();
       fd.append("file", selectedFile);
 
-      // endpoint: POST /deals/{dealId}/files  (adjust if your backend uses different path)
       const res = await fetch(`${BASE}/deals/${deal.id}/files`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -183,7 +188,6 @@ function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null
 
       if (!res.ok) throw new Error(await res.text());
       const json = await res.json();
-      // JSON may contain uploaded file info (name/url)
       const uploaded = (json && (json.name || json.url)) ? { name: json.name || selectedFile.name, url: json.url } : { name: selectedFile.name };
       setFiles((s) => [uploaded, ...s]);
       setSelectedFile(null);
@@ -194,7 +198,7 @@ function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null
       setUploading(false);
     }
   };
-  const leadCompanyName = lead?.companyName ?? ""
+  const leadCompanyName = lead?.companyName ?? "";
   const leadEmail = lead?.email ?? "";
   const leadPhone = lead?.mobileNumber ?? deal.leadMobile ?? "";
 
@@ -213,7 +217,6 @@ function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null
           </div>
 
           <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left: Deal Information */}
             <div className="lg:col-span-2 rounded-lg border p-4">
               <h4 className="font-medium mb-2">Deal Information</h4>
               <div className="text-sm text-muted-foreground mb-4">
@@ -239,7 +242,6 @@ function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null
                 <div>
                   <div className="text-xs text-muted-foreground">Company Name</div>
                   <div>{leadCompanyName ?? "--"}</div>
-                  {/* <div>{deal.assignedEmployeesMeta && deal.assignedEmployeesMeta.length ? deal.assignedEmployeesMeta[0].department ?? "--" : "--"}</div> */}
                 </div>
 
                 <div>
@@ -269,7 +271,6 @@ function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null
               </div>
             </div>
 
-            {/* Right: Lead Contact Details (email/call clickable) */}
             <div className="rounded-lg border p-4">
               <h4 className="font-medium mb-3">Lead Contact Details</h4>
               <div className="text-sm grid gap-2">
@@ -307,11 +308,9 @@ function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null
                 <div className="flex justify-between">
                   <div className="text-xs text-muted-foreground">Company Name</div>
                   <div>{leadCompanyName ?? "--"}</div>
-
                 </div>
 
                 <div className="mt-3 flex gap-2">
-                  {/* clickable email / call buttons */}
                   <a href={leadEmail ? `mailto:${leadEmail}` : "#"} className="px-3 py-2 border rounded text-sm inline-flex items-center gap-2" target="_blank" rel="noreferrer">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                       <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a3 3 0 003.22 0L21 8" />
@@ -328,7 +327,6 @@ function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null
               </div>
             </div>
 
-            {/* Bottom tabs: Files + Follow Up etc. - Files area includes upload */}
             <div className="lg:col-span-3 mt-4 rounded-lg border p-4">
               <div className="flex gap-6 border-b pb-3 text-sm">
                 <button className="pb-2 border-b-2 border-sky-600 text-sky-600 font-medium">Files</button>
@@ -380,8 +378,137 @@ function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null
   );
 }
 
+/* ---------------- Deal Category Modal (kept intact) ---------------- */
+function DealCategoryModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [categories, setCategories] = useState<DealCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newName, setNewName] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No access token.");
+      const res = await fetch(CAT_API, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(await res.text());
+      const json = await res.json();
+      setCategories(json);
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to load categories");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleAdd = async () => {
+    if (!newName.trim()) {
+      setError("Category name required.");
+      return;
+    }
+    setError(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No access token.");
+      const res = await fetch(CAT_API, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ categoryName: newName }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await load();
+      onSaved();
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to add category");
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete this category?")) return;
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No access token.");
+      const res = await fetch(`${CAT_API}/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      await load();
+      onSaved();
+    } catch (err: any) {
+      alert("Error: " + (err?.message ?? err));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="fixed inset-0 flex items-start justify-center px-4 pt-12">
+        <div className="max-w-3xl w-full bg-white rounded-lg shadow-lg border overflow-auto" style={{ maxHeight: "80vh" }}>
+          <div className="flex items-center justify-between p-4 border-b">
+            <h3 className="text-lg font-semibold">Deal Category</h3>
+            <button onClick={onClose} className="text-muted-foreground p-1 rounded hover:bg-slate-100">
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="p-6">
+            {error && <div className="text-destructive mb-3">{error}</div>}
+            <div className="rounded-lg border p-4 mb-4">
+              <div className="overflow-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-sky-50 text-left">
+                    <tr>
+                      <th className="px-4 py-2 w-12">#</th>
+                      <th className="px-4 py-2">Category Name</th>
+                      <th className="px-4 py-2 w-24">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={3} className="px-4 py-4 text-center text-muted-foreground">Loading…</td></tr>
+                    ) : categories.length === 0 ? (
+                      <tr><td colSpan={3} className="px-4 py-4 text-center text-muted-foreground">No categories.</td></tr>
+                    ) : (
+                      categories.map((c, idx) => (
+                        <tr key={c.id} className="border-t">
+                          <td className="px-4 py-3">{idx + 1}</td>
+                          <td className="px-4 py-3">{c.categoryName}</td>
+                          <td className="px-4 py-3">
+                            <button onClick={() => handleDelete(c.id)} className="text-destructive px-2 py-1 rounded border">🗑</button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm text-muted-foreground mb-2">Deal Category Name *</label>
+              <input value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full p-2 border rounded-md" />
+            </div>
+
+            <div className="flex items-center justify-center gap-6">
+              <button onClick={onClose} className="px-6 py-2 border rounded-full text-blue-600 hover:bg-blue-50">Cancel</button>
+              <button onClick={handleAdd} className="px-6 py-2 rounded-full text-white bg-blue-600 hover:bg-blue-700">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- AddDealModal (kept intact) ---------------- */
 function AddDealModal({
   lead,
   onClose,
@@ -410,12 +537,10 @@ function AddDealModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // watchers dropdown as before
   const [watchersOpen, setWatchersOpen] = useState(false);
   const watchersButtonRef = useRef<HTMLButtonElement | null>(null);
   const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
-  // categories state
   const [categories, setCategories] = useState<DealCategory[]>([]);
   const [catsLoading, setCatsLoading] = useState(true);
   const [catModalOpen, setCatModalOpen] = useState(false);
@@ -430,7 +555,6 @@ function AddDealModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // load categories from API
   const loadCategories = async () => {
     setCatsLoading(true);
     try {
@@ -440,7 +564,6 @@ function AddDealModal({
       if (!res.ok) throw new Error(await res.text());
       const json: DealCategory[] = await res.json();
       setCategories(json);
-      // if current selected category empty and categories exist, set first
       if (!form.dealCategory && json.length > 0) {
         setForm((s) => ({ ...s, dealCategory: json[0].categoryName }));
       }
@@ -509,11 +632,7 @@ function AddDealModal({
       }
 
       const createdDeal = await res.json();
-
-      // pass created deal to parent, parent will update SWR cache
       onCreated(createdDeal as Deal);
-
-      // close modal
       onClose();
     } catch (err: any) {
       setError(err?.message ?? "Failed to create deal.");
@@ -522,7 +641,6 @@ function AddDealModal({
     }
   };
 
-  // compute panel position
   const openWatchers = () => {
     const btn = watchersButtonRef.current;
     if (!btn) {
@@ -675,11 +793,9 @@ function AddDealModal({
                   />
                 </div>
 
-                {/* WATCHERS: fixed popup (no page scrollbar) */}
                 <div className="relative">
                   <label className="block text-xs text-muted-foreground mb-2">Deal Watcher</label>
 
-                  {/* fake select */}
                   <button
                     type="button"
                     ref={watchersButtonRef}
@@ -692,7 +808,6 @@ function AddDealModal({
                     </svg>
                   </button>
 
-                  {/* PANEL: fixed positioned */}
                   {watchersOpen && panelPos && (
                     <div
                       style={{
@@ -746,9 +861,7 @@ function AddDealModal({
               <button
                 type="submit"
                 disabled={submitting}
-                className={`px-6 py-2 rounded-full text-white ${
-                  submitting ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-                }`}
+                className={`px-6 py-2 rounded-full text-white ${submitting ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
               >
                 {submitting ? "Creating..." : "Create"}
               </button>
@@ -757,7 +870,6 @@ function AddDealModal({
         </div>
       </div>
 
-      {/* Deal Category Modal */}
       {catModalOpen && (
         <DealCategoryModal
           onClose={() => { setCatModalOpen(false); }}
@@ -768,7 +880,7 @@ function AddDealModal({
   );
 }
 
-/* ---------------- EditModal (unchanged) ---------------- */
+/* ---------------- EditModal (kept intact) ---------------- */
 function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
     name: lead?.name ?? "",
@@ -879,7 +991,6 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
           <form onSubmit={submit} className="p-6 space-y-6">
             {errorMsg && <div className="text-destructive text-sm">{errorMsg}</div>}
 
-            {/* Contact Details */}
             <div className="rounded-lg border p-4">
               <h4 className="font-medium mb-3">Contact Details</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -910,7 +1021,6 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
               </div>
             </div>
 
-            {/* Company Details */}
             <div className="rounded-lg border p-4">
               <h4 className="font-medium mb-3">Company Details</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -961,7 +1071,6 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
               </div>
             </div>
 
-            {/* Buttons */}
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
               <Button type="submit" onClick={submit} disabled={submitting}>{submitting ? "Updating..." : "Update"}</Button>
@@ -973,83 +1082,88 @@ function EditModal({ lead, onClose, onSaved }: { lead: Lead; onClose: () => void
   );
 }
 
-/* ---------------- Deal Category Modal (GET/POST/DELETE) ---------------- */
-function DealCategoryModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [categories, setCategories] = useState<DealCategory[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [newName, setNewName] = useState("");
+/* ---------------- NEW: Notes Add/Edit Modal ---------------- */
+
+function AddEditNoteModal({
+  leadId,
+  initial,
+  onClose,
+  onSaved,
+}: {
+  leadId: number;
+  initial?: Note | null;
+  onClose: () => void;
+  onSaved: (note?: Note) => void;
+}) {
+  const isEdit = !!initial?.id;
+  const [form, setForm] = useState<Note>({
+    noteTitle: initial?.noteTitle ?? "",
+    noteType: (initial?.noteType as "PUBLIC" | "PRIVATE") ?? "PUBLIC",
+    noteDetails: initial?.noteDetails ?? "",
+  });
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = localStorage.getItem("accessToken");
-      if (!token) throw new Error("No access token.");
-      const res = await fetch(CAT_API, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error(await res.text());
-      const json = await res.json();
-      setCategories(json);
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to load categories");
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const update = (k: keyof Note, v: any) => setForm((s) => ({ ...s, [k]: v }));
+
+  const validate = () => {
+    if (!form.noteTitle.trim()) return "Note Title is required.";
+    return null;
   };
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  const handleAdd = async () => {
-    if (!newName.trim()) {
-      setError("Category name required.");
+  const submit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const v = validate();
+    if (v) {
+      setError(v);
       return;
     }
     setError(null);
+    setSubmitting(true);
     try {
       const token = localStorage.getItem("accessToken");
       if (!token) throw new Error("No access token.");
-      const res = await fetch(CAT_API, {
-        method: "POST",
+      const url = isEdit
+        ? `${BASE}/leads/${leadId}/notes/${initial?.id}`
+        : `${BASE}/leads/${leadId}/notes`;
+      const method = isEdit ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ categoryName: newName }),
+        body: JSON.stringify({
+          noteTitle: form.noteTitle,
+          noteType: form.noteType,
+          noteDetails: form.noteDetails,
+        }),
       });
-      if (!res.ok) throw new Error(await res.text());
-      const created: DealCategory = await res.json();
-      setNewName("");
-      // refresh list
-      await load();
-      onSaved();
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(txt || "Failed to save note.");
+      }
+      const saved = await res.json();
+      onSaved(saved);
     } catch (err: any) {
-      setError(err?.message ?? "Failed to add category");
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm("Delete this category?")) return;
-    try {
-      const token = localStorage.getItem("accessToken");
-      if (!token) throw new Error("No access token.");
-      const res = await fetch(`${CAT_API}/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(await res.text());
-      await load();
-      onSaved();
-    } catch (err: any) {
-      alert("Error: " + (err?.message ?? err));
+      setError(err?.message ?? "Save failed");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="fixed inset-0 flex items-start justify-center px-4 pt-12">
-        <div className="max-w-3xl w-full bg-white rounded-lg shadow-lg border overflow-auto" style={{ maxHeight: "80vh" }}>
+        <div className="max-w-3xl w-full bg-white rounded-lg shadow-lg border overflow-auto" style={{ maxHeight: "90vh" }}>
           <div className="flex items-center justify-between p-4 border-b">
-            <h3 className="text-lg font-semibold">Deal Category</h3>
+            <h3 className="text-lg font-semibold">{isEdit ? "Edit Lead Note" : "Add Lead Note"}</h3>
             <button onClick={onClose} className="text-muted-foreground p-1 rounded hover:bg-slate-100">
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1057,65 +1171,65 @@ function DealCategoryModal({ onClose, onSaved }: { onClose: () => void; onSaved:
             </button>
           </div>
 
-          <div className="p-6">
-            {error && <div className="text-destructive mb-3">{error}</div>}
-            <div className="rounded-lg border p-4 mb-4">
-              <div className="overflow-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-sky-50 text-left">
-                    <tr>
-                      <th className="px-4 py-2 w-12">#</th>
-                      <th className="px-4 py-2">Category Name</th>
-                      <th className="px-4 py-2 w-24">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr><td colSpan={3} className="px-4 py-4 text-center text-muted-foreground">Loading…</td></tr>
-                    ) : categories.length === 0 ? (
-                      <tr><td colSpan={3} className="px-4 py-4 text-center text-muted-foreground">No categories.</td></tr>
-                    ) : (
-                      categories.map((c, idx) => (
-                        <tr key={c.id} className="border-t">
-                          <td className="px-4 py-3">{idx + 1}</td>
-                          <td className="px-4 py-3">{c.categoryName}</td>
-                          <td className="px-4 py-3">
-                            <button onClick={() => handleDelete(c.id)} className="text-destructive px-2 py-1 rounded border">🗑</button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+          <form onSubmit={submit} className="p-6">
+            {error && <div className="text-destructive text-sm mb-3">{error}</div>}
+            <div className="rounded-lg border p-6">
+              <h4 className="font-medium mb-4">Lead Note Details</h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-2">Note Title *</label>
+                  <input
+                    className="w-full p-2 border rounded-md text-sm"
+                    value={form.noteTitle}
+                    onChange={(e) => update("noteTitle", e.target.value)}
+                    placeholder="Enter Note Title"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-2">Note Type</label>
+                  <div className="flex items-center gap-4 mt-2">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="radio" checked={form.noteType === "PUBLIC"} onChange={() => update("noteType", "PUBLIC")} />
+                      <span>Public</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="radio" checked={form.noteType === "PRIVATE"} onChange={() => update("noteType", "PRIVATE")} />
+                      <span>Private</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-muted-foreground mb-2">Note Detail</label>
+                  <textarea
+                    className="w-full p-3 border rounded-md text-sm h-36"
+                    value={form.noteDetails}
+                    onChange={(e) => update("noteDetails", e.target.value)}
+                    placeholder="Enter details..."
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm text-muted-foreground mb-2">Deal Category Name *</label>
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full p-2 border rounded-md" />
-            </div>
+            <div className="mt-6 flex items-center justify-center gap-6">
+              <button type="button" onClick={onClose} className="px-6 py-2 border rounded-full text-blue-600 hover:bg-blue-50" disabled={submitting}>
+                Cancel
+              </button>
 
-            <div className="flex items-center justify-center gap-6">
-              <button onClick={onClose} className="px-6 py-2 border rounded-full text-blue-600 hover:bg-blue-50">Cancel</button>
-              <button onClick={handleAdd} className="px-6 py-2 rounded-full text-white bg-blue-600 hover:bg-blue-700">Save</button>
+              <button type="submit" disabled={submitting} className={`px-6 py-2 rounded-full text-white ${submitting ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"}`}>
+                {submitting ? "Saving..." : "Save"}
+              </button>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>
   );
 }
 
-
-
-
-/* ---------------- Deal Category Modal (unchanged) ---------------- */
-// ... keep DealCategoryModal as provided earlier ...
-
-/* ---------------- AddDealModal (unchanged majorly) ---------------- */
-// ... keep AddDealModal as provided earlier ...
-
-/* ---------------- Main Page Component (UPDATED to pass lead to view modal) ---------------- */
+/* ---------------- Main Page Component (UPDATED to include Notes) ---------------- */
 
 export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -1212,6 +1326,67 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const agents = employees;
   const watchers = employees;
 
+  /* ---------------- Notes state & functions ---------------- */
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [editNote, setEditNote] = useState<Note | null>(null);
+
+  const NOTES_API = (leadId: string | number) => `${BASE}/leads/${leadId}/notes`;
+
+  const loadNotes = async () => {
+    setNotesLoading(true);
+    setNotesError(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No access token.");
+      const res = await fetch(NOTES_API(params.id), { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(await res.text());
+      const json = await res.json();
+      setNotes(Array.isArray(json) ? json : []);
+    } catch (err: any) {
+      setNotesError(err?.message ?? "Failed to load notes");
+    } finally {
+      setNotesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "notes") {
+      loadNotes();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, params.id]);
+
+  const openAddNote = () => {
+    setEditNote(null);
+    setNoteModalOpen(true);
+  };
+
+  const handleNoteSaved = (saved?: Note) => {
+    setNoteModalOpen(false);
+    setEditNote(null);
+    loadNotes();
+  };
+
+  const handleDeleteNote = async (noteId?: number) => {
+    if (!noteId) return;
+    if (!confirm("Delete this note?")) return;
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No access token.");
+      const res = await fetch(`${NOTES_API(params.id)}/${noteId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setNotes((s) => s.filter((n) => n.id !== noteId));
+    } catch (err: any) {
+      alert("Error: " + (err?.message ?? err));
+    }
+  };
+
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="container mx-auto max-w-6xl px-4 py-8">
@@ -1250,7 +1425,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
           </nav>
         </div>
 
-        {/* Card with Profile Information or Deals */}
+        {/* Card */}
         <Card className="p-6">
           {isLoading ? (
             <div className="py-12 text-center text-muted-foreground">Loading lead details…</div>
@@ -1268,7 +1443,6 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
             <div className="py-12 text-center text-muted-foreground">No lead found.</div>
           ) : (
             <div>
-              {/* header row with title + actions menu */}
               <div className="flex items-start justify-between mb-6">
                 <h3 className="text-lg font-semibold">{activeTab === "profile" ? "Profile Information" : activeTab === "deals" ? "Deals" : "Notes"}</h3>
 
@@ -1323,114 +1497,112 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                 </div>
               </div>
 
-             {activeTab === "profile" && (
-  <>
-    {/* information grid */}
-    <div className="rounded-lg border p-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <dl className="hidden md:block md:col-span-1 space-y-4 text-sm text-muted-foreground">
-          <dt>Name</dt>
-          <dt>Email</dt>
-          <dt>Lead Owner</dt>
-          <dt>Source</dt>
-          <dt>Company Name</dt>
-          <dt>Website</dt>
-          <dt>Mobile</dt>
-          <dt>Office Phone Number</dt>
-          <dt>City</dt>
-          <dt>State</dt>
-          <dt>Country</dt>
-          <dt>Postal Code</dt>
-          <dt>Address</dt>
-        </dl>
+              {/* PROFILE TAB */}
+              {activeTab === "profile" && (
+                <>
+                  <div className="rounded-lg border p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <dl className="hidden md:block md:col-span-1 space-y-4 text-sm text-muted-foreground">
+                        <dt>Name</dt>
+                        <dt>Email</dt>
+                        <dt>Lead Owner</dt>
+                        <dt>Source</dt>
+                        <dt>Company Name</dt>
+                        <dt>Website</dt>
+                        <dt>Mobile</dt>
+                        <dt>Office Phone Number</dt>
+                        <dt>City</dt>
+                        <dt>State</dt>
+                        <dt>Country</dt>
+                        <dt>Postal Code</dt>
+                        <dt>Address</dt>
+                      </dl>
 
-        <div className="md:col-span-2">
-          <div className="grid gap-y-3">
-            <div className="flex items-start gap-6">
-              <div className="w-48 md:hidden text-sm text-muted-foreground">Name</div>
-              <div className="text-sm">{fmt(data?.name)}</div>
-            </div>
+                      <div className="md:col-span-2">
+                        <div className="grid gap-y-3">
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Name</div>
+                            <div className="text-sm">{fmt(data?.name)}</div>
+                          </div>
 
-            <div className="flex items-start gap-6">
-              <div className="w-48 md:hidden text-sm text-muted-foreground">Email</div>
-              <div className="text-sm">{fmt(data?.email)}</div>
-            </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Email</div>
+                            <div className="text-sm">{fmt(data?.email)}</div>
+                          </div>
 
-            <div className="flex items-start gap-6">
-              <div className="w-48 md:hidden text-sm text-muted-foreground">Lead Owner</div>
-              <div className="text-sm">{data?.leadOwnerMeta?.name ?? data?.leadOwner ?? "--"}</div>
-            </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Lead Owner</div>
+                            <div className="text-sm">{data?.leadOwnerMeta?.name ?? data?.leadOwner ?? "--"}</div>
+                          </div>
 
-            <div className="flex items-start gap-6">
-              <div className="w-48 md:hidden text-sm text-muted-foreground">Source</div>
-              <div className="text-sm">{fmt(data?.leadSource)}</div>
-            </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Source</div>
+                            <div className="text-sm">{fmt(data?.leadSource)}</div>
+                          </div>
 
-            <div className="flex items-start gap-6">
-              <div className="w-48 md:hidden text-sm text-muted-foreground">Company Name</div>
-              <div className="text-sm">{fmt(data?.companyName)}</div>
-            </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Company Name</div>
+                            <div className="text-sm">{fmt(data?.companyName)}</div>
+                          </div>
 
-            <div className="flex items-start gap-6">
-              <div className="w-48 md:hidden text-sm text-muted-foreground">Website</div>
-              <div className="text-sm">{fmt((data as any)?.officialWebsite)}</div>
-            </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Website</div>
+                            <div className="text-sm">{fmt((data as any)?.officialWebsite)}</div>
+                          </div>
 
-            <div className="flex items-start gap-6">
-              <div className="w-48 md:hidden text-sm text-muted-foreground">Mobile</div>
-              <div className="text-sm">{fmt(data?.mobileNumber)}</div>
-            </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Mobile</div>
+                            <div className="text-sm">{fmt(data?.mobileNumber)}</div>
+                          </div>
 
-            <div className="flex items-start gap-6">
-              <div className="w-48 md:hidden text-sm text-muted-foreground">Office Phone Number</div>
-              <div className="text-sm">{fmt(data?.officePhone)}</div>
-            </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Office Phone Number</div>
+                            <div className="text-sm">{fmt(data?.officePhone)}</div>
+                          </div>
 
-            <div className="flex items-start gap-6">
-              <div className="w-48 md:hidden text-sm text-muted-foreground">City</div>
-              <div className="text-sm">{fmt(data?.city)}</div>
-            </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">City</div>
+                            <div className="text-sm">{fmt(data?.city)}</div>
+                          </div>
 
-            <div className="flex items-start gap-6">
-              <div className="w-48 md:hidden text-sm text-muted-foreground">State</div>
-              <div className="text-sm">{fmt(data?.state)}</div>
-            </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">State</div>
+                            <div className="text-sm">{fmt(data?.state)}</div>
+                          </div>
 
-            <div className="flex items-start gap-6">
-              <div className="w-48 md:hidden text-sm text-muted-foreground">Country</div>
-              <div className="text-sm">{fmt(data?.country)}</div>
-            </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Country</div>
+                            <div className="text-sm">{fmt(data?.country)}</div>
+                          </div>
 
-            <div className="flex items-start gap-6">
-              <div className="w-48 md:hidden text-sm text-muted-foreground">Postal Code</div>
-              <div className="text-sm">{fmt(data?.postalCode)}</div>
-            </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Postal Code</div>
+                            <div className="text-sm">{fmt(data?.postalCode)}</div>
+                          </div>
 
-            <div className="flex items-start gap-6">
-              <div className="w-48 md:hidden text-sm text-muted-foreground">Address</div>
-              <div className="text-sm">{fmt(data?.companyAddress)}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+                          <div className="flex items-start gap-6">
+                            <div className="w-48 md:hidden text-sm text-muted-foreground">Address</div>
+                            <div className="text-sm">{fmt(data?.companyAddress)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-    {/* footer small details */}
-    <div className="mt-6 text-sm text-muted-foreground grid md:grid-cols-2 gap-2">
-      <div>Created: {fmtDate(data?.createdAt)}</div>
-      <div className="text-right">
-        Status: <Badge variant="secondary">{data?.status ?? "--"}</Badge>
-      </div>
-    </div>
-  </>
-)}
+                  <div className="mt-6 text-sm text-muted-foreground grid md:grid-cols-2 gap-2">
+                    <div>Created: {fmtDate(data?.createdAt)}</div>
+                    <div className="text-right">
+                      Status: <Badge variant="secondary">{data?.status ?? "--"}</Badge>
+                    </div>
+                  </div>
+                </>
+              )}
 
-
+              {/* DEALS TAB (kept intact) */}
               {activeTab === "deals" && (
                 <>
                   <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      {/* Open inline modal instead of redirect */}
                       <Button onClick={() => setAddDealOpen(true)}>+ Add Deal</Button>
                       <div>
                         <label className="text-sm text-muted-foreground mr-2">Pipeline</label>
@@ -1531,7 +1703,6 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
 
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
-                                  {/* open modal with both deal + lead */}
                                   <button
                                     onClick={() => {
                                       setViewDeal(d);
@@ -1572,7 +1743,6 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                     </table>
                   </div>
 
-                  {/* pagination / footer */}
                   <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
                     <div>Page 1 of 1</div>
                     <div className="flex items-center gap-2">
@@ -1583,8 +1753,106 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                 </>
               )}
 
+              {/* NOTES TAB */}
               {activeTab === "notes" && (
-                <div className="py-8 text-center text-muted-foreground">Notes coming soon.</div>
+                <>
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <button onClick={openAddNote} className="px-4 py-2 bg-blue-600 text-white rounded">+ Add Note</button>
+                    </div>
+
+                    <div className="text-sm text-muted-foreground">Result per page - 8</div>
+                  </div>
+
+                  <div className="rounded-lg border overflow-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-sky-50 text-left">
+                        <tr>
+                          <th className="px-4 py-2">Note Title</th>
+                          <th className="px-4 py-2">Note Type</th>
+                          <th className="px-4 py-2">Created</th>
+                          <th className="px-4 py-2">Action</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {notesLoading ? (
+                          <tr>
+                            <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">Loading notes…</td>
+                          </tr>
+                        ) : notesError ? (
+                          <tr>
+                            <td colSpan={4} className="px-4 py-6 text-center text-destructive">Failed to load notes: {notesError}</td>
+                          </tr>
+                        ) : !notes || notes.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">No notes found for this lead.</td>
+                          </tr>
+                        ) : (
+                          notes.map((n) => (
+                            <tr key={n.id} className="border-t">
+                              <td className="px-4 py-3">
+                                <div className="font-medium">{n.noteTitle}</div>
+                                {n.noteDetails && <div className="text-muted-foreground text-xs truncate max-w-xl">{n.noteDetails}</div>}
+                              </td>
+
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2 text-sm">
+                                  {n.noteType === "PUBLIC" ? (
+                                    <div className="inline-flex items-center gap-2">
+                                      <svg className="w-4 h-4 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <circle cx="12" cy="12" r="3" strokeWidth="1.5" />
+                                      </svg>
+                                      <span>Public</span>
+                                    </div>
+                                  ) : (
+                                    <div className="inline-flex items-center gap-2 text-muted-foreground">
+                                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <path d="M12 2v6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                      </svg>
+                                      <span>Private</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+
+                              <td className="px-4 py-3">{fmtDate(n.createdAt)}</td>
+
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setEditNote(n);
+                                      setNoteModalOpen(true);
+                                    }}
+                                    className="text-sm px-2 py-1 border rounded hover:bg-slate-50"
+                                  >
+                                    Edit
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDeleteNote(n.id)}
+                                    className="text-sm px-2 py-1 border rounded text-destructive hover:bg-slate-50"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+                    <div>Page 1 of 1</div>
+                    <div className="flex items-center gap-2">
+                      <button className="px-2 py-1" disabled>‹</button>
+                      <button className="px-2 py-1" disabled>›</button>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -1592,13 +1860,13 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Edit Modal */}
-     {editOpen && data && (
+      {editOpen && data && (
         <EditModal
           lead={data}
           onClose={() => setEditOpen(false)}
           onSaved={async () => {
             setEditOpen(false);
-            await mutate(); // refresh SWR data
+            await mutate();
           }}
         />
       )}
@@ -1612,9 +1880,9 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
           possibleAgents={agents}
           possibleWatchers={watchers}
         />
-      )} 
+      )}
 
-      {/* Deal View Modal (pass lead for email/call and files) */}
+      {/* Deal View Modal */}
       {viewDeal && (
         <DealViewModal
           deal={viewDeal}
@@ -1622,6 +1890,21 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
           onClose={() => {
             setViewDeal(null);
             setViewLead(null);
+          }}
+        />
+      )}
+
+      {/* Notes Add/Edit Modal */}
+      {noteModalOpen && data && (
+        <AddEditNoteModal
+          leadId={data.id}
+          initial={editNote}
+          onClose={() => {
+            setNoteModalOpen(false);
+            setEditNote(null);
+          }}
+          onSaved={() => {
+            handleNoteSaved();
           }}
         />
       )}
