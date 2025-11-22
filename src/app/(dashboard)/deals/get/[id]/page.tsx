@@ -46,7 +46,7 @@ type TabKey = "files" | "followups" | "people" | "notes" | "comments" | "tags";
 
 const BASE_URL = "https://chat.swiftandgo.in";
 
-// Use the uploaded file path from conversation history (tool/infra will transform to a real URL)
+// Use the uploaded file path provided earlier (developer instruction)
 const UPLOADED_LOCAL_PATH = "/mnt/data/Screenshot 2025-11-22 111442.png";
 
 export default function DealDetailPage() {
@@ -1742,70 +1742,88 @@ export default function DealDetailPage() {
           <div className="relative bg-white w-full max-w-4xl rounded-2xl shadow-xl border p-6 mx-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold">
-                {noteModalMode === "add" ? "Add Deal Note" : noteModalMode === "edit" ? "Edit Deal Note" : "View Deal Note"}
+                {noteModalMode === "add" ? "Add Deal Note" : noteModalMode === "edit" ? "Edit Deal Note" : (editingNote.noteTitle || "View Note")}
               </h3>
               <button onClick={closeNoteModal} className="text-gray-400 hover:text-gray-600">✕</button>
             </div>
 
-            <div className="rounded-lg border p-6 mb-6">
-              <div className="text-sm font-medium mb-4">Deal Note Details</div>
+            {/* --- Render form for add/edit, and the static "view" layout for view mode (matches supplied screenshot) --- */}
+            {noteModalMode === "view" ? (
+              // View layout: match the screenshot - labels left, values right inside rounded card
+              <div className="rounded-lg border p-6 mb-6">
+                <div className="text-sm font-medium mb-4">Deal Note Details</div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="text-sm text-gray-600">Note Title *</label>
-                  <input
-                    type="text"
-                    value={editingNote.noteTitle}
-                    onChange={(e) => setEditingNote({ ...editingNote, noteTitle: e.target.value })}
-                    className="mt-2 block w-full rounded-md border px-3 py-2"
-                    disabled={noteModalMode === "view"}
-                  />
-                </div>
+                <div className="grid grid-cols-[220px_1fr] gap-4 text-sm text-gray-700">
+                  <div className="text-gray-500">Note Title</div>
+                  <div className="text-gray-900">{editingNote.noteTitle || "—"}</div>
 
-                <div>
-                  <label className="text-sm text-gray-600">Note Type</label>
-                  <div className="mt-2 flex items-center gap-4">
-                    <label className="inline-flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="noteType"
-                        value="PUBLIC"
-                        checked={editingNote.noteType === "PUBLIC"}
-                        onChange={() => setEditingNote({ ...editingNote, noteType: "PUBLIC" })}
-                        disabled={noteModalMode === "view"}
-                      />
-                      <span className="text-sm">Public</span>
-                    </label>
+                  <div className="text-gray-500">Note Type</div>
+                  <div className="text-gray-900">{editingNote.noteType === "PUBLIC" ? "Public" : "Private"}</div>
 
-                    <label className="inline-flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="noteType"
-                        value="PRIVATE"
-                        checked={editingNote.noteType === "PRIVATE"}
-                        onChange={() => setEditingNote({ ...editingNote, noteType: "PRIVATE" })}
-                        disabled={noteModalMode === "view"}
-                      />
-                      <span className="text-sm">Private</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-sm text-gray-600">Note Detail</label>
-                  <textarea
-                    value={editingNote.noteDetails}
-                    onChange={(e) => setEditingNote({ ...editingNote, noteDetails: e.target.value })}
-                    className="mt-2 block w-full rounded-md border px-3 py-2 min-h-[120px]"
-                    placeholder="--"
-                    disabled={noteModalMode === "view"}
-                  />
+                  <div className="text-gray-500">Note Detail</div>
+                  <div className="text-gray-900">{editingNote.noteDetails && editingNote.noteDetails.trim() ? editingNote.noteDetails : "---"}</div>
                 </div>
               </div>
-            </div>
+            ) : (
+              // Add / Edit form (keeps same UI as before)
+              <div className="rounded-lg border p-6 mb-6">
+                <div className="text-sm font-medium mb-4">Deal Note Details</div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-sm text-gray-600">Note Title *</label>
+                    <input
+                      type="text"
+                      value={editingNote.noteTitle}
+                      onChange={(e) => setEditingNote({ ...editingNote, noteTitle: e.target.value })}
+                      className="mt-2 block w-full rounded-md border px-3 py-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-600">Note Type</label>
+                    <div className="mt-2 flex items-center gap-4">
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="noteType"
+                          value="PUBLIC"
+                          checked={editingNote.noteType === "PUBLIC"}
+                          onChange={() => setEditingNote({ ...editingNote, noteType: "PUBLIC" })}
+                        />
+                        <span className="text-sm">Public</span>
+                      </label>
+
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="noteType"
+                          value="PRIVATE"
+                          checked={editingNote.noteType === "PRIVATE"}
+                          onChange={() => setEditingNote({ ...editingNote, noteType: "PRIVATE" })}
+                        />
+                        <span className="text-sm">Private</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-600">Note Detail</label>
+                    <textarea
+                      value={editingNote.noteDetails}
+                      onChange={(e) => setEditingNote({ ...editingNote, noteDetails: e.target.value })}
+                      className="mt-2 block w-full rounded-md border px-3 py-2 min-h-[120px]"
+                      placeholder="--"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="mt-4 flex justify-center gap-6">
               <button onClick={closeNoteModal} className="px-6 py-2 border rounded-md text-sm">Cancel</button>
+
+              {/* For view mode we don't show Save; only for add/edit */}
               {noteModalMode !== "view" && (
                 <button
                   onClick={saveNote}
