@@ -38,7 +38,8 @@ type TabKey = "files" | "followups" | "people" | "notes" | "comments" | "tags";
 const BASE_URL = "https://chat.swiftandgo.in";
 
 // Developer-provided local path (used as fallback / infra-transformed url)
-const UPLOADED_LOCAL_PATH = "/mnt/data/Screenshot 2025-11-21 135924.png";
+// Updated to the uploaded file path from conversation history per developer instruction:
+const UPLOADED_LOCAL_PATH = "/mnt/data/Screenshot 2025-11-21 182146.png";
 
 export default function DealDetailPage() {
   const params = useParams();
@@ -76,8 +77,13 @@ export default function DealDetailPage() {
   const [employeesLoading, setEmployeesLoading] = useState(false);
   const [employeesError, setEmployeesError] = useState<string | null>(null);
   const [isAddPeopleOpen, setIsAddPeopleOpen] = useState(false);
-  const [availableToAdd, setAvailableToAdd] = useState<Employee[]>([]); // optional list to select from
+
+  // available pool & departments for the Add People form
+  const [allEmployeesPool, setAllEmployeesPool] = useState<Employee[]>([]);
+  const [availableToAdd, setAvailableToAdd] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
   const [selectedAddEmployeeId, setSelectedAddEmployeeId] = useState<string | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<string>(""); // "" = All
   const [peopleSaving, setPeopleSaving] = useState(false);
   const [peopleDeletingId, setPeopleDeletingId] = useState<string | null>(null);
   const [peopleSearch, setPeopleSearch] = useState<string>("");
@@ -225,7 +231,6 @@ export default function DealDetailPage() {
       } else if (Array.isArray((json as any).employees)) {
         setAssignedEmployees((json as any).employees);
       } else {
-        // if the backend returns something else, attempt to treat employeeIds as list and don't fail
         setAssignedEmployees([]);
       }
     } catch (err: any) {
@@ -236,23 +241,83 @@ export default function DealDetailPage() {
     }
   };
 
-  // When Add People modal opens we fetch the assigned employees and also populate a simple available-to-add list.
+  // When Add People modal opens we fetch assigned employees, departments and employee pool.
   const openAddPeopleModal = async () => {
     setIsAddPeopleOpen(true);
+    setSelectedDepartment(""); // default to all departments
+    setSelectedAddEmployeeId(null);
+    setPeopleSaving(false);
+    setEmployeesError(null);
+
     await fetchAssignedEmployees();
 
-    // optional: a basic available list (for demo) — we can populate from assignedEmployees or leave blank.
-    // Ideally you'd fetch all employees from an admin endpoint. We'll construct a simple list excluding already assigned.
-    const samplePool: Employee[] = [
-      { employeeId: "EMP-006", name: "Tarun Bansal", designation: "Team Lead", department: "Marketing", profileUrl: "" },
-      { employeeId: "EMP-009", name: "Jams", designation: "Sales", department: "Sales", profileUrl: "" },
-      { employeeId: "EMP-010", name: "Devesh", designation: "Manager", department: "Operations", profileUrl: "" },
-    ];
+    // fetch departments & employee pool
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        setEmployeesError("No access token found");
+        return;
+      }
 
-    const assignedIds = new Set(assignedEmployees.map((a) => a.employeeId));
-    const filtered = samplePool.filter((s) => !assignedIds.has(s.employeeId));
-    setAvailableToAdd(filtered);
-    setSelectedAddEmployeeId(filtered.length > 0 ? filtered[0].employeeId : null);
+      // fetch departments
+      const depRes = await fetch(`${BASE_URL}/admin/departments`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      if (!depRes.ok) {
+        // don't hard-fail UI; show empty departments if endpoint fails
+        console.warn("Failed to fetch departments", depRes.statusText);
+      } else {
+        const depJson = await depRes.json();
+        // depJson may be array of names or array of objects; normalize to string[]
+        if (Array.isArray(depJson)) {
+          const names = depJson.map((d: any) => (typeof d === "string" ? d : d.name || d.department || "")).filter(Boolean);
+          setDepartments(names);
+        }
+      }
+
+      // fetch employees pool (the dropdown). Use a larger size to be safe.
+      const empRes = await fetch(`${BASE_URL}/employee/all?page=0&size=200`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+
+      if (!empRes.ok) {
+        console.warn("Failed to fetch employee pool", empRes.statusText);
+      } else {
+        const empJson = await empRes.json();
+        // Normalize: if server returns { content: [...] } or array
+        let pool: Employee[] = [];
+        if (Array.isArray(empJson)) {
+          pool = empJson;
+        } else if (Array.isArray(empJson.content)) {
+          pool = empJson.content;
+        } else if (Array.isArray((empJson as any).employees)) {
+          pool = (empJson as any).employees;
+        } else {
+          // Try to extract array-like properties
+          pool = Object.values(empJson).flat?.() ?? [];
+        }
+
+        // ensure objects have expected keys
+        const normalized = (pool as any[]).map((p) => ({
+          employeeId: p.employeeId ?? p.id ?? p.empId ?? p.employee_id ?? "",
+          name: p.name ?? p.fullName ?? p.employeeName ?? "",
+          department: p.department ?? p.dept ?? p.departmentName ?? "",
+          designation: p.designation ?? p.title ?? "",
+          profileUrl: p.profileUrl ?? p.avatar ?? "",
+        })).filter((p) => p.employeeId && p.name);
+
+        setAllEmployeesPool(normalized);
+
+        // remove already assigned employees from available list
+        const assignedIds = new Set(assignedEmployees.map((a) => a.employeeId));
+        const filtered = normalized.filter((p) => !assignedIds.has(p.employeeId));
+        setAvailableToAdd(filtered);
+        setSelectedAddEmployeeId(filtered.length > 0 ? filtered[0].employeeId : null);
+      }
+    } catch (err: any) {
+      console.error("Error loading add-people resources", err);
+      setEmployeesError("Failed to load available employees / departments");
+    }
   };
 
   const closeAddPeopleModal = () => {
@@ -262,7 +327,20 @@ export default function DealDetailPage() {
     setPeopleSaving(false);
     setPeopleDeletingId(null);
     setPeopleSearch("");
+    setSelectedDepartment("");
   };
+
+  // When department changes, recompute availableToAdd (client-side filter).
+  useEffect(() => {
+    if (!isAddPeopleOpen) return;
+    const assignedIds = new Set(assignedEmployees.map((a) => a.employeeId));
+    let pool = allEmployeesPool.filter((p) => !assignedIds.has(p.employeeId));
+    if (selectedDepartment && selectedDepartment !== "") {
+      pool = pool.filter((p) => (p.department || "").toLowerCase() === selectedDepartment.toLowerCase());
+    }
+    setAvailableToAdd(pool);
+    setSelectedAddEmployeeId(pool.length > 0 ? pool[0].employeeId : null);
+  }, [selectedDepartment, allEmployeesPool, assignedEmployees, isAddPeopleOpen]);
 
   // add employee (POST)
   const addEmployee = async () => {
@@ -280,7 +358,7 @@ export default function DealDetailPage() {
         return;
       }
 
-      // Many backends accept employeeIds in a body list; adapt if your backend differs.
+      // POST body per your example
       const payload = { employeeIds: [selectedAddEmployeeId] };
 
       const res = await fetch(`${BASE_URL}/deals/${dealId}/employees`, {
@@ -303,6 +381,7 @@ export default function DealDetailPage() {
       // refresh availableToAdd: remove newly added
       setAvailableToAdd((prev) => prev.filter((p) => p.employeeId !== selectedAddEmployeeId));
       setSelectedAddEmployeeId(null);
+      // optionally close modal or keep it open — I'll keep it open so user can add more
     } catch (err: any) {
       console.error(err);
       alert(err?.message || "Failed to add employee");
@@ -1242,7 +1321,7 @@ export default function DealDetailPage() {
         </div>
       )}
 
-      {/* Add People modal — table UI styled like the screenshot */}
+      {/* Add People modal — replaced with two-field form (Name + Department) styled like the file upload UI */}
       {isAddPeopleOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
           <div className="absolute inset-0 bg-black/40" onClick={closeAddPeopleModal} />
@@ -1252,103 +1331,110 @@ export default function DealDetailPage() {
               <button onClick={closeAddPeopleModal} className="text-gray-400 hover:text-gray-600">✕</button>
             </div>
 
-            <div className="rounded-lg border p-4 mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <svg className="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M5 12h14" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  <div className="text-sm text-gray-700 font-medium">Add People</div>
-                </div>
+            {/* Inner rounded card styled like your screenshot (two fields side-by-side) */}
+            <div className="rounded-lg border p-6 mb-6">
+              <div className="text-sm font-medium mb-4">Add People</div>
 
-                <div className="flex items-center gap-3">
-                  <input
-                    type="search"
-                    placeholder="Search name"
-                    value={peopleSearch}
-                    onChange={(e) => setPeopleSearch(e.target.value)}
-                    className="rounded-full border px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Add select + button row */}
-              <div className="flex items-center gap-3 mb-3">
-                <select
-                  value={selectedAddEmployeeId ?? ""}
-                  onChange={(e) => setSelectedAddEmployeeId(e.target.value)}
-                  className="rounded-md border px-3 py-2"
-                >
-                  <option value="">Select person to add</option>
-                  {availableToAdd.map((p) => (
-                    <option key={p.employeeId} value={p.employeeId}>
-                      {p.name} — {p.department}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={addEmployee}
-                  disabled={peopleSaving || !selectedAddEmployeeId}
-                  className={`px-4 py-2 rounded-md text-white ${peopleSaving ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}
-                >
-                  {peopleSaving ? "Adding..." : "Add"}
-                </button>
-              </div>
-
-              <div className="text-sm text-gray-500">Assigned people</div>
-
-              <div className="mt-4 overflow-auto">
-                <div className="rounded-md border overflow-hidden">
-                  <div className="bg-blue-50 text-sm text-gray-700 grid grid-cols-[1fr_1fr_1fr_80px] gap-3 p-2 items-center font-medium">
-                    <div>Name</div>
-                    <div>Department</div>
-                    <div className="text-center">Designation</div>
-                    <div className="text-center">Action</div>
-                  </div>
-
-                  <div>
-                    {employeesLoading && <div className="p-4">Loading people...</div>}
-                    {employeesError && <div className="p-4 text-red-600">{employeesError}</div>}
-                    {!employeesLoading && assignedEmployees.length === 0 && (
-                      <div className="p-4 text-sm text-gray-500">No people assigned</div>
-                    )}
-
-                    {filteredAssigned.map((a) => (
-                      <div key={a.employeeId} className="grid grid-cols-[1fr_1fr_1fr_80px] gap-4 items-center p-4 border-t">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100">
-                            {a.profileUrl ? (
-                              <img src={a.profileUrl} alt={a.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">N</div>
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-medium text-sm">{a.name}</div>
-                            <div className="text-xs text-gray-500">{a.designation || ""}</div>
-                          </div>
-                        </div>
-
-                        <div className="text-sm">{a.department || "—"}</div>
-                        <div className="text-sm text-center">{a.designation || "—"}</div>
-
-                        <div className="text-center">
-                          <button
-                            onClick={() => removeEmployee(a.employeeId)}
-                            disabled={peopleDeletingId === a.employeeId}
-                            className="text-red-600 hover:underline"
-                          >
-                            {peopleDeletingId === a.employeeId ? "Removing..." : "🗑️"}
-                          </button>
-                        </div>
-                      </div>
+              <div className="grid grid-cols-2 gap-6 items-end">
+                {/* Employee Name dropdown */}
+                <div>
+                  <label className="text-sm text-gray-600">Name *</label>
+                  <select
+                    value={selectedAddEmployeeId ?? ""}
+                    onChange={(e) => setSelectedAddEmployeeId(e.target.value)}
+                    className="mt-2 block w-full rounded-md border px-3 py-2"
+                  >
+                    <option value="">-- Select Person --</option>
+                    {availableToAdd.map((p) => (
+                      <option key={p.employeeId} value={p.employeeId}>
+                        {p.name} {p.department ? `— ${p.department}` : ""}
+                      </option>
                     ))}
+                  </select>
+                </div>
+
+                {/* Department dropdown */}
+                <div>
+                  <label className="text-sm text-gray-600">Department *</label>
+                  <select
+                    value={selectedDepartment}
+                    onChange={(e) => setSelectedDepartment(e.target.value)}
+                    className="mt-2 block w-full rounded-md border px-3 py-2"
+                  >
+                    <option value="">-- All Departments --</option>
+                    {departments.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Optional note row spanning 2 cols */}
+                <div className="col-span-2 text-sm text-gray-500">
+                  <div className="mt-2">
+                    Tip: Choose department to filter the Name dropdown. If Department is left as <strong>All</strong>, all employees will show.
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3">
-              <button onClick={closeAddPeopleModal} className="px-4 py-2 border rounded-md">Close</button>
+            {/* Assigned people table (same as before) */}
+            <div className="rounded-md border overflow-hidden mb-4">
+              <div className="bg-blue-50 text-sm text-gray-700 grid grid-cols-[1fr_1fr_1fr_80px] gap-3 p-2 items-center font-medium">
+                <div>Name</div>
+                <div>Department</div>
+                <div className="text-center">Designation</div>
+                <div className="text-center">Action</div>
+              </div>
+
+              <div>
+                {employeesLoading && <div className="p-4">Loading people...</div>}
+                {employeesError && <div className="p-4 text-red-600">{employeesError}</div>}
+                {!employeesLoading && assignedEmployees.length === 0 && (
+                  <div className="p-4 text-sm text-gray-500">No people assigned</div>
+                )}
+
+                {filteredAssigned.map((a) => (
+                  <div key={a.employeeId} className="grid grid-cols-[1fr_1fr_1fr_80px] gap-4 items-center p-4 border-t">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100">
+                        {a.profileUrl ? (
+                          <img src={a.profileUrl} alt={a.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">N</div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">{a.name}</div>
+                        <div className="text-xs text-gray-500">{a.designation || ""}</div>
+                      </div>
+                    </div>
+
+                    <div className="text-sm">{a.department || "—"}</div>
+                    <div className="text-sm text-center">{a.designation || "—"}</div>
+
+                    <div className="text-center">
+                      <button
+                        onClick={() => removeEmployee(a.employeeId)}
+                        disabled={peopleDeletingId === a.employeeId}
+                        className="text-red-600 hover:underline"
+                      >
+                        {peopleDeletingId === a.employeeId ? "Removing..." : "🗑️"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-6">
+              <button onClick={closeAddPeopleModal} className="px-6 py-2 border rounded-md text-sm">Cancel</button>
+              <button
+                onClick={addEmployee}
+                disabled={peopleSaving || !selectedAddEmployeeId}
+                className={`px-6 py-2 rounded-md text-sm text-white ${peopleSaving ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}
+              >
+                {peopleSaving ? "Adding..." : "Save"}
+              </button>
             </div>
           </div>
         </div>
