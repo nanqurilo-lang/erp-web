@@ -33,12 +33,21 @@ type Employee = {
   profileUrl?: string;
 };
 
+type NoteItem = {
+  id?: number;
+  noteTitle: string;
+  noteType: "PUBLIC" | "PRIVATE" | string;
+  noteDetails?: string;
+  createdBy?: string;
+  createdAt?: string;
+};
+
 type TabKey = "files" | "followups" | "people" | "notes" | "comments" | "tags";
 
 const BASE_URL = "https://chat.swiftandgo.in";
 
-// Use the uploaded file path provided earlier (developer instruction)
-const UPLOADED_LOCAL_PATH = "/mnt/data/Screenshot 2025-11-22 104348.png";
+// Use the uploaded file path from conversation history (tool/infra will transform to a real URL)
+const UPLOADED_LOCAL_PATH = "/mnt/data/Screenshot 2025-11-22 111442.png";
 
 export default function DealDetailPage() {
   const params = useParams();
@@ -86,6 +95,18 @@ export default function DealDetailPage() {
   const [peopleSaving, setPeopleSaving] = useState(false);
   const [peopleDeletingId, setPeopleDeletingId] = useState<string | null>(null);
   const [peopleSearch, setPeopleSearch] = useState<string>("");
+
+  // notes state
+  const [notes, setNotes] = useState<NoteItem[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+
+  // notes modal & mode
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [noteModalMode, setNoteModalMode] = useState<"add" | "edit" | "view">("add");
+  const [editingNote, setEditingNote] = useState<NoteItem | null>(null);
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteDeletingId, setNoteDeletingId] = useState<number | null>(null);
 
   // Comments modal (UI) state
   const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
@@ -251,6 +272,41 @@ export default function DealDetailPage() {
   useEffect(() => {
     if (!dealId) return;
     fetchAssignedEmployees();
+  }, [dealId]);
+
+  // fetch notes list
+  const fetchNotes = async () => {
+    if (!dealId) return;
+    setNotesLoading(true);
+    setNotesError(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        setNotesError("No access token found");
+        setNotesLoading(false);
+        return;
+      }
+      const res = await fetch(`${BASE_URL}/deals/${dealId}/notes`, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Failed to fetch notes: ${res.status} ${txt}`);
+      }
+      const json = await res.json();
+      if (Array.isArray(json)) setNotes(json);
+      else setNotes([]);
+    } catch (err: any) {
+      console.error(err);
+      setNotesError(err.message || "Failed to load notes");
+    } finally {
+      setNotesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!dealId) return;
+    fetchNotes();
   }, [dealId]);
 
   // When Add People modal opens we fetch departments and employee pool.
@@ -651,6 +707,126 @@ export default function DealDetailPage() {
     }
   };
 
+  // --- Notes: open modals
+  const openAddNote = () => {
+    setNoteModalMode("add");
+    setEditingNote({
+      noteTitle: "",
+      noteType: "PUBLIC",
+      noteDetails: "",
+    });
+    setIsNoteModalOpen(true);
+  };
+
+  const openViewNote = (n: NoteItem) => {
+    setNoteModalMode("view");
+    setEditingNote(n);
+    setIsNoteModalOpen(true);
+  };
+
+  const openEditNote = (n: NoteItem) => {
+    setNoteModalMode("edit");
+    setEditingNote(n);
+    setIsNoteModalOpen(true);
+  };
+
+  const closeNoteModal = () => {
+    setIsNoteModalOpen(false);
+    setEditingNote(null);
+  };
+
+  // Save note (POST for add, PUT for edit)
+  const saveNote = async () => {
+    if (!dealId || !editingNote) return;
+    if (!editingNote.noteTitle || !editingNote.noteTitle.trim()) {
+      alert("Please enter note title");
+      return;
+    }
+    setNoteSaving(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        alert("No access token found");
+        setNoteSaving(false);
+        return;
+      }
+
+      const payload = {
+        noteTitle: editingNote.noteTitle.trim(),
+        noteType: editingNote.noteType ?? "PUBLIC",
+        noteDetails: editingNote.noteDetails ?? "",
+      };
+
+      let res: Response;
+      if (noteModalMode === "edit" && editingNote.id != null) {
+        res = await fetch(`${BASE_URL}/deals/${dealId}/notes/${editingNote.id}`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch(`${BASE_URL}/deals/${dealId}/notes`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Failed to save note: ${res.status} ${txt}`);
+      }
+
+      // refresh notes list
+      await fetchNotes();
+      closeNoteModal();
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Failed to save note");
+    } finally {
+      setNoteSaving(false);
+    }
+  };
+
+  // Delete note
+  const deleteNote = async (noteId?: number) => {
+    if (!dealId || noteId == null) return;
+    if (!confirm("Are you sure you want to delete this note?")) return;
+    setNoteDeletingId(noteId);
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        alert("No access token found");
+        setNoteDeletingId(null);
+        return;
+      }
+
+      const res = await fetch(`${BASE_URL}/deals/${dealId}/notes/${noteId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Failed to delete note: ${res.status} ${txt}`);
+      }
+
+      // refresh notes
+      await fetchNotes();
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Failed to delete note");
+    } finally {
+      setNoteDeletingId(null);
+    }
+  };
+
   // --- Comments UI: open/close modal and save comment
   const openAddComment = () => {
     setCommentText("");
@@ -677,7 +853,7 @@ export default function DealDetailPage() {
         return;
       }
 
-      // payload structure: { commentText: "..." }
+      // payload — server likely expects { commentText: "..." }
       const payload = { commentText: commentText.trim() };
 
       const res = await fetch(`${BASE_URL}/deals/${dealId}/comments`, {
@@ -728,7 +904,7 @@ export default function DealDetailPage() {
         throw new Error(`Failed to delete comment: ${res.status} ${txt}`);
       }
 
-      // refresh comments by refetching deal
+      // refresh deal so comments updated
       await fetchDeal();
     } catch (err: any) {
       console.error(err);
@@ -1180,7 +1356,87 @@ export default function DealDetailPage() {
                 </div>
               )}
 
-              {activeTab === "notes" && <div className="text-sm text-gray-500">No notes yet.</div>}
+              {activeTab === "notes" && (
+                <div>
+                  <div className="mb-4">
+                    <button onClick={openAddNote} className="inline-flex items-center gap-2 text-blue-600">
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <circle cx="12" cy="12" r="11" strokeWidth="1" />
+                        <path d="M12 8v8M8 12h8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Add a Note
+                    </button>
+                  </div>
+
+                  {/* Notes table (styled like your screenshot) */}
+                  <div className="rounded-md border overflow-hidden">
+                    <div className="bg-blue-50 text-sm text-gray-700 grid grid-cols-[1fr_1fr_80px] gap-3 p-3 items-center font-medium rounded-t-md">
+                      <div>Note Title</div>
+                      <div>Note Type</div>
+                      <div className="text-center">Action</div>
+                    </div>
+
+                    <div>
+                      {notesLoading && <div className="p-6 text-sm text-gray-500">Loading notes...</div>}
+                      {notesError && <div className="p-6 text-sm text-red-600">{notesError}</div>}
+
+                      {!notesLoading && notes.length === 0 && (
+                        <div className="p-6 text-sm text-gray-500">No notes yet.</div>
+                      )}
+
+                      {notes.map((n) => (
+                        <div key={n.id} className="grid grid-cols-[1fr_1fr_80px] items-start border-t p-4">
+                          <div>
+                            <div className="font-medium text-sm">{n.noteTitle}</div>
+                            <div className="text-xs text-gray-500">ID: {n.id} • {n.createdBy || "--"}</div>
+                          </div>
+                          <div className="text-sm">
+                            <div className="inline-flex items-center gap-2">
+                              <span className="text-xs text-gray-500">{n.noteType === "PUBLIC" ? "🌐 Public" : "🔒 Private"}</span>
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            {/* action menu with 3-dots to show view/edit/delete */}
+                            <div className="relative inline-block">
+                              <button
+                                onClick={() => {
+                                  const menu = document.getElementById(`note-menu-${n.id}`);
+                                  if (menu) menu.classList.toggle("hidden");
+                                }}
+                                className="p-1 rounded hover:bg-slate-50 text-gray-500"
+                                aria-label="Actions"
+                              >
+                                ⋮
+                              </button>
+                              <div id={`note-menu-${n.id}`} className="hidden absolute right-0 mt-2 w-40 bg-white border rounded-md shadow-sm z-10">
+                                <button
+                                  onClick={() => openViewNote(n)}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
+                                >
+                                  View
+                                </button>
+                                <button
+                                  onClick={() => openEditNote(n)}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => deleteNote(n.id)}
+                                  disabled={noteDeletingId === n.id}
+                                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-slate-50"
+                                >
+                                  {noteDeletingId === n.id ? "Deleting..." : "Delete"}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {activeTab === "comments" && (
                 <div>
@@ -1474,6 +1730,91 @@ export default function DealDetailPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Note Modal (Add / Edit / View) */}
+      {isNoteModalOpen && editingNote && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
+          <div className="absolute inset-0 bg-black/40" onClick={closeNoteModal} />
+          <div className="relative bg-white w-full max-w-4xl rounded-2xl shadow-xl border p-6 mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold">
+                {noteModalMode === "add" ? "Add Deal Note" : noteModalMode === "edit" ? "Edit Deal Note" : "View Deal Note"}
+              </h3>
+              <button onClick={closeNoteModal} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+
+            <div className="rounded-lg border p-6 mb-6">
+              <div className="text-sm font-medium mb-4">Deal Note Details</div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="text-sm text-gray-600">Note Title *</label>
+                  <input
+                    type="text"
+                    value={editingNote.noteTitle}
+                    onChange={(e) => setEditingNote({ ...editingNote, noteTitle: e.target.value })}
+                    className="mt-2 block w-full rounded-md border px-3 py-2"
+                    disabled={noteModalMode === "view"}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm text-gray-600">Note Type</label>
+                  <div className="mt-2 flex items-center gap-4">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="noteType"
+                        value="PUBLIC"
+                        checked={editingNote.noteType === "PUBLIC"}
+                        onChange={() => setEditingNote({ ...editingNote, noteType: "PUBLIC" })}
+                        disabled={noteModalMode === "view"}
+                      />
+                      <span className="text-sm">Public</span>
+                    </label>
+
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="noteType"
+                        value="PRIVATE"
+                        checked={editingNote.noteType === "PRIVATE"}
+                        onChange={() => setEditingNote({ ...editingNote, noteType: "PRIVATE" })}
+                        disabled={noteModalMode === "view"}
+                      />
+                      <span className="text-sm">Private</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-sm text-gray-600">Note Detail</label>
+                  <textarea
+                    value={editingNote.noteDetails}
+                    onChange={(e) => setEditingNote({ ...editingNote, noteDetails: e.target.value })}
+                    className="mt-2 block w-full rounded-md border px-3 py-2 min-h-[120px]"
+                    placeholder="--"
+                    disabled={noteModalMode === "view"}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-center gap-6">
+              <button onClick={closeNoteModal} className="px-6 py-2 border rounded-md text-sm">Cancel</button>
+              {noteModalMode !== "view" && (
+                <button
+                  onClick={saveNote}
+                  disabled={noteSaving}
+                  className={`px-6 py-2 rounded-md text-sm text-white ${noteSaving ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}
+                >
+                  {noteSaving ? "Saving..." : "Save"}
+                </button>
+              )}
             </div>
           </div>
         </div>
