@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Clock, Calendar } from "lucide-react";
+import { Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
@@ -22,6 +22,9 @@ const URLS = {
   TIMESHEET_DAY: (d: string) => `${MAIN}/timesheets/me/day?date=${d}`,
   ACTIVITIES: (d: string) => `${MAIN}/employee/attendance/clock/activities?date=${d}`,
   APPRECIATIONS: `${GATEWAY}/employee/appreciations`,
+  BIRTHDAYS: `${MAIN}/employee/birthdays`,
+  LEAVES_CALENDAR: (d: string) => `${MAIN}/employee/api/leaves/calendar?date=${d}`,
+  WFH: (d: string) => `${MAIN}/employee/attendance/wfh?date=${d}`,
   CLOCK_IN: `${GATEWAY}/employee/attendance/clock/in`,
   CLOCK_OUT: `${GATEWAY}/employee/attendance/clock/out`,
 };
@@ -36,8 +39,12 @@ export default function Dashboard() {
   const [timelog, setTimelog] = useState({ duration: "0hrs", progress: 0 });
   const [activities, setActivities] = useState<any[]>([]);
   const [appreciations, setAppreciations] = useState<Appreciation[]>([]);
-  const [form, setForm] = useState({ clockInLocation: "Office Gate A", clockInWorkingFrom: "Office" });
 
+  const [birthdays, setBirthdays] = useState<any[]>([]);
+  const [leaves, setLeaves] = useState<any[]>([]);
+  const [wfhs, setWfhs] = useState<any[]>([]);
+
+  const [form, setForm] = useState({ clockInLocation: "Office Gate A", clockInWorkingFrom: "Office" });
   const [projectsCnt, setProjectsCnt] = useState({ pending: 0, overdue: 0 });
   const [tasksCnt, setTasksCnt] = useState({ pending: 0, overdue: 0 });
   const [dealsCnt, setDealsCnt] = useState({ totalDeals: 0, convertedDeals: 0 });
@@ -60,8 +67,11 @@ export default function Dashboard() {
         const token = localStorage.getItem("accessToken");
         if (!token) throw new Error("no token");
         const headers = { Authorization: `Bearer ${token}` };
-        // parallel requests, includes appreciations
-        const [pRes, tRes, prRes, tkRes, dRes, fRes, tsRes, actRes, appRes] = await Promise.all([
+
+        // fetch everything in parallel (added birthdays, leaves, wfh)
+        const [
+          pRes, tRes, prRes, tkRes, dRes, fRes, tsRes, actRes, appRes, birthRes, leaveRes, wfhRes
+        ] = await Promise.all([
           fetch(URLS.PROFILE, { headers }),
           fetch(URLS.MY_TASKS, { headers }),
           fetch(URLS.PROJECT_COUNTS, { headers }),
@@ -71,6 +81,9 @@ export default function Dashboard() {
           fetch(URLS.TIMESHEET_DAY(todayIso), { headers }),
           fetch(URLS.ACTIVITIES(todayIso), { headers }),
           fetch(URLS.APPRECIATIONS, { headers }),
+          fetch(URLS.BIRTHDAYS, { headers }),
+          fetch(URLS.LEAVES_CALENDAR(todayIso), { headers }),
+          fetch(URLS.WFH(todayIso), { headers }),
         ]);
 
         if (pRes.ok) { const p = await pRes.json(); setEmployee({ employeeId: p.employeeId, name: p.name, departmentName: p.departmentName, designationName: p.designationName, profilePictureUrl: p.profilePictureUrl }); }
@@ -82,6 +95,26 @@ export default function Dashboard() {
         if (tsRes.ok) { const ts = await tsRes.json(); const mins = ts?.summary?.totalMinutes ?? Math.round((ts?.summary?.totalHours ?? 0) * 60); setTimelog({ duration: `${Math.round(mins/60)}hrs`, progress: mins ? Math.min(100, Math.round((mins / 480) * 100)) : 0 }); }
         if (actRes.ok) { const a = await actRes.json(); setActivities(Array.isArray(a) ? a : []); setIsClockedIn((a || []).some((x: any) => (x.type === "IN" || x.clockInTime) && !x.clockOutTime)); }
         if (appRes.ok) { const ar = await appRes.json(); setAppreciations((ar || []).map((x: any) => ({ id: x.id, awardTitle: x.awardTitle, givenToEmployeeName: x.givenToEmployeeName, date: x.date, photoUrl: x.photoUrl ?? undefined, summary: x.summary ?? "" }))); }
+
+        // birthdays
+        if (birthRes.ok) {
+          const br = await birthRes.json();
+          setBirthdays(Array.isArray(br) ? br : []);
+        }
+
+        // leaves calendar (response contains dates with employeesOnLeave)
+        if (leaveRes.ok) {
+          const lr = await leaveRes.json();
+          // flatten employeesOnLeave for today's date
+          const flat = Array.isArray(lr) ? lr.flatMap((entry: any) => (entry.employeesOnLeave || []).map((e: any) => ({ ...e, date: entry.date }))) : [];
+          setLeaves(flat);
+        }
+
+        // wfh
+        if (wfhRes.ok) {
+          const wr = await wfhRes.json();
+          setWfhs(Array.isArray(wr) ? wr : []);
+        }
       } catch (e) {
         console.warn(e);
       } finally {
@@ -100,9 +133,16 @@ export default function Dashboard() {
     try {
       const token = localStorage.getItem("accessToken"); if (!token) return;
       const headers = { Authorization: `Bearer ${token}` };
-      const [tsRes, actRes] = await Promise.all([fetch(URLS.TIMESHEET_DAY(iso), { headers }), fetch(URLS.ACTIVITIES(iso), { headers })]);
+      const [tsRes, actRes, leaveRes, wfhRes] = await Promise.all([
+        fetch(URLS.TIMESHEET_DAY(iso), { headers }),
+        fetch(URLS.ACTIVITIES(iso), { headers }),
+        fetch(URLS.LEAVES_CALENDAR(iso), { headers }),
+        fetch(URLS.WFH(iso), { headers }),
+      ]);
       if (tsRes.ok) { const ts = await tsRes.json(); const mins = ts?.summary?.totalMinutes ?? Math.round((ts?.summary?.totalHours ?? 0) * 60); setTimelog({ duration: `${Math.round(mins/60)}hrs`, progress: mins ? Math.min(100, Math.round((mins / 480) * 100)) : 0 }); } else setTimelog({ duration: "0hrs", progress: 0 });
       if (actRes.ok) { const a = await actRes.json(); setActivities(Array.isArray(a) ? a : []); setIsClockedIn((a || []).some((x: any) => (x.type === "IN" || x.clockInTime) && !x.clockOutTime)); } else setActivities([]);
+      if (leaveRes.ok) { const lr = await leaveRes.json(); const flat = Array.isArray(lr) ? lr.flatMap((e: any) => (e.employeesOnLeave || []).map((x: any) => ({ ...x, date: e.date }))) : []; setLeaves(flat); } else setLeaves([]);
+      if (wfhRes.ok) { const wr = await wfhRes.json(); setWfhs(Array.isArray(wr) ? wr : []); } else setWfhs([]);
     } catch (e) { console.warn("loadDay", e); }
   };
 
@@ -147,6 +187,7 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-screen-xl p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-2xl font-semibold">Welcome {employee.name}</h2>
@@ -173,6 +214,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Main grid: tasks left, timelog right */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Card className="border-0 shadow-sm">
@@ -190,15 +232,16 @@ export default function Dashboard() {
 
         <div className="lg:col-span-1 space-y-4">
           <div className="rounded-lg border p-4 bg-white shadow-sm">
-            <div className="flex items-center justify-between"><div className="text-lg font-medium">Week Timelogs</div></div>
+            <div className="text-lg font-medium">Week Timelogs</div>
             <div className="mt-4 flex justify-center gap-3 text-sm">
-              {weekDates(selectedDay).map(d => { const iso = d.toISOString().slice(0,10); const selected = iso === selectedDay; return (<button key={iso} onClick={() => setSelectedDay(iso)} className={`w-8 h-8 rounded-full flex items-center justify-center ${selected ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>{d.toLocaleDateString([], { weekday: "short" }).slice(0,2)}</button>); })}
+              {weekDates(selectedDay).map(d => { const iso = d.toISOString().slice(0,10); const sel = iso === selectedDay; return (<button key={iso} onClick={() => setSelectedDay(iso)} className={`w-8 h-8 rounded-full flex items-center justify-center ${sel ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>{d.toLocaleDateString([], { weekday: "short" }).slice(0,2)}</button>); })}
             </div>
             <div className="mt-4"><Progress value={timelog.progress} className="h-3" /><div className="text-xs text-muted-foreground mt-2">Duration: {timelog.duration}</div></div>
           </div>
         </div>
       </div>
 
+      {/* Appreciations */}
       <div>
         <Card className="border-0 shadow-sm">
           <CardContent>
@@ -207,7 +250,7 @@ export default function Dashboard() {
               <table className="w-full text-sm">
                 <thead className="bg-blue-50"><tr><th className="p-3 text-left">Given To</th><th className="p-3 text-left">Award Name</th><th className="p-3 text-left">Given On</th><th className="p-3 text-left">Action</th></tr></thead>
                 <tbody>
-                  {appreciations.map((a) => (
+                  {appreciations.map(a => (
                     <tr key={a.id} className="border-b">
                       <td className="p-3 flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full overflow-hidden bg-muted">
@@ -227,15 +270,67 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* bottom 3 cards: Birthdays, On Leave, WFH */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {["Birthdays", "On Leave Today", "On Work From Home Today"].map((t) => (
-          <div key={t} className="rounded-lg border p-6 h-40 bg-white shadow-sm text-center">
-            <div className="font-medium">{t}</div>
-            <div className="text-muted-foreground mt-6">— No Record Found —</div>
-          </div>
-        ))}
+        <div className="rounded-lg border p-6 h-40 bg-white shadow-sm">
+          <div className="font-medium mb-3">Birthdays</div>
+          {birthdays.length ? (
+            <div className="flex items-center gap-3 overflow-x-auto">
+              {birthdays.map((b: any) => (
+                <div key={b.employeeId || b.id} className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-full overflow-hidden bg-muted">
+                    {b.profileUrl ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={b.profileUrl} alt={b.name || b.givenToEmployeeName || "img"} className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">—</div>}
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm">{b.name || b.employeeName || b.givenToEmployeeName}</div>
+                    <div className="text-xs text-muted-foreground">{b.department || b.departmentName || ""}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : <div className="text-muted-foreground mt-6">— No Record Found —</div>}
+        </div>
+
+        <div className="rounded-lg border p-6 h-40 bg-white shadow-sm">
+          <div className="font-medium mb-3">On Leave Today</div>
+          {leaves.length ? (
+            <div className="space-y-2 overflow-auto">
+              {leaves.map((l: any) => (
+                <div key={l.employeeId || l.id} className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full overflow-hidden bg-muted">
+                    {l.profileUrl ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={l.profileUrl} alt={l.employeeName} className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">—</div>}
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm">{l.employeeName}</div>
+                    <div className="text-xs text-muted-foreground">{l.leaveType ?? l.leaveTypeName ?? ""}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : <div className="text-muted-foreground mt-6">— No Record Found —</div>}
+        </div>
+
+        <div className="rounded-lg border p-6 h-40 bg-white shadow-sm">
+          <div className="font-medium mb-3">On Work From Home Today</div>
+          {wfhs.length ? (
+            <div className="space-y-2 overflow-auto">
+              {wfhs.map((w: any) => (
+                <div key={w.employeeId || w.attendanceId} className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full overflow-hidden bg-muted">
+                    {w.profilePictureUrl ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={w.profilePictureUrl} alt={w.employeeName} className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">—</div>}
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm">{w.employeeName}</div>
+                    <div className="text-xs text-muted-foreground">{w.departmentName ?? w.department}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : <div className="text-muted-foreground mt-6">— No Record Found —</div>}
+        </div>
       </div>
 
+      {/* Clock modal */}
       {showClockModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg w-[820px] p-6 relative">
@@ -268,7 +363,7 @@ export default function Dashboard() {
   );
 }
 
-// small helper used above
+// helper used above
 function weekDates(refIso: string) {
   const ref = new Date(refIso); const dayIdx = ref.getDay();
   const monday = new Date(ref); monday.setDate(ref.getDate() - ((dayIdx + 6) % 7));
