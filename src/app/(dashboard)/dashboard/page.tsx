@@ -35,15 +35,14 @@ export default function Dashboard() {
   const [now, setNow] = useState("");
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [showClockModal, setShowClockModal] = useState(false);
+  const [showClockOutModal, setShowClockOutModal] = useState(false); // NEW
   const [tasks, setTasks] = useState<any[]>([]);
   const [timelog, setTimelog] = useState({ duration: "0hrs", progress: 0 });
   const [activities, setActivities] = useState<any[]>([]);
   const [appreciations, setAppreciations] = useState<Appreciation[]>([]);
-
   const [birthdays, setBirthdays] = useState<any[]>([]);
   const [leaves, setLeaves] = useState<any[]>([]);
   const [wfhs, setWfhs] = useState<any[]>([]);
-
   const [form, setForm] = useState({ clockInLocation: "Office Gate A", clockInWorkingFrom: "Office" });
   const [projectsCnt, setProjectsCnt] = useState({ pending: 0, overdue: 0 });
   const [tasksCnt, setTasksCnt] = useState({ pending: 0, overdue: 0 });
@@ -292,6 +291,7 @@ export default function Dashboard() {
     }
   };
 
+  // existing clock out handler left unchanged, modal will call it
   const handleClockOut = async () => {
     try {
       const token = localStorage.getItem("accessToken");
@@ -313,6 +313,7 @@ export default function Dashboard() {
       if (!r.ok) throw new Error("clock out failed");
 
       setIsClockedIn(false);
+      setShowClockOutModal(false); // close modal after successful
       await loadDay(selectedDay);
 
     } catch (e) {
@@ -340,6 +341,18 @@ export default function Dashboard() {
       </div>
     </div>
   );
+
+  // derive attendance details from activities[0] if present
+  const todayActivity = activities?.[0] ?? null;
+  const clockInTime = todayActivity?.clockInTime ?? todayActivity?.clockIn || null;
+  const clockOutTime = todayActivity?.clockOutTime ?? todayActivity?.clockOut || null;
+  const clockInLabel = clockInTime ? new Date(`${selectedDay}T${clockInTime}`).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true }) : "—";
+  const clockOutLabel = clockOutTime ? new Date(`${selectedDay}T${clockOutTime}`).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true }) : "Did not clock out";
+  const durationMs = clockInTime ? (clockOutTime ? (new Date(`${selectedDay}T${clockOutTime}`).getTime() - new Date(`${selectedDay}T${clockInTime}`).getTime()) : (Date.now() - new Date(`${selectedDay}T${clockInTime}`).getTime())) : 0;
+  const durH = Math.floor(durationMs / 3600000);
+  const durM = Math.floor((durationMs % 3600000) / 60000);
+  const durS = Math.floor((durationMs % 60000) / 1000);
+  const durationLabel = `${durH}h ${durM}m ${durS}s`;
 
   return (
     <div className="max-w-screen-xl p-6 space-y-6">
@@ -396,7 +409,8 @@ export default function Dashboard() {
               <Clock className="mr-2 h-4 w-4" /> Clock In
             </Button>
           ) : (
-            <Button onClick={handleClockOut} variant="destructive">
+            // OPEN modal instead of immediate API call
+            <Button onClick={() => setShowClockOutModal(true)} variant="destructive">
               <Clock className="mr-2 h-4 w-4" /> Clock Out
             </Button>
           )}
@@ -600,7 +614,7 @@ export default function Dashboard() {
 
       </div>
 
-      {/* Clock Modal */}
+      {/* Clock In Modal */}
       {showClockModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg w-[820px] p-6 relative">
@@ -646,6 +660,82 @@ export default function Dashboard() {
               <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={handleClockIn}>Clock In</button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* CLOCK OUT Modal (NEW: Attendance Details) */}
+      {showClockOutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg w-[900px] p-6 relative">
+            <button className="absolute right-4 top-4 text-xl" onClick={() => setShowClockOutModal(false)}>✕</button>
+
+            <h3 className="text-lg font-medium mb-4">Attendance Details</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded border p-4">
+                <div className="text-sm mb-2">Date - {new Date(selectedDay).toLocaleDateString(undefined, { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}</div>
+
+                <div className="bg-gray-50 rounded p-3 mb-4">
+                  <div className="text-sm">Clock In</div>
+                  <div className="text-base font-medium">{clockInLabel}</div>
+                </div>
+
+                <div className="flex items-center justify-center my-4">
+                  <div className="h-28 w-28 rounded-full border-4 border-blue-500 flex items-center justify-center text-sm font-medium">
+                    {durationLabel}
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded p-3 mt-4">
+                  <div className="text-sm">Clock Out</div>
+                  <div className="text-base font-medium">{clockOutLabel}</div>
+                </div>
+              </div>
+
+              <div className="rounded border p-4">
+                <div className="text-sm font-medium mb-2">Activity</div>
+
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="h-3 w-3 rounded-full bg-blue-500 mt-1" />
+                    <div>
+                      <div className="text-sm font-medium">Clock In</div>
+                      <div className="text-xs text-muted-foreground">
+                        {clockInLabel} • {todayActivity?.clockInLocation ?? 'Location'} {todayActivity?.late ? '• Late' : ''}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="h-3 w-3 rounded-full bg-gray-300 mt-1" />
+                    <div>
+                      <div className="text-sm font-medium">Clock Out</div>
+                      <div className="text-xs text-muted-foreground">{clockOutTime ? clockOutLabel : 'Did not clock out'}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid grid-cols-1 gap-3">
+                  <label className="text-sm text-muted-foreground">Location</label>
+                  <select value={form.clockInLocation} onChange={(e) => setForm(s => ({ ...s, clockInLocation: e.target.value }))} className="p-2 border rounded">
+                    <option>Office Gate A</option>
+                    <option>Office Gate B</option>
+                  </select>
+
+                  <label className="text-sm text-muted-foreground">Working From *</label>
+                  <select value={form.clockInWorkingFrom} onChange={(e) => setForm(s => ({ ...s, clockInWorkingFrom: e.target.value }))} className="p-2 border rounded">
+                    <option>Office</option>
+                    <option>Home</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-4 mt-6">
+              <button className="px-4 py-2 border rounded" onClick={() => setShowClockOutModal(false)}>Cancel</button>
+              <button className="px-4 py-2 bg-red-600 text-white rounded" onClick={handleClockOut}>Clock Out</button>
+            </div>
           </div>
         </div>
       )}

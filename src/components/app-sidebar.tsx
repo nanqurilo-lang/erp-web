@@ -43,12 +43,12 @@ export function AppSidebar() {
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }))
 
   const Chevron = ({ open }: { open: boolean }) => (
-    <span className="ml-2 text-sidebar-foreground/60">{open ? "▾" : ">"}</span>
+    <span className="ml-2  text-sidebar-foreground/60">{open ? "▾" : ">"}</span>
   )
 
   return (
     <div className="min-h-screen bg-[#15173a] text-white">
-    <Sidebar className="" >
+    <Sidebar className="#211C52" >
       <SidebarHeader>
         <div className="flex items-center justify-center  bg-amber-400 px-4 py-6">
           {/* <h1 className="text-2xl font-bold text-sidebar-primary">Qurilo</h1> */}
@@ -58,7 +58,7 @@ export function AppSidebar() {
       <SidebarContent>
         {/* Dashboard */}
         <SidebarGroup>
-          <SidebarMenu>
+          <SidebarMenu >
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
                 <Link href="/dashboard">
