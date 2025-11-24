@@ -172,7 +172,7 @@ const Dashboard = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div className="space-y-2">
               <h1 className="text-4xl font-bold text-balance">
-                Welcome back, {employee.name}
+                Welcome back , {employee.name}
               </h1>
               <div className="flex items-center gap-2 text-primary-foreground/80">
                 <Clock className="h-4 w-4" />

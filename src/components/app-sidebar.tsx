@@ -47,7 +47,8 @@ export function AppSidebar() {
   )
 
   return (
-    <Sidebar className="bg-[#15173a] text-white" >
+    <div className="min-h-screen bg-[#15173a] text-white">
+    <Sidebar className="" >
       <SidebarHeader>
         <div className="flex items-center justify-center  bg-amber-400 px-4 py-6">
           {/* <h1 className="text-2xl font-bold text-sidebar-primary">Qurilo</h1> */}
@@ -192,7 +193,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* HR (collapsible) */}
-        <SidebarGroup className="bg-red-500" >
+        <SidebarGroup  >
           <div
             role="button"
             className="flex items-center justify-between w-full cursor-pointer px-3"
@@ -365,5 +366,6 @@ export function AppSidebar() {
         </div>
       </SidebarFooter>
     </Sidebar>
+    </div>
   )
 }
