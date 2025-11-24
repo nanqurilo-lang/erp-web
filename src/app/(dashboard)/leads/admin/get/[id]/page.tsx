@@ -2064,3 +2064,10 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     </main>
   );
 }
+
+
+
+
+
+
+

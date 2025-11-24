@@ -234,7 +234,7 @@ const Dashboard = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl">
                 <Clock className="h-5 w-5 text-primary" />
-                My Timelogs
+                My Timelogs 
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
