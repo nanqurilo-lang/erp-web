@@ -70,7 +70,12 @@ export default function ClientsPage() {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
         },
+
       })
+
+      //console.log("nan" ,response)
+
+
       if (!response.ok) throw new Error("Failed to fetch clients")
       const data = await response.json()
       setClients(data)
