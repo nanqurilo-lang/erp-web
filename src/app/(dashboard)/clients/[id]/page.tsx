@@ -130,7 +130,7 @@ export default function ClientDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle>Client Information</CardTitle>
-            <CardDescription>Personal and contact details</CardDescription>
+            <CardDescription>Personal and contact details </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
