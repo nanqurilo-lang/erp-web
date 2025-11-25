@@ -320,59 +320,61 @@ console.log(clientId)
         </div>
       </div>
 
-      {/* Top summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
-        <div className="col-span-1">
-          <Card>
-            <CardContent className="flex items-center gap-4">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={client.profilePictureUrl || placeholderImg} alt={client.name} />
-                <AvatarFallback>
-                  {client.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <div className="font-medium">{client.name}</div>
-                <div className="text-sm text-muted-foreground">{client.company?.companyName ?? ""}</div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card>
-            <CardContent>
-              <div className="text-sm text-slate-600">Total Projects</div>
-              <div className="text-2xl font-semibold text-blue-600 mt-2">{projectCount ?? "—"}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent>
-              <div className="text-sm text-slate-600">Total Earnings</div>
-              <div className="text-2xl font-semibold text-blue-600 mt-2">
-                {totalEarning !== null ? totalEarning.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent>
-              <div className="text-sm text-slate-600">Due Invoices</div>
-              <div className="text-2xl font-semibold text-blue-600 mt-2">{unpaidInvoiceCount ?? "—"}</div>
-              {totalUnpaidAmount !== null && (
-                <div className="text-xs text-muted-foreground mt-1">
-                  {totalUnpaidAmount.toLocaleString(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2 })}
+      {/* Top summary - ONLY show when profile tab is active */}
+      {activeTab === "profile" && (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+          <div className="col-span-1">
+            <Card>
+              <CardContent className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={client.profilePictureUrl || placeholderImg} alt={client.name} />
+                  <AvatarFallback>
+                    {client.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-medium">{client.name}</div>
+                  <div className="text-sm text-muted-foreground">{client.company?.companyName ?? ""}</div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card>
+              <CardContent>
+                <div className="text-sm text-slate-600">Total Projects</div>
+                <div className="text-2xl font-semibold text-blue-600 mt-2">{projectCount ?? "—"}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent>
+                <div className="text-sm text-slate-600">Total Earnings</div>
+                <div className="text-2xl font-semibold text-blue-600 mt-2">
+                  {totalEarning !== null ? totalEarning.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent>
+                <div className="text-sm text-slate-600">Due Invoices</div>
+                <div className="text-2xl font-semibold text-blue-600 mt-2">{unpaidInvoiceCount ?? "—"}</div>
+                {totalUnpaidAmount !== null && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {totalUnpaidAmount.toLocaleString(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2 })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main area - show either Profile view or Projects view or Invoices (profile is default) */}
       {activeTab === "profile" && (
