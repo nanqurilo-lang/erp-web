@@ -15,7 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { log } from "console"
 
 const API_BASE = "https://chat.swiftandgo.in"
 
@@ -54,6 +53,18 @@ interface Project {
   status?: string
 }
 
+interface Invoice {
+  id: number | string
+  invoiceNumber?: string
+  invoiceDate?: string
+  currency?: string
+  project?: { projectName?: string; projectCode?: string }
+  total?: number
+  unpaidAmount?: number
+  status?: string
+  createdAt?: string
+}
+
 export default function ClientDetailPage() {
   const { id } = useParams()
   const [client, setClient] = useState<Client | null>(null)
@@ -70,6 +81,11 @@ export default function ClientDetailPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [projectsLoading, setProjectsLoading] = useState(false)
   const [projectsError, setProjectsError] = useState<string | null>(null)
+
+  // invoices
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [invoicesLoading, setInvoicesLoading] = useState(false)
+  const [invoicesError, setInvoicesError] = useState<string | null>(null)
 
   // tabs
   const [activeTab, setActiveTab] = useState<"profile" | "projects" | "invoices" | string>("profile")
@@ -131,8 +147,6 @@ export default function ClientDetailPage() {
       setProjectCount(0)
       setTotalEarning(0)
     }
-console.log(clientId)
-
 
     try {
       const res2 = await fetch(`${API_BASE}/api/invoices/client/${clientId}/stats/unpaid`, { headers })
@@ -158,13 +172,13 @@ console.log(clientId)
     setProjectsLoading(true)
     setProjectsError(null)
     try {
-      // assumed API: /api/projects/client/{clientId}
-      const res = await fetch(`/api/projects/client/${clientId}`, {
+      // use the full API URL you provided
+      const res = await fetch(`${API_BASE}/api/projects/client/${clientId}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` },
       })
       const text = await res.text()
       const parsed = safeParseText(text) ?? (res.ok ? JSON.parse(text || "[]") : null)
-      // parsed may be object wrapper { projects: [...] } or direct array
+
       let list: any[] = []
       if (Array.isArray(parsed)) list = parsed
       else if (parsed && Array.isArray(parsed.projects)) list = parsed.projects
@@ -174,22 +188,21 @@ console.log(clientId)
         if (Array.isArray(inner)) list = inner
       }
 
-      // map to Project shape, keeping existing fields safe
       const mapped: Project[] = list.map((p: any) => ({
         id: p.id ?? p.projectId ?? p._id ?? String(Math.random()),
-        code: p.code ?? p.projectCode ?? p.project_code ?? p.id,
+        code: p.shortCode ?? p.code ?? p.projectCode ?? p.project_code ?? p.id,
         name: p.name ?? p.projectName ?? p.title ?? "Project Name",
         members:
-          Array.isArray(p.members) && p.members.length
-            ? p.members.map((m: any) => ({ id: m.id ?? m.employeeId ?? m._id, name: m.name ?? m.fullName, avatarUrl: m.avatarUrl ?? m.profilePictureUrl }))
-            : p.members?.map
+          Array.isArray(p.assignedEmployees) && p.assignedEmployees.length
+            ? p.assignedEmployees.map((m: any) => ({ id: m.employeeId ?? m.id, name: m.name ?? m.fullName, avatarUrl: m.profileUrl ?? m.profilePictureUrl }))
+            : Array.isArray(p.members)
             ? p.members
             : [],
         startDate: p.startDate ?? p.start_date ?? p.start,
         deadline: p.deadline ?? p.endDate ?? p.end_date,
         client: p.client ?? (p.clientId ? { id: p.clientId, name: client?.name, avatarUrl: client?.profilePictureUrl } : undefined),
-        progressPercent: typeof p.progress === "number" ? p.progress : typeof p.progressPercent === "number" ? p.progressPercent : p.progress ?? 0,
-        status: p.status ?? p.projectStatus ?? "In Progress",
+        progressPercent: typeof p.progressPercent === "number" ? p.progressPercent : typeof p.progress === "number" ? p.progress : p.progress ?? 0,
+        status: p.projectStatus ?? p.status ?? p.projectStatus ?? "In Progress",
       }))
       setProjects(mapped)
     } catch (err: any) {
@@ -197,6 +210,46 @@ console.log(clientId)
       setProjects([])
     } finally {
       setProjectsLoading(false)
+    }
+  }
+
+  // ---------- invoices fetch (called when Invoices tab activated) ----------
+  async function fetchInvoicesForClient(clientId: string) {
+    setInvoicesLoading(true)
+    setInvoicesError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/invoices/client/${clientId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` },
+      })
+      const text = await res.text()
+      const parsed = safeParseText(text) ?? (res.ok ? JSON.parse(text || "[]") : null)
+
+      let list: any[] = []
+      if (Array.isArray(parsed)) list = parsed
+      else if (parsed && Array.isArray(parsed.invoices)) list = parsed.invoices
+      else if (parsed && Array.isArray(parsed.data)) list = parsed.data
+      else if (parsed && parsed.ResponseBody) {
+        const inner = safeParseText(parsed.ResponseBody)
+        if (Array.isArray(inner)) list = inner
+      }
+
+      const mapped: Invoice[] = list.map((inv: any) => ({
+        id: inv.id ?? inv.invoiceId,
+        invoiceNumber: inv.invoiceNumber,
+        invoiceDate: inv.invoiceDate,
+        currency: inv.currency,
+        project: inv.project ?? { projectName: inv.projectName, projectCode: inv.projectCode },
+        total: typeof inv.total === "number" ? inv.total : Number(inv.total ?? 0),
+        unpaidAmount: typeof inv.unpaidAmount === "number" ? inv.unpaidAmount : Number(inv.unpaidAmount ?? 0),
+        status: inv.status,
+        createdAt: inv.createdAt,
+      }))
+      setInvoices(mapped)
+    } catch (err: any) {
+      setInvoicesError(err?.message ?? "Failed to fetch invoices")
+      setInvoices([])
+    } finally {
+      setInvoicesLoading(false)
     }
   }
 
@@ -214,6 +267,14 @@ console.log(clientId)
   useEffect(() => {
     if (activeTab === "projects" && client?.clientId) {
       fetchProjectsForClient(client.clientId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, client])
+
+  // when user activates Invoices tab, load invoices
+  useEffect(() => {
+    if (activeTab === "invoices" && client?.clientId) {
+      fetchInvoicesForClient(client.clientId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, client])
@@ -272,7 +333,7 @@ console.log(clientId)
             <Link href="/clients">
               <Button variant="ghost" className="hidden sm:inline-flex items-center gap-2">
                 <ArrowLeft className="mr-1 h-4 w-4" />
-                Back to Clients
+                Back to Clients 
               </Button>
             </Link>
             <Link href={`/clients/${id}/documents`}>
@@ -409,7 +470,7 @@ console.log(clientId)
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Projects</CardTitle>
+                <CardTitle>Projects </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-40 flex items-center justify-center">
@@ -548,13 +609,72 @@ console.log(clientId)
 
       {activeTab === "invoices" && (
         <div>
-          {/* keep invoices tab placeholder UI (unchanged) */}
           <Card>
             <CardHeader>
               <CardTitle>Invoices</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-sm text-muted-foreground">Invoices section (kept as-is)</div>
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <Button onClick={() => activeTab === "invoices" && client?.clientId && fetchInvoicesForClient(client.clientId)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                    Refresh
+                  </Button>
+                </div>
+                <div className="w-64">
+                  <input placeholder="Search invoice number or project" className="w-full px-3 py-2 border rounded" />
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-blue-50 text-left text-xs">
+                      <th className="px-4 py-3">Invoice #</th>
+                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3">Project</th>
+                      <th className="px-4 py-3">Currency</th>
+                      <th className="px-4 py-3">Total</th>
+                      <th className="px-4 py-3">Unpaid</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoicesLoading ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-8">Loading invoices...</td>
+                      </tr>
+                    ) : invoicesError ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-8 text-red-600">{invoicesError}</td>
+                      </tr>
+                    ) : invoices.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-8">No invoices found</td>
+                      </tr>
+                    ) : (
+                      invoices.map((inv) => (
+                        <tr key={inv.id} className="border-t">
+                          <td className="px-4 py-3">{inv.invoiceNumber ?? "—"}</td>
+                          <td className="px-4 py-3">{inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString() : "—"}</td>
+                          <td className="px-4 py-3">{inv.project?.projectName ?? inv.project?.projectCode ?? "—"}</td>
+                          <td className="px-4 py-3">{inv.currency ?? "—"}</td>
+                          <td className="px-4 py-3">{typeof inv.total === "number" ? inv.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}</td>
+                          <td className="px-4 py-3">{typeof inv.unpaidAmount === "number" ? inv.unpaidAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant="secondary">{inv.status ?? "—"}</Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" variant="ghost" onClick={() => (window.location.href = `/invoices/${inv.id}`)}>View</Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         </div>
