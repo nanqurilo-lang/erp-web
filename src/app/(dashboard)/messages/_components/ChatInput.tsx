@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 
 export default function ChatInput({
@@ -58,7 +57,7 @@ export default function ChatInput({
         throw new Error(messageFromServer || "Failed to send message")
       }
 
-      onMessageSent?.(data) // ✅ notify parent
+      onMessageSent?.(data) // notify parent
       setMessage("")
       setFile(null)
     } catch (error) {
@@ -69,22 +68,43 @@ export default function ChatInput({
   }
 
   return (
-    <form onSubmit={handleSendMessage} className="flex gap-2 items-center p-2 border-t border-border bg-background">
+    <form
+      onSubmit={handleSendMessage}
+      className="flex items-center gap-4 px-6 py-4 border-t border-gray-200 bg-white"
+    >
+      {/* Upload file button */}
+      <div className="flex items-center gap-3">
+        <input
+          type="file"
+          onChange={(e) => setFile(e.target.files?.[0] || null)}
+          className="hidden"
+          id="chat-file-input"
+        />
+        <label
+          htmlFor="chat-file-input"
+          className="inline-flex items-center gap-2 rounded-md px-3 py-2 border border-primary text-primary hover:bg-primary/5 cursor-pointer select-none"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.172 6.172a4 4 0 105.656 5.656L21 13.828a6 6 0 10-8.485-8.486L9.172 8.686" />
+          </svg>
+          <span className="text-sm">Upload File</span>
+        </label>
+      </div>
+
+      {/* Message input */}
       <input
         type="text"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder="Type a message..."
-        className="flex-1 border border-border rounded px-3 py-2 bg-background text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        placeholder="Write your message here"
+        className="flex-1 rounded-md border border-gray-200 px-4 py-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary"
       />
-      <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" id="fileInput" />
-      <label htmlFor="fileInput" className="cursor-pointer bg-muted text-foreground px-3 py-2 rounded">
-        {"📎"}
-      </label>
+
+      {/* Send button */}
       <button
         type="submit"
         disabled={loading}
-        className="bg-primary text-primary-foreground px-4 py-2 rounded disabled:opacity-50 hover:opacity-90"
+        className="ml-auto inline-flex items-center justify-center px-5 py-2 rounded-md bg-primary text-white text-sm disabled:opacity-60 hover:brightness-95"
       >
         {loading ? "Sending..." : "Send"}
       </button>

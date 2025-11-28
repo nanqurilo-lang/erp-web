@@ -1,4 +1,4 @@
-//messages/[id]/page.tsx
+// messages/[id]/page.tsx
 
 "use client"
 
@@ -62,8 +62,16 @@ export default function ChatPage({
   const chatRoomId = [currentUser.employeeId, receiverId].sort().join("_")
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col">
-      <ChatWindow chatRoomId={chatRoomId} employeeid={currentUser.employeeId} receiverId={receiverId} />
+    // Outer container styled to match screenshot: subtle top spacing, rounded white chat card area
+    <div className="flex-1 min-h-0 h-[calc(100vh-4rem)] flex items-start justify-center bg-[rgba(245,245,246,0.9)] p-6">
+      <div className="w-full max-w-4xl h-full flex flex-col rounded-xl overflow-hidden bg-white shadow-sm border border-border">
+        {/* ChatWindow occupies full area and retains all behaviour */}
+        <ChatWindow
+          chatRoomId={chatRoomId}
+          employeeid={currentUser.employeeId}
+          receiverId={receiverId}
+        />
+      </div>
     </div>
   )
 }

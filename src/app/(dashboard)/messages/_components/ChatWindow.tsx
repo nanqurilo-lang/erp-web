@@ -68,7 +68,7 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
 
   const messages = data || []
 
-  // Extract receiver details for header
+  // receiver details: prefer explicit receiver info from messages, fallback to first message sender
   const receiverDetails =
     messages.length > 0
       ? messages.find((m) => m.receiverDetails.employeeId === receiverId)?.receiverDetails ||
@@ -92,34 +92,39 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
   if (error) return <p className="text-center text-destructive">{(error as Error).message}</p>
 
   return (
-    <div className="flex flex-col h-full border border-border rounded-lg overflow-hidden bg-background">
-      {/* 👤 Chat Header */}
+    <div className="flex flex-col h-full border border-border rounded-lg overflow-hidden bg-white">
+      {/* Header: rounded card-like, avatar as rounded square, name + two small lines */}
       {receiverDetails && (
-        <div className="flex items-center gap-3 bg-muted px-4 py-3 border-b border-border">
-          <Image
-            src={receiverDetails.profileUrl || "/placeholder.svg?height=48&width=48&query=User%20avatar"}
-            alt={receiverDetails.name}
-            width={48}
-            height={48}
-            className="rounded-full"
-          />
+        <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-border">
+          <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-sm">
+            <Image
+              src={receiverDetails.profileUrl || "/placeholder.svg?height=64&width=64&query=User%20avatar"}
+              alt={receiverDetails.name}
+              width={56}
+              height={56}
+              className="object-cover w-full h-full"
+            />
+          </div>
+
           <div>
-            <h2 className="font-semibold text-foreground">{receiverDetails.name}</h2>
-            <p className="text-sm text-muted-foreground">
-              {receiverDetails.designation || "No designation"} · {receiverDetails.department || "No department"}
-            </p>
+            <h2 className="text-lg font-semibold text-foreground leading-tight">{receiverDetails.name}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{receiverDetails.designation || "No designation"}</p>
+            <p className="text-sm text-muted-foreground">{receiverDetails.department || "No department"}</p>
           </div>
         </div>
       )}
 
-      {/* 💬 Messages list */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3">
+      {/* Messages list */}
+      <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-[rgba(250,250,250,0.8)]">
         {messages.map((msg) => {
           const isMine = msg.senderId === currentUserId
 
           if (msg.deletedForCurrentUser) {
             return (
-              <div key={msg.id} className={`flex items-start gap-2 ${isMine ? "justify-end" : "justify-start"}`}>
+              <div
+                key={msg.id}
+                className={`flex items-start gap-3 ${isMine ? "justify-end" : "justify-start"}`}
+              >
                 {!isMine && (
                   <Image
                     src={msg.senderDetails.profileUrl || "/placeholder.svg?height=32&width=32&query=User%20avatar"}
@@ -137,7 +142,10 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
           }
 
           return (
-            <div key={msg.id} className={`flex items-start gap-2 ${isMine ? "justify-end" : "justify-start"}`}>
+            <div
+              key={msg.id}
+              className={`flex items-start gap-3 ${isMine ? "justify-end" : "justify-start"}`}
+            >
               {!isMine && (
                 <Image
                   src={msg.senderDetails.profileUrl || "/placeholder.svg?height=32&width=32&query=User%20avatar"}
@@ -147,9 +155,10 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
                   className="rounded-full"
                 />
               )}
+
               <div
-                className={`px-3 py-2 rounded-xl max-w-[75%] sm:max-w-md md:max-w-lg break-words ${
-                  isMine ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                className={`px-4 py-3 rounded-2xl max-w-[75%] break-words ${
+                  isMine ? "bg-primary text-primary-foreground" : "bg-white border border-border text-foreground"
                 }`}
               >
                 {msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>}
@@ -158,19 +167,23 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
                     href={msg.fileAttachment.fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block mt-1 underline break-all"
+                    className={`mt-2 inline-block underline break-all ${isMine ? "text-primary-foreground" : "text-foreground"}`}
                   >
                     📎 {msg.fileAttachment.fileName}
                   </a>
                 )}
+                <div className={`text-[11px] mt-1 ${isMine ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                  <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                </div>
               </div>
             </div>
           )
         })}
+
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 📨 ChatInput */}
+      {/* Input (kept identical in behavior) */}
       <ChatInput
         chatRoomId={chatRoomId}
         senderId={currentUserId}
