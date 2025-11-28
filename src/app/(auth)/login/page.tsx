@@ -21,7 +21,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-  const resp = await postAPI("/api/auth/login", { employeeId, password });
+  const resp = await postAPI("/auth/login", { employeeId, password });
   const data = resp.data;
   // setAuthToken will store token into localStorage (as implemented)
   setAuthToken(data.accessToken);
