@@ -13,8 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import EditCreditNoteModal, { CreditNoteShape } from "../credit-notes/components/EditCreditNoteModal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import EditCreditNoteModal, {
+  CreditNoteShape,
+} from "../credit-notes/components/EditCreditNoteModal";
 
 const API_BASE = "https://6jnqmj85-80.inc1.devtunnels.ms";
 
@@ -88,7 +96,7 @@ export default function CreditNotesPage() {
         });
 
         if (!res.ok) {
-          throw new Error(`Failed to fetch credit notes (${res.status})`);
+          throw new Error(`Failed to fetch credit note (${res.status})`);
         }
 
         const data = await res.json();
@@ -116,7 +124,10 @@ export default function CreditNotesPage() {
         map.set(name, name);
       }
     }
-    return [{ value: "all", label: "All" }, ...Array.from(map.values()).map((n) => ({ value: n, label: n }))];
+    return [
+      { value: "all", label: "All" },
+      ...Array.from(map.values()).map((n) => ({ value: n, label: n })),
+    ];
   }, [creditNotes]);
 
   const filteredNotes = useMemo(() => {
@@ -173,7 +184,9 @@ export default function CreditNotesPage() {
 
   // Receive updated CN from modal; update local list (placeholder — keep logic unchanged)
   const handleUpdateFromModal = (updated: CreditNoteShape) => {
-    setCreditNotes((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+    setCreditNotes((prev) =>
+      prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p))
+    );
   };
 
   const handleDelete = (cn: CreditNote) => {
@@ -197,7 +210,10 @@ export default function CreditNotesPage() {
           </div>
 
           <div>
-            <Select onValueChange={(v) => setClientFilter(v)} value={clientFilter}>
+            <Select
+              onValueChange={(v) => setClientFilter(v)}
+              value={clientFilter}
+            >
               <SelectTrigger className="w-36 h-9">
                 <SelectValue placeholder="All" />
               </SelectTrigger>
@@ -223,7 +239,9 @@ export default function CreditNotesPage() {
         {/* Main table container */}
         <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-slate-600">Loading credit notes...</div>
+            <div className="p-8 text-center text-slate-600">
+              Loading credit notes...
+            </div>
           ) : error ? (
             <div className="p-8 text-center text-red-500">Error: {error}</div>
           ) : (
@@ -242,7 +260,10 @@ export default function CreditNotesPage() {
               <TableBody>
                 {filteredNotes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-slate-500">
+                    <TableCell
+                      colSpan={6}
+                      className="text-center py-8 text-slate-500"
+                    >
                       No credit notes found
                     </TableCell>
                   </TableRow>
@@ -251,20 +272,29 @@ export default function CreditNotesPage() {
                     <TableRow key={cn.id} className="even:bg-white/50">
                       {/* Credit Note */}
                       <TableCell className="pl-6 align-middle">
-                        <div className="font-medium text-sm">{cn.creditNoteNumber || `CN-${cn.id}`}</div>
+                        <div className="font-medium text-sm">
+                          {cn.creditNoteNumber || `CN-${cn.id}`}
+                        </div>
                       </TableCell>
 
                       {/* Invoice */}
                       <TableCell className="align-middle">
-                        <div className="text-sm text-slate-600">{cn.invoiceNumber || "INV#014"}</div>
+                        <div className="text-sm text-slate-600">
+                          {cn.invoiceNumber || "INV#014"}
+                        </div>
                       </TableCell>
 
                       {/* Client */}
                       <TableCell className="align-middle">
                         <div className="flex items-center gap-3">
-                          {cn.client?.profilePictureUrl || cn.client?.company?.companyLogoUrl ? (
+                          {cn.client?.profilePictureUrl ||
+                          cn.client?.company?.companyLogoUrl ? (
                             <Image
-                              src={cn.client?.profilePictureUrl ?? cn.client?.company?.companyLogoUrl ?? ""}
+                              src={
+                                cn.client?.profilePictureUrl ??
+                                cn.client?.company?.companyLogoUrl ??
+                                ""
+                              }
                               alt={cn.client?.name || "logo"}
                               width={32}
                               height={32}
@@ -272,13 +302,19 @@ export default function CreditNotesPage() {
                             />
                           ) : (
                             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
-                              {cn.client?.name ? cn.client.name.charAt(0).toUpperCase() : "S"}
+                              {cn.client?.name
+                                ? cn.client.name.charAt(0).toUpperCase()
+                                : "S"}
                             </div>
                           )}
 
                           <div>
-                            <div className="font-medium text-sm">{cn.client?.name || "Unknown"}</div>
-                            <div className="text-xs text-slate-400">{cn.project?.projectName || ""}</div>
+                            <div className="font-medium text-sm">
+                              {cn.client?.name || "Unknown"}
+                            </div>
+                            <div className="text-xs text-slate-400">
+                              {cn.project?.projectName || ""}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
@@ -289,27 +325,40 @@ export default function CreditNotesPage() {
                           <div className="text-sm font-semibold">
                             Total :{" "}
                             <span className="font-semibold">
-                              {formatCurrency(cn.currency, cn.totalAmount ?? cn.amount ?? 0)}
+                              {formatCurrency(
+                                cn.currency,
+                                cn.totalAmount ?? cn.amount ?? 0
+                              )}
                             </span>
                           </div>
 
                           <div className="mt-1 text-sm">
-                            <span className="text-amber-600 font-medium">Adjustment : </span>
-                            <span className="text-slate-700">{formatNumberTwo(cn.adjustment)}</span>
+                            <span className="text-amber-600 font-medium">
+                              Adjustment :{" "}
+                            </span>
+                            <span className="text-slate-700">
+                              {formatNumberTwo(cn.adjustment)}
+                            </span>
                           </div>
                         </div>
                       </TableCell>
 
                       {/* Date */}
                       <TableCell className="align-middle">
-                        <div className="text-sm">{formatDate(cn.creditNoteDate)}</div>
+                        <div className="text-sm">
+                          {formatDate(cn.creditNoteDate)}
+                        </div>
                       </TableCell>
 
                       {/* Action */}
                       <TableCell className="pr-6 align-middle">
                         <div className="flex justify-between relative">
                           <button
-                            onClick={() => setOpenMenuFor(openMenuFor === cn.id ? null : cn.id)}
+                            onClick={() =>
+                              setOpenMenuFor(
+                                openMenuFor === cn.id ? null : cn.id
+                              )
+                            }
                             className="p-1 rounded hover:bg-slate-100"
                             title="More"
                           >
@@ -368,16 +417,29 @@ export default function CreditNotesPage() {
         {/* Filters Drawer (simple) */}
         {showFilters && (
           <>
-            <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setShowFilters(false)} />
+            <div
+              className="fixed inset-0 bg-black/30 z-40"
+              onClick={() => setShowFilters(false)}
+            />
             <aside className="fixed right-0 top-0 h-full w-80 bg-white border-l z-50 flex flex-col">
               <div className="flex items-center justify-between p-4 border-b">
                 <h3 className="font-medium text-slate-800">Filters</h3>
-                <button onClick={() => setShowFilters(false)} className="p-1 rounded hover:bg-slate-100">X</button>
+                <button
+                  onClick={() => setShowFilters(false)}
+                  className="p-1 rounded hover:bg-slate-100"
+                >
+                  X
+                </button>
               </div>
               <div className="p-4 flex-1 overflow-auto">
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Project</label>
-                  <Select value={projectFilter} onValueChange={(v) => setProjectFilter(v)}>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Project
+                  </label>
+                  <Select
+                    value={projectFilter}
+                    onValueChange={(v) => setProjectFilter(v)}
+                  >
                     <SelectTrigger className="w-full h-9">
                       <SelectValue placeholder="All" />
                     </SelectTrigger>
@@ -425,7 +487,9 @@ export default function CreditNotesPage() {
         }}
         onUpdate={(updated) => {
           // update local list (UI only) — keep behavior unchanged otherwise
-          setCreditNotes((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+          setCreditNotes((prev) =>
+            prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p))
+          );
         }}
       />
 
@@ -479,7 +543,9 @@ function ViewCreditNoteModal({
         >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b">
-            <h3 className="text-lg font-semibold text-slate-900">Credit Note Details</h3>
+            <h3 className="text-lg font-semibold text-slate-900">
+              Credit Note Details
+            </h3>
             <button
               onClick={onClose}
               className="p-1 rounded hover:bg-slate-100"
@@ -508,15 +574,28 @@ function ViewCreditNoteModal({
 
                 {/* Values column (right) */}
                 <div className="col-span-8 text-sm text-slate-800 space-y-6">
-                  <div className="py-1 font-medium">{creditNote.creditNoteNumber || `CN-${creditNote.id}`}</div>
+                  <div className="py-1 font-medium">
+                    {creditNote.creditNoteNumber || `CN-${creditNote.id}`}
+                  </div>
 
-                  <div className="py-1">{creditNote.creditNoteDate ? new Date(creditNote.creditNoteDate).toLocaleDateString("en-GB") : ""}</div>
+                  <div className="py-1">
+                    {creditNote.creditNoteDate
+                      ? new Date(creditNote.creditNoteDate).toLocaleDateString(
+                          "en-GB"
+                        )
+                      : ""}
+                  </div>
 
                   <div className="py-1">
                     <div className="flex items-center gap-3">
-                      {creditNote.client?.profilePictureUrl || creditNote.client?.company?.companyLogoUrl ? (
+                      {creditNote.client?.profilePictureUrl ||
+                      creditNote.client?.company?.companyLogoUrl ? (
                         <Image
-                          src={creditNote.client?.profilePictureUrl ?? creditNote.client?.company?.companyLogoUrl ?? ""}
+                          src={
+                            creditNote.client?.profilePictureUrl ??
+                            creditNote.client?.company?.companyLogoUrl ??
+                            ""
+                          }
                           alt={creditNote.client?.name ?? "client"}
                           width={32}
                           height={32}
@@ -524,28 +603,49 @@ function ViewCreditNoteModal({
                         />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
-                          {creditNote.client?.name ? creditNote.client.name.charAt(0).toUpperCase() : "S"}
+                          {creditNote.client?.name
+                            ? creditNote.client.name.charAt(0).toUpperCase()
+                            : "S"}
                         </div>
                       )}
                       <div>
-                        <div className="font-medium">{creditNote.client?.name ?? "Unknown"}</div>
-                        <div className="text-xs text-slate-400">{creditNote.client?.company?.companyName ?? ""}</div>
+                        <div className="font-medium">
+                          {creditNote.client?.name ?? "Unknown"}
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {creditNote.client?.company?.companyName ?? ""}
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="py-1">{creditNote.project?.projectName ?? ""}</div>
-
-                  <div className="py-1">{formatCurrencySafe(creditNote.currency, creditNote.amount)}</div>
-
                   <div className="py-1">
-                    {formatCurrencySafe(creditNote.currency, creditNote.adjustment)}{" "}
-                    <span className="text-slate-400">({creditNote.adjustmentPositive ? "Add" : "Subtract"})</span>
+                    {creditNote.project?.projectName ?? ""}
                   </div>
 
-                  <div className="py-1">{creditNote.tax != null ? `${Number(creditNote.tax).toFixed(0)} %` : ""}</div>
+                  <div className="py-1">
+                    {formatCurrencySafe(creditNote.currency, creditNote.amount)}
+                  </div>
 
-                  <div className="py-1 text-slate-600">{creditNote.notes ?? ""}</div>
+                  <div className="py-1">
+                    {formatCurrencySafe(
+                      creditNote.currency,
+                      creditNote.adjustment
+                    )}{" "}
+                    <span className="text-slate-400">
+                      ({creditNote.adjustmentPositive ? "Add" : "Subtract"})
+                    </span>
+                  </div>
+
+                  <div className="py-1">
+                    {creditNote.tax != null
+                      ? `${Number(creditNote.tax).toFixed(0)} %`
+                      : ""}
+                  </div>
+
+                  <div className="py-1 text-slate-600">
+                    {creditNote.notes ?? ""}
+                  </div>
 
                   <div className="py-1">
                     {creditNote.fileUrl ? (
@@ -568,8 +668,17 @@ function ViewCreditNoteModal({
                           className="absolute right-0 -top-3 bg-white border rounded-full p-1 shadow hover:bg-slate-100"
                           title="Download"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-600" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M3 14a1 1 0 011-1h3v2H5v1h10v-1h-2v-2h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM9 3a1 1 0 00-1 1v6H6l4 4 4-4h-2V4a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4 text-slate-600"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M3 14a1 1 0 011-1h3v2H5v1h10v-1h-2v-2h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM9 3a1 1 0 00-1 1v6H6l4 4 4-4h-2V4a1 1 0 00-1-1H9z"
+                              clipRule="evenodd"
+                            />
                           </svg>
                         </a>
                       </div>
@@ -584,7 +693,10 @@ function ViewCreditNoteModal({
 
           {/* Footer (close only) */}
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t">
-            <button onClick={onClose} className="px-4 py-2 rounded border hover:bg-slate-50">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded border hover:bg-slate-50"
+            >
               Close
             </button>
           </div>
