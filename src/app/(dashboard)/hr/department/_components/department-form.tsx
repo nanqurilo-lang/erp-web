@@ -1,86 +1,127 @@
-"use client"
+"use client";
 
-import type * as React from "react"
-import { useState, useMemo } from "react"
-import { Department } from "../../../../../types/departments"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "sonner"
+import type * as React from "react";
+import { useState, useMemo, useEffect } from "react";
+import { Department } from "../../../../../types/departments";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 
 type Props = {
-  parents: Department[]
-  initialParentId?: number | null
-  onSuccess?: (d: Department) => void
-}
+  parents: Department[];
+  initialName?: string; // ⭐ NEW
+  initialParentId?: number | null;
+  editId?: number | null; // ⭐ NEW (this tells form it's EDIT mode)
+  onSuccess?: (d: Department) => void;
+};
 
-export function CreateDepartmentForm({ parents, initialParentId = null, onSuccess }: Props) {
-  const [name, setName] = useState("")
-  const [parentId, setParentId] = useState<number | null>(initialParentId)
-  const [submitting, setSubmitting] = useState(false)
+export function CreateDepartmentForm({
+  parents,
+  initialName = "",
+  initialParentId = null,
+  editId = null,
+  onSuccess,
+}: Props) {
+  // ⭐ Auto-fill form for edit
+  const [name, setName] = useState(initialName);
+  const [parentId, setParentId] = useState<number | null>(initialParentId);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Sort parents alphabetically
+  // When edit mode loads late (SWR), sync form again
+  useEffect(() => {
+    setName(initialName);
+  }, [initialName]);
+
+  useEffect(() => {
+    setParentId(initialParentId);
+  }, [initialParentId]);
+
+  // Sort parent list
   const parentOptions = useMemo(
-    () => parents.sort((a, b) => a.departmentName.localeCompare(b.departmentName)),
-    [parents],
-  )
+    () =>
+      parents.sort((a, b) => a.departmentName.localeCompare(b.departmentName)),
+    [parents]
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name.trim()) {
-      toast.error("Department name is required")
-      return
-    }
-    try {
-      setSubmitting(true)
-      // NOTE: Using localStorage is generally discouraged for storing sensitive tokens
-      // in client-side code, but is used here as per the pattern provided.
-      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null
-      if (!token) throw new Error("Access token not found")
+    e.preventDefault();
 
-      // *** API Route Update: Changed from "/api/hr/department" to "/api/departments" ***
-      const res = await fetch("/api/hr/department", {
-        method: "POST",
+    if (!name.trim()) {
+      toast.error("Department name is required");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("accessToken")
+          : null;
+      if (!token) throw new Error("Access token not found");
+
+      const payload = {
+        departmentName: name.trim(),
+        parentDepartmentId: parentId,
+      };
+
+      let url = "";
+      let method = "";
+
+      // ⭐ Detect mode
+      if (editId) {
+        // EDIT MODE
+        url = `/api/hr/department/${editId}`;
+        method = "PUT";
+      } else {
+        // CREATE MODE
+        url = `/api/hr/department`;
+        method = "POST";
+      }
+
+      const res = await fetch(url, {
+        method,
         headers: {
-          // The proxy API route expects the Authorization header to be passed through
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ departmentName: name.trim(), parentDepartmentId: parentId }),
-      })
+        body: JSON.stringify(payload),
+      });
 
       if (!res.ok) {
-        // Attempt to parse the error message from the response body
-        const errorBody = await res.json().catch(() => ({}))
-        
-        // Extract the error message, checking for 'error' (from Next.js API) 
-        // or 'message' (a common alternative) before falling back.
-        const errorMessage = errorBody.error || errorBody.message || "Failed to create department"
-        
-        throw new Error(errorMessage)
+        const errorBody = await res.json().catch(() => ({}));
+        throw new Error(
+          errorBody.error || errorBody.message || "Failed to submit form"
+        );
       }
 
-      const data: Department = await res.json()
-      setName("")
-      // Reset parentId only if it wasn't pre-set
-      if (initialParentId == null) setParentId(null)
-      toast.success("Department created", {
-        description: `"${data.departmentName}" was added successfully.`,
-      })
-      onSuccess?.(data)
+      const data: Department = await res.json();
+
+      toast.success(editId ? "Department updated" : "Department created", {
+        description: `"${data.departmentName}" saved successfully.`,
+      });
+
+      onSuccess?.(data);
     } catch (err: any) {
-      console.error("Department creation error:", err)
-      toast.error("Create failed", {
+      toast.error("Request failed", {
         description: err.message,
-      })
+      });
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-4">
+      {/* NAME */}
       <div className="grid gap-2">
         <Label htmlFor="dept-name">Department name</Label>
         <Input
@@ -91,6 +132,7 @@ export function CreateDepartmentForm({ parents, initialParentId = null, onSucces
         />
       </div>
 
+      {/* PARENT */}
       <div className="grid gap-2">
         <Label>Parent department</Label>
         <Select
@@ -111,9 +153,16 @@ export function CreateDepartmentForm({ parents, initialParentId = null, onSucces
         </Select>
       </div>
 
+      {/* SUBMIT BUTTON */}
       <Button type="submit" disabled={submitting}>
-        {submitting ? "Creating..." : "Create Department"}
+        {submitting
+          ? editId
+            ? "Updating..."
+            : "Creating..."
+          : editId
+          ? "Update Department"
+          : "Create Department"}
       </Button>
     </form>
-  )
+  );
 }

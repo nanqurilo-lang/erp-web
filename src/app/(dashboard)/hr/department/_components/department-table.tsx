@@ -1,9 +1,16 @@
-"use client"
+"use client";
 
-import { useRouter } from "next/navigation"
-import type { Department } from "../../../../../types/departments"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation";
+import type { Department } from "../../../../../types/departments";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,46 +18,56 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { EllipsisVertical, Trash2, PencilLine } from "lucide-react"
-import { toast } from "sonner"
+} from "@/components/ui/dropdown-menu";
+import { EllipsisVertical, Trash2, PencilLine } from "lucide-react";
+import { toast } from "sonner";
 
 type Props = {
-  data: Department[]
-  onDeleted?: () => void
-}
+  data: Department[];
+  onDeleted?: () => void; // SWR mutate trigger
+};
 
 export function DepartmentTable({ data, onDeleted }: Props) {
-  const router = useRouter()
+  const router = useRouter();
 
+  // ⭐ FIXED: correct delete API
   const handleDelete = async (id: number) => {
-    const ok = confirm("Delete this department?")
-    if (!ok) return
+    const ok = confirm("Delete this department?");
+    if (!ok) return;
 
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null
-      if (!token) throw new Error("Access token not found")
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("Access token not found");
 
-      const res = await fetch(`/api/hr/department/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      // Backend API → NOT the Next.js API
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_MAIN}/admin/departments/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || "Failed to delete department")
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to delete department");
       }
 
-      toast.success("Department deleted")
-      onDeleted?.() // let parent SWR revalidate
-    } catch (e: any) {
+      toast.success("Department deleted");
+      onDeleted?.(); // SWR refetch
+    } catch (error: any) {
       toast.error("Delete failed", {
-        description: e?.message,
-      })
+        description: error.message,
+      });
     }
-  }
+  };
+
+  // ⭐ FIXED EDIT HANDLER
+  const handleEdit = (id: number) => {
+    router.push(`/hr/department/${id}`); // your edit page
+  };
 
   return (
     <div className="rounded-lg border bg-card">
@@ -59,31 +76,41 @@ export function DepartmentTable({ data, onDeleted }: Props) {
           <TableRow>
             <TableHead className="w-[45%]">Name</TableHead>
             <TableHead className="w-[45%]">Parent Department</TableHead>
-            <TableHead className="text-right w-[10%]">Action</TableHead>
+            <TableHead className="text-left w-[10%]">Action</TableHead>
           </TableRow>
         </TableHeader>
+
         <TableBody>
           {data.map((dept) => (
             <TableRow key={dept.id}>
-              <TableCell className="font-medium">{dept.departmentName}</TableCell>
+              <TableCell className="font-medium">
+                {dept.departmentName}
+              </TableCell>
+
               <TableCell className="text-muted-foreground">
                 {dept.parentDepartmentName ?? "--"}
               </TableCell>
-              <TableCell className="text-right">
+
+              <TableCell className="text-left">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" aria-label="Open row actions">
+                    <Button variant="ghost" size="icon">
                       <EllipsisVertical className="h-5 w-5" />
                     </Button>
                   </DropdownMenuTrigger>
+
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
+
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => router.push(`/hr/department/${dept.id}`)}>
+
+                    <DropdownMenuItem onClick={() => handleEdit(dept.id)}>
                       <PencilLine className="mr-2 h-4 w-4" />
-                      Edit / View
+                      Edit
                     </DropdownMenuItem>
+
                     <DropdownMenuSeparator />
+
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
                       onClick={() => handleDelete(dept.id)}
@@ -96,9 +123,13 @@ export function DepartmentTable({ data, onDeleted }: Props) {
               </TableCell>
             </TableRow>
           ))}
+
           {data.length === 0 && (
             <TableRow>
-              <TableCell colSpan={3} className="text-center text-muted-foreground">
+              <TableCell
+                colSpan={3}
+                className="text-center text-muted-foreground"
+              >
                 No departments found
               </TableCell>
             </TableRow>
@@ -106,5 +137,5 @@ export function DepartmentTable({ data, onDeleted }: Props) {
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }
