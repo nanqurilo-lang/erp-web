@@ -46,7 +46,7 @@ type Payment = {
   receiptFileUrl?: string | null;
 };
 
-const BASE = "https://6jnqmj85-80.inc1.devtunnels.ms";
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE || "https://6jnqmj85-80.inc1.devtunnels.ms";
 
 export default function ClientPaymentsTable({
   clientId,
@@ -97,7 +97,7 @@ export default function ClientPaymentsTable({
 
     const controller = new AbortController();
     const idStr = String(clientId);
-    const url = `${BASE}/api/payments/client/${encodeURIComponent(idStr)}`;
+    const url = `${BASE_URL}/api/payments/client/${encodeURIComponent(idStr)}`;
 
     setLoading(true);
     setError(null);
@@ -250,7 +250,7 @@ export default function ClientPaymentsTable({
   // ---------- Payment Gateway API integration ----------
   const fetchGateways = async () => {
     try {
-      const res = await fetch(`${BASE}/api/payment-gateways`, {
+      const res = await fetch(`${BASE_URL}/api/payment-gateways`, {
         headers: {
           Authorization: `Bearer ${typeof window !== "undefined" ? localStorage.getItem("accessToken") || "" : ""}`,
           Accept: "application/json",
@@ -290,7 +290,7 @@ export default function ClientPaymentsTable({
 
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") || "" : "";
-      const res = await fetch(`${BASE}/api/payment-gateways`, {
+      const res = await fetch(`${BASE_URL}/api/payment-gateways`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -323,7 +323,7 @@ export default function ClientPaymentsTable({
     if (!confirm("Delete this gateway?")) return;
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") || "" : "";
-      const res = await fetch(`${BASE}/api/payment-gateways/${encodeURIComponent(String(id))}`, {
+      const res = await fetch(`${BASE_URL}/api/payment-gateways/${encodeURIComponent(String(id))}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

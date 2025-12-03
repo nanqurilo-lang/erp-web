@@ -46,7 +46,7 @@ type CreditNote = {
   createdAt?: string | null;
 };
 
-const BASE = "https://6jnqmj85-80.inc1.devtunnels.ms"; // provided base url
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE ||  "https://6jnqmj85-80.inc1.devtunnels.ms"; // provided base url
 
 export default function ClientCreditNotesTable({ clientId }: { clientId?: string | number | null }) {
   const router = useRouter();
@@ -70,7 +70,7 @@ export default function ClientCreditNotesTable({ clientId }: { clientId?: string
     // Build URL using the clientId value directly (it may be string or number)
     const controller = new AbortController();
     const idStr = String(clientId);
-    const url = `${BASE}/api/credit-notes/client/${encodeURIComponent(idStr)}`;
+    const url = `${BASE_URL}/api/credit-notes/client/${encodeURIComponent(idStr)}`;
 
     setLoading(true);
     setError(null);
