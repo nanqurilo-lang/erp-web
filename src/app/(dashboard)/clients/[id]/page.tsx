@@ -47,6 +47,8 @@ import {
 } from "lucide-react";
 import ClientCreditNotesTable from "../components/client/ClientCreditNotesTable";
 import ClientPaymentsTable from "../components/client/ClientPaymentsTable";
+import ClientDocuments from "../components/client/ClientDocuments";
+import ClientNotesTable from "../components/client/ClientNotesTable";
 
 const API_BASE = "https://6jnqmj85-80.inc1.devtunnels.ms"
 
@@ -146,8 +148,10 @@ export default function ClientDetailPage() {
 
   // tabs
   const [activeTab, setActiveTab] = useState<
-    "profile" | "projects" | "invoices" |"creditnotes"| "Payments"| string
+    "profile" | "projects" | "invoices" |"creditnotes"| "payments"| "documents"|"notes"| string
   >("profile");
+
+  const token =localStorage.getItem("accessToken") 
 
   // ---------- fetch client ----------
   const fetchClient = useCallback(async () => {
@@ -643,6 +647,8 @@ export default function ClientDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   
    const clientId=client?.clientId
+   const clientNumericId = client?.id
+   console.log(clientNumericId)
 
   const resetAddForm = () => {
     setShortCode("");
@@ -1207,8 +1213,34 @@ useEffect(() => {
         </div>
       )}
 
+     {activeTab === "notes" && (
+ <ClientNotesTable
+  clientId={clientNumericId} // string | number or object with .id
+  authToken={token}
+  onView={(note) => {
+    // open view modal or navigate
+    console.log("view", note);
+  }}
+  onEdit={(note) => {
+    // navigate to edit page or open form component
+    // e.g. router.push(`/clients/${clientId}/notes/${note.id}/edit`);
+    console.log("edit", note);
+  }}
+  onDelete={(note) => {
+    // optional: already optimistic remove happens inside component
+    console.log("deleted", note);
+  }}
+/>
+
+)}
 
 
+
+ {activeTab === "documents" && (
+  <ClientDocuments clientId={client} authToken={token} />
+
+)}
+  
 
       {/* ADD PROJECT MODAL */}
       {showAddModal && (
