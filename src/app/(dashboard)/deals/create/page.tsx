@@ -10,6 +10,13 @@ type Employee = {
   name: string;
 };
 
+type Lead = {
+  id: number;
+  name: string;
+  email?: string | null;
+  companyName?: string | null;
+};
+
 export default function CreateDealPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -27,14 +34,22 @@ export default function CreateDealPage() {
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
   const [stagesLoading, setStagesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Fetch employees and stages
+  // NEW: categories state + modal flag
+  const [categories, setCategories] = useState<string[]>(["General", "Corporate", "Retail"]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState("");
+
+  const API_BASE = "https://6jnqmj85-80.inc1.devtunnels.ms";
+
+  // Fetch employees, stages and leads
   useEffect(() => {
-    const fetchEmployeesAndStages = async () => {
+    const fetchEmployeesStagesLeads = async () => {
       try {
         const token = localStorage.getItem("accessToken");
         if (!token) {
@@ -60,6 +75,20 @@ export default function CreateDealPage() {
         if (stageData.length > 0) {
           setFormData((prev) => ({ ...prev, dealStage: stageData[0].name }));
         }
+
+        // Fetch leads from provided base URL
+        const leadsRes = await fetch(`${API_BASE}/leads`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!leadsRes.ok) {
+          // do not fail the whole form if leads endpoint fails — set empty leads and continue
+          console.warn("Failed to fetch leads for dropdown");
+          setLeads([]);
+        } else {
+          const leadsData = await leadsRes.json();
+          // Expecting array as you provided; map to Lead[]
+          setLeads(Array.isArray(leadsData) ? leadsData : []);
+        }
       } catch (err) {
         console.error(err);
         setError("Failed to load data. Please try again later.");
@@ -68,7 +97,7 @@ export default function CreateDealPage() {
       }
     };
 
-    fetchEmployeesAndStages();
+    fetchEmployeesStagesLeads();
   }, []);
 
   const handleInputChange = (
@@ -157,6 +186,39 @@ export default function CreateDealPage() {
     );
   }
 
+  // ---------- CATEGORY MODAL HELPERS (NEW) ----------
+  const openCategoryModal = () => {
+    setNewCategoryInput("");
+    setShowCategoryModal(true);
+  };
+
+  const closeCategoryModal = () => {
+    setShowCategoryModal(false);
+    setNewCategoryInput("");
+  };
+
+  const saveCategory = () => {
+    const name = newCategoryInput.trim();
+    if (!name) return;
+    // avoid duplicates
+    if (!categories.includes(name)) {
+      setCategories((prev) => [...prev, name]);
+      setFormData((prev) => ({ ...prev, dealCategory: name })); // set selected category to new one
+    } else {
+      // if exists, just select it
+      setFormData((prev) => ({ ...prev, dealCategory: name }));
+    }
+    closeCategoryModal();
+  };
+
+  const deleteCategory = (name: string) => {
+    if (!confirm(`Delete category "${name}"?`)) return;
+    setCategories((prev) => prev.filter((c) => c !== name));
+    // if the deleted category was selected, clear selection
+    setFormData((prev) => (prev.dealCategory === name ? { ...prev, dealCategory: "" } : prev));
+  };
+  // --------------------------------------------------
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-start justify-center py-10 px-4">
       {/* Outer centered container to mimic a modal page */}
@@ -183,17 +245,21 @@ export default function CreateDealPage() {
 
             {/* 3-column layout like image */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Lead Contact */}
+              {/* Lead Contact (POPULATED FROM /leads) */}
               <div>
                 <label className="block text-xs text-gray-500 mb-2">Lead Contact *</label>
                 <select
-                  name="dealContact"
-                  value={formData.dealContact}
+                  name="leadId"
+                  value={formData.leadId}
                   onChange={handleInputChange}
                   className="w-full p-2 border rounded-md bg-white"
                 >
                   <option value="">{/* default empty like screenshot */}--</option>
-                  {/* If you want to include the lead list, map here */}
+                  {leads.map((lead) => (
+                    <option key={lead.id} value={String(lead.id)}>
+                      {lead.name || `#${lead.id}`}{lead.companyName ? ` — ${lead.companyName}` : ""}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -253,14 +319,18 @@ export default function CreateDealPage() {
                     className="w-full p-2 border rounded-md bg-white"
                   >
                     <option value="">--</option>
-                    <option value="Corporate">Corporate</option>
-                    <option value="Retail">Retail</option>
+                    {categories.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
                   </select>
                 </div>
+                {/* REPLACED: alert -> modal opener */}
                 <button
                   type="button"
                   className="px-3 py-2 bg-gray-200 rounded-md text-sm"
-                  onClick={() => alert("Add category (not implemented)")}
+                  onClick={openCategoryModal}
                 >
                   Add
                 </button>
@@ -318,7 +388,7 @@ export default function CreateDealPage() {
               <div>
                 <label className="block text-xs text-gray-500 mb-2">Deal Watcher</label>
                 <select
-                  name="dealWatchers" // single-select shown like screenshot; multi-checker is below
+                  name="dealWatchers"
                   value={formData.dealWatchers[0] ?? ""}
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, dealWatchers: e.target.value ? [e.target.value] : [] }))
@@ -366,9 +436,7 @@ export default function CreateDealPage() {
             <button
               type="submit"
               disabled={loading}
-              className={`px-6 py-2 rounded-full text-white ${
-                loading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-              }`}
+              className={`px-6 py-2 rounded-full text-white ${loading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
             >
               {loading ? "Creating..." : "Update"}
             </button>
@@ -381,6 +449,75 @@ export default function CreateDealPage() {
           {success && <div className="text-sm text-green-600 font-medium">{success}</div>}
         </div>
       </div>
+
+      {/* ================= CATEGORY MODAL (matches screenshot) ================= */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black/30">
+          <div className="w-full max-w-2xl bg-white rounded-lg shadow-lg border border-slate-200">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <h4 className="font-medium">Deal Category</h4>
+              <button onClick={closeCategoryModal} className="text-slate-500">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-4">
+              <table className="w-full table-auto border-collapse">
+                <thead>
+                  <tr className="bg-blue-50 text-left">
+                    <th className="p-3 text-sm">#</th>
+                    <th className="p-3 text-sm">Category Name</th>
+                    <th className="p-3 text-sm">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.length === 0 && (
+                    <tr className="border-t">
+                      <td className="p-3 text-sm" colSpan={3}>No categories</td>
+                    </tr>
+                  )}
+                  {categories.map((c, i) => (
+                    <tr key={c} className="border-t">
+                      <td className="p-3 text-sm">{i + 1}</td>
+                      <td
+                        className="p-3 text-sm cursor-pointer"
+                        onClick={() => {
+                          // pick category on click and close modal
+                          setFormData((prev) => ({ ...prev, dealCategory: c }));
+                          setShowCategoryModal(false);
+                        }}
+                      >
+                        {c}
+                      </td>
+                      <td className="p-3 text-sm text-center">
+                        <button onClick={() => deleteCategory(c)} className="text-red-600">🗑</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="mt-4">
+                <label className="text-sm block mb-1">Deal Category Name *</label>
+                <input
+                  className="w-full px-3 py-2 rounded-md border border-slate-200"
+                  value={newCategoryInput}
+                  onChange={(e) => setNewCategoryInput(e.target.value)}
+                  placeholder="--"
+                />
+              </div>
+
+              <div className="mt-4 flex justify-end gap-3">
+                <button onClick={closeCategoryModal} className="px-4 py-2 border rounded-md">Cancel</button>
+                <button onClick={saveCategory} className="px-4 py-2 bg-blue-600 text-white rounded-md">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ====================================================================== */}
     </div>
   );
 }

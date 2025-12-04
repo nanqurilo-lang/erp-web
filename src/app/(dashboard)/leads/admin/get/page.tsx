@@ -742,7 +742,7 @@ export function AddLeadModal({
         </aside>
       </div>
 
-      {SmallAddListModal}
+      {SmallAddListModal} 
     </>
   );
 }
@@ -777,6 +777,7 @@ function LeadRow({
   }, [open]);
 
   const convert = async () => {
+    
     if (!confirm("Convert this lead to client?")) return;
     try {
       const token = localStorage.getItem("accessToken");
@@ -1141,7 +1142,7 @@ export default function LeadsAdminPage() {
 
             {/* Footer */}
             <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground">
-              <div>Result per page - 8</div>
+              <div>Result per page -8</div>
               <div>Page 1 of 1</div>
               <div className="flex items-center gap-3">
                 <button className="p-2 rounded hover:bg-slate-100">

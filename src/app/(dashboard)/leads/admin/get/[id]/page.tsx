@@ -1313,8 +1313,15 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     router.push(`/leads/admin/edit/${params.id}`);
   };
 
+  // const handleMove = () => {
+  // setMenuOpen(false);
+  //   router.push(`/clients/new`);
+  // };
+
+  
   const convertToClient = async () => {
     setMenuOpen(false);
+    //router.push(`/clients/new`);
     if (!confirm("Convert this lead to client?")) return;
     try {
       const token = localStorage.getItem("accessToken");

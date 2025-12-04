@@ -1,19 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
 import { Badge } from "@/components/ui/badge";
 
 import {
@@ -25,25 +22,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
 import { Button } from "@/components/ui/button";
 
-import {
-  Filter,
-  MoreHorizontal,
-  Eye,
-  Edit,
-  TrendingUp,
-  Trash2,
-  X,
-} from "lucide-react";
+import { MoreHorizontal, Eye, Edit, TrendingUp, Trash2 } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -95,19 +76,24 @@ export default function ClientsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const [showFiltersDrawer, setShowFiltersDrawer] = useState(false);
   const [clientNameFilter, setClientNameFilter] = useState("All");
   const [headerCategoryFilter, setHeaderCategoryFilter] = useState("All");
 
   const placeholderImg = "/placeholder.png";
 
-  async function fetchClients() {
+  const fetchClients = useCallback(async () => {
     setLoading(true);
+    setError(null);
 
     try {
+      if (!BASE) {
+        throw new Error("API base not configured (NEXT_PUBLIC_MAIN).");
+      }
+
       const token = localStorage.getItem("accessToken");
       if (!token) {
         setError("Token missing — please login again.");
+        setLoading(false);
         return;
       }
 
@@ -118,22 +104,55 @@ export default function ClientsPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed: ${response.status}`);
+        throw new Error(`Failed to fetch clients: ${response.status}`);
       }
 
       const data = await response.json();
-      setClients(data);
-      setFilteredClients(data);
+      setClients(Array.isArray(data) ? data : []);
+      setFilteredClients(Array.isArray(data) ? data : []);
     } catch (err: any) {
       setError(err.message || "Error fetching clients");
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
+  // initial load
   useEffect(() => {
     fetchClients();
-  }, []);
+  }, [fetchClients]);
+
+  // Listen for refresh triggers:
+  useEffect(() => {
+    // storage event (other tabs/windows)
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "clients:refresh") {
+        fetchClients();
+      }
+    };
+
+    // custom event for same-tab refresh
+    const onCustom = () => {
+      fetchClients();
+    };
+
+    // when page becomes visible again (user returns), re-fetch
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchClients();
+      }
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("clients:refresh", onCustom);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("clients:refresh", onCustom);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [fetchClients]);
 
   // Filtering
   useEffect(() => {
@@ -143,9 +162,9 @@ export default function ClientsPage() {
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q) ||
-          c.clientId.toLowerCase().includes(q)
+          (c.name || "").toLowerCase().includes(q) ||
+          (c.email || "").toLowerCase().includes(q) ||
+          (c.clientId || "").toLowerCase().includes(q)
       );
     }
 
@@ -185,7 +204,7 @@ export default function ClientsPage() {
   // Actions
   const handleView = (id: string) => router.push(`/clients/${id}`);
   const handleEdit = (id: string) => router.push(`/clients/${id}/edit`);
-  const handleMove = (id: string) => router.push(`/deals/new?clientId=${id}`);
+  const handleMove = (id: string) => router.push(`/deals/create`);
 
   const handleDelete = async (client: Client) => {
     if (!confirm(`Delete ${client.name}?`)) return;
@@ -200,8 +219,9 @@ export default function ClientsPage() {
 
       if (!response.ok) throw new Error("Delete failed");
 
+      // re-fetch after delete
       fetchClients();
-    } catch {
+    } catch (err) {
       alert("Failed to delete");
     }
   };
@@ -261,7 +281,7 @@ export default function ClientsPage() {
                           src={client.profilePictureUrl || placeholderImg}
                         />
                         <AvatarFallback>
-                          {client.name[0].toUpperCase()}
+                          {client.name?.[0]?.toUpperCase() ?? "?"}
                         </AvatarFallback>
                       </Avatar>
 
@@ -325,6 +345,22 @@ export default function ClientsPage() {
               ))}
             </TableBody>
           </Table>
+
+          {/* simple pagination controls */}
+          <div className="mt-4 flex items-center justify-between">
+            <div>
+              Page {currentPage} of {Math.max(1, totalPages)}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>
+                Prev
+              </Button>
+              <Button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>
+                Next
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

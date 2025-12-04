@@ -1,256 +1,386 @@
-"use client"
+"use client";
 
-import React, { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { X, CheckCircle, AlertCircle, ArrowRight } from "lucide-react"
-import ClientDetailPage from "../[id]/page"
+import React, { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { X, CheckCircle, AlertCircle, ArrowRight } from "lucide-react";
 
-const API_BASE = "https://6jnqmj85-80.inc1.devtunnels.ms"
+const API_BASE = "https://6jnqmj85-80.inc1.devtunnels.ms";
 
-export default function AddClientDetails() {
-  const router = useRouter()
+export default function EditClientDetails() {
+  const router = useRouter();
+  const params = useParams();
+  const id = params?.id as string | undefined;
 
   // Personal
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [mobile, setMobile] = useState("")
-  const [country, setCountry] = useState("")
-  const [gender, setGender] = useState("")
-  const [language, setLanguage] = useState("")
-  const [receiveEmail, setReceiveEmail] = useState(false)
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [country, setCountry] = useState("");
+  const [gender, setGender] = useState("");
+  const [language, setLanguage] = useState("English");
+  const [receiveEmail, setReceiveEmail] = useState(false);
 
   // Category/subcategory (value = name)
-  const [category, setCategory] = useState("")
-  const [subCategory, setSubCategory] = useState("")
+  const [category, setCategory] = useState("");
+  const [subCategory, setSubCategory] = useState("");
 
   // Company
-  const [companyName, setCompanyName] = useState("")
-  const [website, setWebsite] = useState("")
-  const [officePhone, setOfficePhone] = useState("")
-  const [taxName, setTaxName] = useState("")
-  const [gstVatNo, setGstVatNo] = useState("")
-  const [address, setAddress] = useState("")
-  const [shippingAddress, setShippingAddress] = useState("")
-  const [city, setCity] = useState("")
-  const [stateVal, setStateVal] = useState("")
-  const [postalCode, setPostalCode] = useState("")
-  const [skype, setSkype] = useState("")
-  const [linkedIn, setLinkedIn] = useState("")
-  const [twitter, setTwitter] = useState("")
-  const [facebook, setFacebook] = useState("")
+  const [companyName, setCompanyName] = useState("");
+  const [website, setWebsite] = useState("");
+  const [officePhone, setOfficePhone] = useState("");
+  const [taxName, setTaxName] = useState("");
+  const [gstVatNo, setGstVatNo] = useState("");
+  const [address, setAddress] = useState("");
+  const [shippingAddress, setShippingAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [stateVal, setStateVal] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [skype, setSkype] = useState("");
+  const [linkedIn, setLinkedIn] = useState("");
+  const [twitter, setTwitter] = useState("");
+  const [facebook, setFacebook] = useState("");
 
   // files + previews
-  const [profileFile, setProfileFile] = useState<File | null>(null)
-  const [logoFile, setLogoFile] = useState<File | null>(null)
-  const [profilePreview, setProfilePreview] = useState<string>("")
-  const [logoPreview, setLogoPreview] = useState<string>("")
+  const [profileFile, setProfileFile] = useState<File | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [profilePreview, setProfilePreview] = useState<string>("");
+  const [logoPreview, setLogoPreview] = useState<string>("");
 
   // UI + validation
-  const [message, setMessage] = useState("")
-  const [messageType, setMessageType] = useState<"success" | "error" | "">("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<"success" | "error" | "">("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
 
-  // category lists + modals
-  const [categories, setCategories] = useState<{ id: number; categoryName: string }[]>([])
-  const [subcategories, setSubcategories] = useState<{ id: number; subCategoryName: string }[]>([])
-  const [showCategoryModal, setShowCategoryModal] = useState(false)
-  const [showSubCategoryModal, setShowSubCategoryModal] = useState(false)
-  const [newCategoryName, setNewCategoryName] = useState("")
-  const [newSubCategoryName, setNewSubCategoryName] = useState("")
+  // category lists + modals (keep for add/edit parity)
+  const [categories, setCategories] = useState<{ id: number; categoryName: string }[]>([]);
+  const [subcategories, setSubcategories] = useState<{ id: number; subCategoryName: string }[]>([]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showSubCategoryModal, setShowSubCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newSubCategoryName, setNewSubCategoryName] = useState("");
 
-  // placeholder image (from your upload)
-  const placeholderImg = "/mnt/data/Screenshot 2025-11-25 120245.png"
+  // placeholder image (adjust path if needed)
+  const placeholderImg = "/mnt/data/Screenshot 2025-11-25 120245.png";
 
-  // hide global navbar while mounted (best-effort)
+  // hide global navbar while mounted (optional, kept from your add file)
   useEffect(() => {
-    const selectors = ["nav.fixed", ".common-navbar", "header", "[data-navbar]"]
-    const found: Array<{ el: Element; original: string | null }> = []
+    const selectors = ["nav.fixed", ".common-navbar", "header", "[data-navbar]"];
+    const found: Array<{ el: Element; original: string | null }> = [];
     selectors.forEach((sel) => {
-      const el = document.querySelector(sel)
+      const el = document.querySelector(sel);
       if (el) {
-        const orig = (el as HTMLElement).style.display || null
-        found.push({ el, original: orig })
-        ;(el as HTMLElement).style.display = "none"
+        const orig = (el as HTMLElement).style.display || null;
+        found.push({ el, original: orig });
+        (el as HTMLElement).style.display = "none";
       }
-    })
-    return () => found.forEach(({ el, original }) => ((el as HTMLElement).style.display = original ?? ""))
-  }, [])
+    });
+    return () => found.forEach(({ el, original }) => ((el as HTMLElement).style.display = original ?? ""));
+  }, []);
 
-  const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` })
+  const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` });
 
   // fetch lists
   const fetchCategories = async () => {
     try {
-      const res = await fetch(`${API_BASE}/clients/category`, { headers: getAuthHeader() })
-      if (!res.ok) throw new Error("Failed to load categories")
-      setCategories(await res.json())
-    } catch (e) { console.error(e) }
-  }
+      const res = await fetch(`${API_BASE}/clients/category`, { headers: getAuthHeader() });
+      if (!res.ok) throw new Error("Failed to load categories");
+      setCategories(await res.json());
+    } catch (e) {
+      console.error(e);
+    }
+  };
   const fetchSubcategories = async () => {
     try {
-      const res = await fetch(`${API_BASE}/clients/category/subcategory`, { headers: getAuthHeader() })
-      if (!res.ok) throw new Error("Failed to load subcategories")
-      setSubcategories(await res.json())
-    } catch (e) { console.error(e) }
-  }
-  useEffect(() => { fetchCategories(); fetchSubcategories() }, [])
+      const res = await fetch(`${API_BASE}/clients/category/subcategory`, { headers: getAuthHeader() });
+      if (!res.ok) throw new Error("Failed to load subcategories");
+      setSubcategories(await res.json());
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+    fetchSubcategories();
+  }, []);
+
+  // load client data for editing
+  useEffect(() => {
+    if (!id) return;
+    (async function load() {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/clients/${id}`, { headers: getAuthHeader() });
+        if (!res.ok) throw new Error(`Failed to load client (${res.status})`);
+        const data = await res.json();
+
+        // populate fields (matches response shape you provided)
+        setName(data.name ?? "");
+        setEmail(data.email ?? "");
+        setMobile(data.mobile ?? "");
+        setCountry(data.country ?? "");
+        setGender(data.gender ?? "");
+        setLanguage(data.language ?? "English");
+        // response uses receiveEmail
+        setReceiveEmail(Boolean(data.receiveEmail ?? data.receiveEmailNotifications ?? false));
+        setCategory(data.category ?? "");
+        setSubCategory(data.subCategory ?? "");
+
+        setCompanyName(data.company?.companyName ?? "");
+        setWebsite(data.company?.website ?? data.company?.officialWebsite ?? "");
+        setOfficePhone(data.company?.officePhone ?? "");
+        setTaxName(data.company?.taxName ?? "");
+        setGstVatNo(data.company?.gstVatNo ?? data.company?.gst ?? "");
+        setAddress(data.company?.address ?? "");
+        setShippingAddress(data.company?.shippingAddress ?? "");
+        setCity(data.company?.city ?? "");
+        setStateVal(data.company?.state ?? "");
+        setPostalCode(data.company?.postalCode ?? "");
+        setSkype(data.skype ?? data.company?.skype ?? "");
+        setLinkedIn(data.linkedIn ?? data.company?.linkedin ?? "");
+        setTwitter(data.twitter ?? "");
+        setFacebook(data.facebook ?? "");
+
+        // previews (API returns profilePictureUrl & companyLogoUrl)
+        setProfilePreview(data.profilePictureUrl ?? data.company?.profilePictureUrl ?? "");
+        setLogoPreview(data.company?.companyLogoUrl ?? data.company?.companyLogo ?? data.companyLogoUrl ?? "");
+      } catch (err: unknown) {
+        console.error(err);
+        setMessage("Failed to load client");
+        setMessageType("error");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [id]);
 
   // previews
   const readPreview = (file: File, setter: (s: string) => void) => {
-    const r = new FileReader()
-    r.onloadend = () => setter(r.result as string)
-    r.readAsDataURL(file)
-  }
+    const r = new FileReader();
+    r.onloadend = () => setter(r.result as string);
+    r.readAsDataURL(file);
+  };
   const onProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null
-    setProfileFile(f); if (f) readPreview(f, setProfilePreview); else setProfilePreview("")
-  }
+    const f = e.target.files?.[0] ?? null;
+    setProfileFile(f);
+    if (f) readPreview(f, setProfilePreview);
+    else setProfilePreview("");
+  };
   const onLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null
-    setLogoFile(f); if (f) readPreview(f, setLogoPreview); else setLogoPreview("")
-  }
+    const f = e.target.files?.[0] ?? null;
+    setLogoFile(f);
+    if (f) readPreview(f, setLogoPreview);
+    else setLogoPreview("");
+  };
 
   // validation & submit
   const validateForm = () => {
-    const newErr: Record<string, string> = {}
-    if (!name.trim()) newErr.name = "Name is required"
-    if (!email.trim()) newErr.email = "Email is required"
-    else if (!/\S+@\S+\.\S+/.test(email)) newErr.email = "Invalid email"
-    if (!mobile.trim()) newErr.mobile = "Mobile is required"
-    if (!country.trim()) newErr.country = "Country is required"
-    if (!companyName.trim()) newErr.companyName = "Company name is required"
-    setErrors(newErr)
-    return Object.keys(newErr).length === 0
+    const newErr: Record<string, string> = {};
+    if (!name.trim()) newErr.name = "Name is required";
+    if (!email.trim()) newErr.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(email)) newErr.email = "Invalid email";
+    if (!mobile.trim()) newErr.mobile = "Mobile is required";
+    if (!country.trim()) newErr.country = "Country is required";
+    if (!companyName.trim()) newErr.companyName = "Company name is required";
+    setErrors(newErr);
+    return Object.keys(newErr).length === 0;
+  };
+
+  const clearMessage = () => {
+    setMessage("");
+    setMessageType("");
+  };
+
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  clearMessage();
+  if (!validateForm()) {
+    setMessage("Please fix errors");
+    setMessageType("error");
+    return;
   }
-
-  const clearMessage = () => { setMessage(""); setMessageType("") }
-
-  // debug helper
-  const debugLog = (label: string, obj: any) => {
-    try { console.log(label, obj) } catch {}
+  if (!id) {
+    setMessage("Missing client id");
+    setMessageType("error");
+    return;
   }
+  setIsSubmitting(true);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); clearMessage()
-    if (!validateForm()) { setMessage("Please fix errors"); setMessageType("error"); return }
-    setIsSubmitting(true)
+  // Adjusted payload keys to match API response shape you provided
+  const clientPayload = {
+    name,
+    email,
+    mobile,
+    country,
+    gender,
+    category,
+    subCategory,
+    language,
+    // backend expects receiveEmail
+    receiveEmail,
+    skype,
+    linkedIn,
+    twitter,
+    facebook,
+    company: {
+      companyName,
+      website,
+      officePhone,
+      taxName,
+      gstVatNo,
+      address,
+      city,
+      state: stateVal,
+      postalCode,
+      shippingAddress,
+    },
+  };
 
-    const client = {
-      name, email, mobile, country, gender, category, subCategory, language, receiveEmail,
-      skype, linkedIn, twitter, facebook,
-      company: { companyName, website, officePhone, taxName, gstVatNo, address, city, state: stateVal, postalCode, shippingAddress }
+  const fd = new FormData();
+  fd.append("client", JSON.stringify(clientPayload));
+  if (profileFile) fd.append("profilePicture", profileFile);
+  if (logoFile) fd.append("companyLogo", logoFile);
+
+  try {
+    const res = await fetch(`${API_BASE}/clients/${id}`, {
+      method: "PUT", // change to PATCH if your backend prefers
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
+        // NOTE: do NOT set Content-Type for FormData
+      },
+      body: fd,
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((data && (data.error || data.message)) || `Failed (${res.status})`);
     }
 
-    const fd = new FormData()
-    fd.append("client", JSON.stringify(client))
-    if (profileFile) fd.append("profilePicture", profileFile)
-    if (logoFile) fd.append("companyLogo", logoFile)
+    setMessage("Client updated successfully");
+    setMessageType("success");
 
+    // --- NEW: signal Clients list to refresh, then navigate back to /clients ---
     try {
-      const res = await fetch(`${API_BASE}/clients`, {
-        method: "POST",
-        headers: {
-          // do NOT set Content-Type for FormData (browser will set boundary)
-          Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`
-        },
-        body: fd
-      })
-
-      // try parse response
-      let data: any = null
-      try { data = await res.json() } catch (err) { debugLog("Failed to parse JSON response", err) }
-
-      debugLog("POST /clients status", res.status)
-      debugLog("POST /clients body", data)
-
-      if (!res.ok) {
-        const errMsg = data?.error || data?.message || `Request failed (${res.status})`
-        throw new Error(errMsg)
-      }
-
-      setMessage("Client created successfully")
-      setMessageType("success")
-
-      // set a refresh flag so clients list can re-fetch
-      try { localStorage.setItem("clients:refresh", String(Date.now())) } catch {}
-
-      window.dispatchEvent(new Event("clients:refresh"));
-
-      // if backend returns new id, go to detail page, else to list
-      const newId = data?.id ?? data?.clientId ?? data?.client?.id ?? null
-
-      // small delay to allow user see success message
-      setTimeout(() => {
-        if (newId) router.push(`/clients/${newId}`)
-        else router.push("/clients")
-      }, 600)
-
-      // reset form values
-      setTimeout(resetForm, 1200)
-    } catch (err: unknown) {
-      setMessage(err instanceof Error ? err.message : "Request failed")
-      setMessageType("error")
-    } finally {
-      setIsSubmitting(false)
+      localStorage.setItem("clients:refresh", String(Date.now()));
+    } catch (e) {
+      // ignore storage errors
     }
+    // fire same-tab event so ClientsPage listeners pick it up immediately
+    try { window.dispatchEvent(new Event("clients:refresh")); } catch (e) {}
+
+    // navigate back to clients list (so updated row is visible in the table)
+    setTimeout(() => router.push("/clients"), 500);
+    // ------------------------------------------------------------------------
+
+  } catch (err: unknown) {
+    setMessage(err instanceof Error ? err.message : "Request failed");
+    setMessageType("error");
+  } finally {
+    setIsSubmitting(false);
   }
+};
+
 
   const resetForm = () => {
-    setName(""); setEmail(""); setMobile(""); setCountry(""); setGender(""); setCategory(""); setSubCategory(""); setLanguage(""); setReceiveEmail(false)
-    setCompanyName(""); setWebsite(""); setOfficePhone(""); setTaxName(""); setGstVatNo(""); setAddress(""); setShippingAddress(""); setCity(""); setStateVal(""); setPostalCode("")
-    setSkype(""); setLinkedIn(""); setTwitter(""); setFacebook("")
-    setProfileFile(null); setLogoFile(null); setProfilePreview(""); setLogoPreview(""); setErrors({}); clearMessage()
-  }
+    // keep existing loaded values (not clearing to original). If you want to reset to loaded values, reload.
+    // We'll just clear new unsaved fields:
+    setProfileFile(null);
+    setLogoFile(null);
+    setProfilePreview(profilePreview); // keep preview from loaded data
+    setLogoPreview(logoPreview);
+    setErrors({});
+    clearMessage();
+  };
 
-  // add category/subcategory
+  // category CRUD helpers (same as add)
   const saveCategory = async () => {
-    if (!newCategoryName.trim()) return
+    if (!newCategoryName.trim()) return;
     try {
       const res = await fetch(`${API_BASE}/clients/category`, {
         method: "POST",
         headers: { ...getAuthHeader(), "Content-Type": "application/json" },
         body: JSON.stringify({ categoryName: newCategoryName.trim() }),
-      })
-      if (!res.ok) throw new Error("Failed to save category")
-      const created = await res.json()
-      await fetchCategories()
-      setCategory(created?.categoryName ?? newCategoryName.trim())
-      setNewCategoryName(""); setShowCategoryModal(false)
-    } catch (e) { console.error(e); alert("Could not save category") }
-  }
+      });
+      if (!res.ok) throw new Error("Failed to save category");
+      const created = await res.json();
+      await fetchCategories();
+      setCategory(created?.categoryName ?? newCategoryName.trim());
+      setNewCategoryName("");
+      setShowCategoryModal(false);
+    } catch (e) {
+      console.error(e);
+      alert("Could not save category");
+    }
+  };
 
   const saveSubCategory = async () => {
-    if (!newSubCategoryName.trim()) return
+    if (!newSubCategoryName.trim()) return;
     try {
       const res = await fetch(`${API_BASE}/clients/category/subcategory`, {
         method: "POST",
         headers: { ...getAuthHeader(), "Content-Type": "application/json" },
         body: JSON.stringify({ subCategoryName: newSubCategoryName.trim() }),
-      })
-      if (!res.ok) throw new Error("Failed to save subcategory")
-      const created = await res.json()
-      await fetchSubcategories()
-      setSubCategory(created?.subCategoryName ?? newSubCategoryName.trim())
-      setNewSubCategoryName(""); setShowSubCategoryModal(false)
-    } catch (e) { console.error(e); alert("Could not save subcategory") }
+      });
+      if (!res.ok) throw new Error("Failed to save subcategory");
+      const created = await res.json();
+      await fetchSubcategories();
+      setSubCategory(created?.subCategoryName ?? newSubCategoryName.trim());
+      setNewSubCategoryName("");
+      setShowSubCategoryModal(false);
+    } catch (e) {
+      console.error(e);
+      alert("Could not save subcategory");
+    }
+  };
+
+  const pickCategory = (c: { id: number; categoryName: string }) => {
+    setCategory(c.categoryName);
+    setShowCategoryModal(false);
+  };
+  const pickSubCategory = (s: { id: number; subCategoryName: string }) => {
+    setSubCategory(s.subCategoryName);
+    setShowSubCategoryModal(false);
+  };
+
+  const deleteCategory = async (idNum: number) => {
+    if (!confirm("Delete category?")) return;
+    try {
+      await fetch(`${API_BASE}/clients/category/${idNum}`, { method: "DELETE", headers: getAuthHeader() });
+      await fetchCategories();
+    } catch {
+      alert("Could not delete");
+    }
+  };
+  const deleteSubcategory = async (idNum: number) => {
+    if (!confirm("Delete subcategory?")) return;
+    try {
+      await fetch(`${API_BASE}/clients/category/subcategory/${idNum}`, { method: "DELETE", headers: getAuthHeader() });
+      await fetchSubcategories();
+    } catch {
+      alert("Could not delete");
+    }
+  };
+
+  const inputClass = (err?: boolean) =>
+    `w-full px-3 py-2 rounded-md border transition focus:outline-none ${err ? "border-red-300 bg-red-50 focus:border-red-500 focus:ring-2 focus:ring-red-200" : "border-slate-200 bg-white focus:border-gray-300 focus:ring-0"}`;
+
+  const handleClose = () => router.push("/clients");
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading client...
+      </div>
+    );
   }
-
-  const pickCategory = (c: { id: number; categoryName: string }) => { setCategory(c.categoryName); setShowCategoryModal(false) }
-  const pickSubCategory = (s: { id: number; subCategoryName: string }) => { setSubCategory(s.subCategoryName); setShowSubCategoryModal(false) }
-
-  const deleteCategory = async (id: number) => { if (!confirm("Delete category?")) return; try { await fetch(`${API_BASE}/clients/category/${id}`, { method: "DELETE", headers: getAuthHeader() }); await fetchCategories() } catch { alert("Could not delete") } }
-  const deleteSubcategory = async (id: number) => { if (!confirm("Delete subcategory?")) return; try { await fetch(`${API_BASE}/clients/category/subcategory/${id}`, { method: "DELETE", headers: getAuthHeader() }); await fetchSubcategories() } catch { alert("Could not delete") } }
-
-  const inputClass = (err?: boolean) => `w-full px-3 py-2 rounded-md border transition focus:outline-none ${err ? "border-red-300 bg-red-50 focus:border-red-500 focus:ring-2 focus:ring-red-200" : "border-slate-200 bg-white focus:border-gray-300 focus:ring-0"}`
-
-  const handleClose = () => router.push("/clients")
 
   return (
     <div className="min-h-screen  bg-slate-50 flex items-start justify-center mb-5 py-12">
       <div className="w-full max-w-4xl bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
         <div className="flex items-center justify-between px-6 py-3 border-b  bg-gray-50">
-          <h3 className="text-lg font-medium text-slate-900">Add Client Details</h3>
+          <h3 className="text-lg font-medium text-slate-900">Update Client Details</h3>
           <button onClick={handleClose} className="text-slate-500 hover:text-slate-700"><X /></button>
         </div>
 
@@ -271,13 +401,13 @@ export default function AddClientDetails() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-medium text-slate-700 mb-1 block">Client Name *</label>
-                    <input value={name} onChange={(e) => { setName(e.target.value); if (errors.name) setErrors({ ...errors, name: "" }) }} className={inputClass(Boolean(errors.name))} placeholder="John Doe" />
+                    <input value={name} onChange={(e) => { setName(e.target.value); if (errors.name) setErrors({ ...errors, name: "" }); }} className={inputClass(Boolean(errors.name))} placeholder="John Doe" />
                     {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
                   </div>
 
                   <div>
                     <label className="text-xs font-medium text-slate-700 mb-1 block">Email *</label>
-                    <input value={email} onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors({ ...errors, email: "" }) }} className={inputClass(Boolean(errors.email))} placeholder="asdf@gmail.com" />
+                    <input value={email} onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors({ ...errors, email: "" }); }} className={inputClass(Boolean(errors.email))} placeholder="asdf@gmail.com" />
                     {errors.email && <p className="text-xs text-red-600 mt-1">{errors.email}</p>}
                   </div>
                 </div>
@@ -285,13 +415,13 @@ export default function AddClientDetails() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-medium text-slate-700 mb-1 block">Mobile Number *</label>
-                    <input value={mobile} onChange={(e) => { setMobile(e.target.value); if (errors.mobile) setErrors({ ...errors, mobile: "" }) }} className={inputClass(Boolean(errors.mobile))} placeholder="9999999999" />
+                    <input value={mobile} onChange={(e) => { setMobile(e.target.value); if (errors.mobile) setErrors({ ...errors, mobile: "" }); }} className={inputClass(Boolean(errors.mobile))} placeholder="9999999999" />
                     {errors.mobile && <p className="text-xs text-red-600 mt-1">{errors.mobile}</p>}
                   </div>
 
                   <div>
                     <label className="text-xs font-medium text-slate-700 mb-1 block">Country *</label>
-                    <input value={country} onChange={(e) => { setCountry(e.target.value); if (errors.country) setErrors({ ...errors, country: "" }) }} className={inputClass(Boolean(errors.country))} placeholder="--" />
+                    <input value={country} onChange={(e) => { setCountry(e.target.value); if (errors.country) setErrors({ ...errors, country: "" }); }} className={inputClass(Boolean(errors.country))} placeholder="--" />
                     {errors.country && <p className="text-xs text-red-600 mt-1">{errors.country}</p>}
                   </div>
                 </div>
@@ -300,11 +430,14 @@ export default function AddClientDetails() {
                   <div>
                     <label className="text-xs font-medium text-slate-700 mb-1 block">Gender</label>
                     <select value={gender} onChange={(e) => setGender(e.target.value)} className={inputClass()}>
-                      <option value="">--</option><option>Male</option><option>Female</option><option>Other</option>
+                      <option value="">--</option>
+                      <option>Male</option>
+                      <option>Female</option>
+                      <option>Other</option>
                     </select>
                   </div>
 
-                  {/* === MATCHED UI: pill container with select left and Add right === */}
+                  {/* client category with add button */}
                   <div>
                     <label className="text-xs font-medium text-slate-700 mb-1 block">Client Category</label>
                     <div className="flex items-center rounded-full border border-slate-200 overflow-hidden">
@@ -318,7 +451,7 @@ export default function AddClientDetails() {
                       </select>
                       <button
                         type="button"
-                        onClick={() => { setShowCategoryModal(true); setNewCategoryName("") }}
+                        onClick={() => { setShowCategoryModal(true); setNewCategoryName(""); }}
                         className="px-4 py-2 bg-slate-100 text-slate-700 rounded-r-full border-l border-slate-200"
                       >
                         Add
@@ -339,7 +472,7 @@ export default function AddClientDetails() {
                       </select>
                       <button
                         type="button"
-                        onClick={() => { setShowSubCategoryModal(true); setNewSubCategoryName("") }}
+                        onClick={() => { setShowSubCategoryModal(true); setNewSubCategoryName(""); }}
                         className="px-4 py-2 bg-slate-100 text-slate-700 rounded-r-full border-l border-slate-200"
                       >
                         Add
@@ -352,7 +485,9 @@ export default function AddClientDetails() {
                   <div>
                     <label className="text-xs font-medium text-slate-700 mb-1 block">Language</label>
                     <select value={language} onChange={(e) => setLanguage(e.target.value)} className={inputClass()}>
-                      <option value="">English</option>
+                      <option value="English">English</option>
+                      <option value="Hindi">Hindi</option>
+                      <option value="Spanish">Spanish</option>
                     </select>
                   </div>
 
@@ -370,8 +505,8 @@ export default function AddClientDetails() {
               <div>
                 <label className="text-xs font-medium text-slate-700 mb-2 block">Profile Picture</label>
                 <div className="rounded-md border border-dashed border-slate-300 p-4 text-center">
-                  <input id="profile" type="file" accept="image/*" onChange={onProfileChange} className="hidden" />
-                  <label htmlFor="profile" className="cursor-pointer block">
+                  <input id="profile-edit" type="file" accept="image/*" onChange={onProfileChange} className="hidden" />
+                  <label htmlFor="profile-edit" className="cursor-pointer block">
                     <div className="mx-auto mb-3 h-28 w-full max-w-xs">
                       {profilePreview ? <img src={profilePreview} alt="preview" className="mx-auto h-28 w-28 rounded-md object-cover" /> : <img src={placeholderImg} alt="placeholder" className="mx-auto h-28 w-28 rounded-md object-cover" />}
                     </div>
@@ -382,13 +517,13 @@ export default function AddClientDetails() {
             </div>
           </div>
 
-          {/* Company details block (unchanged) */}
+          {/* Company details block */}
           <div className="rounded-lg border border-slate-200 p-5">
             <h4 className="text-sm font-semibold mb-4 text-slate-800">Company Details</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-xs font-medium text-slate-700 mb-1 block">Company Name *</label>
-                <input value={companyName} onChange={(e) => { setCompanyName(e.target.value); if (errors.companyName) setErrors({ ...errors, companyName: "" }) }} className={inputClass(Boolean(errors.companyName))} placeholder="--" />
+                <input value={companyName} onChange={(e) => { setCompanyName(e.target.value); if (errors.companyName) setErrors({ ...errors, companyName: "" }); }} className={inputClass(Boolean(errors.companyName))} placeholder="--" />
                 {errors.companyName && <p className="text-xs text-red-600 mt-1">{errors.companyName}</p>}
               </div>
               <div><label className="text-xs font-medium text-slate-700 mb-1 block">Official Website</label><input value={website} onChange={(e) => setWebsite(e.target.value)} className={inputClass()} placeholder="--" /></div>
@@ -419,8 +554,8 @@ export default function AddClientDetails() {
               <div>
                 <label className="text-xs font-medium text-slate-700 mb-2 block">Company Logo</label>
                 <div className="rounded-md border border-dashed border-slate-300 p-3 text-center">
-                  <input id="logo" type="file" accept="image/*" onChange={onLogoChange} className="hidden" />
-                  <label htmlFor="logo" className="cursor-pointer block">
+                  <input id="logo-edit" type="file" accept="image/*" onChange={onLogoChange} className="hidden" />
+                  <label htmlFor="logo-edit" className="cursor-pointer block">
                     <div className="mb-2 h-24">{logoPreview ? <img src={logoPreview} alt="logo" className="mx-auto h-24 object-contain" /> : <img src={placeholderImg} alt="logo-placeholder" className="mx-auto h-24 object-contain" />}</div>
                     <div className="text-sm text-slate-500">Choose a file</div>
                   </label>
@@ -431,14 +566,20 @@ export default function AddClientDetails() {
 
           {/* actions */}
           <div className="flex justify-center gap-4">
-            <button type="button" onClick={resetForm} className="px-6 py-2 rounded-md border bg-white text-slate-700">Cancel</button>
+            <button type="button" onClick={() => router.push(`/clients/${id}`)} className="px-6 py-2 rounded-md border bg-white text-slate-700">Cancel</button>
             <button type="submit" disabled={isSubmitting} className="px-6 py-2 rounded-md bg-blue-600 text-white flex items-center gap-2">
               {isSubmitting ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : null}
-              {isSubmitting ? "Adding..." : "Add Client"} <ArrowRight />
+              {isSubmitting ? "Updating..." : "Update"} <ArrowRight />
             </button>
           </div>
         </form>
       </div>
+
+
+
+
+
+
 
       {/* Category Modal */}
       {showCategoryModal && (
@@ -526,5 +667,5 @@ export default function AddClientDetails() {
         </div>
       )}
     </div>
-  )
+  );
 }
