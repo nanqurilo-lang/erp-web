@@ -97,7 +97,7 @@ export default function TasksTable({ projectId }: { projectId: number }) {
   const fetchStatuses = async () => {
     try {
       const url = `${MAIN}/status`;
-      const token = getStorage();
+      const token = localStorage.getItem("accessToken");
       const res = await axios.get(url, {
         headers: { Authorization: token ? `Bearer ${token}` : "" },
       });
@@ -114,7 +114,7 @@ export default function TasksTable({ projectId }: { projectId: number }) {
     setLoading(true);
     setError(null);
     try {
-      const token = getStorage();
+      const token = localStorage.getItem("accessToken");
       const url = `${MAIN}/projects/${projectId}/tasks`;
       const res = await axios.get(url, {
         headers: {
@@ -278,7 +278,7 @@ export default function TasksTable({ projectId }: { projectId: number }) {
       prev.map((t) => (t.id === task.id ? { ...t, taskStage: { id: statusItem.id, name: statusItem.name }, taskStageId: statusItem.id } : t))
     );
 
-    const token = getStorage();
+    const token = localStorage.getItem("accessToken");
     try {
       // Use the exact endpoint you provided:
       // PUT https://6jnqmj85-80.inc1.devtunnels.ms/api/projects/tasks/{taskId}/status?statusId={stageId}

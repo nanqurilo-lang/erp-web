@@ -30,9 +30,7 @@ type Timesheet = {
 const DEFAULT_MAIN = process.env.NEXT_PUBLIC_MAIN || "https://6jnqmj85-80.inc1.devtunnels.ms";
 
 // *** default token (from your message). For prod DO NOT hardcode.
-const PROVIDED_TOKEN =
-  "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJFTVAtMDE1Iiwicm9sZXMiOlsiUk9MRV9BRE1JTiJdLCJpYXQiOjE3NjI5Mzg1OTcsImV4cCI6MTc2MzU0MzM5N30.hpC4916sFIxWldWVTo3ni2GUysCbAWl9M1u2ihwTSEc";
-
+const PROVIDED_TOKEN = localStorage.getItem("accessToken");
 export default function TimesheetsTableNew({
   gatewayPath = "/timesheets",
   mainBase,

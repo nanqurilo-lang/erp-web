@@ -18,9 +18,7 @@ type Milestone = {
 const DEFAULT_MAIN = process.env.NEXT_PUBLIC_MAIN || "https://6jnqmj85-80.inc1.devtunnels.ms";
 
 // Temporary provided token (for local testing only). DON'T commit real tokens.
-const PROVIDED_TOKEN =
-  "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJFTVAtMDE1Iiwicm9sZXMiOlsiUk9MRV9BRE1JTiJdLCJpYXQiOjE3NjI5MzI0NTAsImV4cCI6MTc2MzUzNzI1MH0.VqlcmoirRveadxqm35WWn9-jIgYAWcvjJN3jwku6udo";
-
+const PROVIDED_TOKEN = localStorage.getItem("accessToken");
 export default function MilestonesTable({
   projectId,
   gatewayPath = "/api/projects",

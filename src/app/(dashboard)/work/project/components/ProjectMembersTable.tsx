@@ -39,7 +39,7 @@ export default function ProjectMembersTableFetch({ projectId }: { projectId: num
   // get token — getStorage may return string or object — handle both:
   const token = useMemo(() => {
     try {
-      const t = getStorage();
+      const t = localStorage.getItem("accessToken");
       if (!t) return null;
       if (typeof t === "string") return t;
       // if object, try common fields
@@ -56,47 +56,49 @@ export default function ProjectMembersTableFetch({ projectId }: { projectId: num
   };
 
   // helper: fetch with timeout + nicer errors (detect HTML 404)
-  const doFetch = async (url: string, init: RequestInit = {}, msTimeout = 15000) => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), msTimeout);
-    try {
-      const merged = { ...init, signal: controller.signal };
-      const res = await fetch(url, merged);
-      clearTimeout(timeout);
+  // const doFetch = async (url: string, init: RequestInit = {}, msTimeout = 15000) => {
+  //   const controller = new AbortController();
+  //   const timeout = setTimeout(() => controller.abort(), msTimeout);
+  //   try {
+  //     const merged = { ...init, signal: controller.signal };
+  //     const res = await fetch(url, merged);
+  //     clearTimeout(timeout);
 
-      const ct = res.headers.get("content-type") || "";
-      const textBody = await res.text().catch(() => "");
-      if (!res.ok) {
-        if (ct.includes("text/html") || textBody.trim().startsWith("<!DOCTYPE html")) {
-          throw new Error(`HTTP ${res.status} ${res.statusText} — server returned HTML (likely wrong URL). URL: ${url}`);
-        }
-        throw new Error(`HTTP ${res.status} ${res.statusText} ${textBody ? "- " + textBody : ""}`);
-      }
+  //     const ct = res.headers.get("content-type") || "";
+  //     const textBody = await res.text().catch(() => "");
+  //     if (!res.ok) {
+  //       if (ct.includes("text/html") || textBody.trim().startsWith("<!DOCTYPE html")) {
+  //         throw new Error(`HTTP ${res.status} ${res.statusText} — server returned HTML (likely wrong URL). URL: ${url}`);
+  //       }
+  //       throw new Error(`HTTP ${res.status} ${res.statusText} ${textBody ? "- " + textBody : ""}`);
+  //     }
 
-      if (ct.includes("application/json")) {
-        return JSON.parse(textBody || "{}");
-      }
-      return textBody;
-    } catch (err: any) {
-      if (err.name === "AbortError") throw new Error("Request timed out");
-      if (err.message === "Failed to fetch") throw new Error("Network Error — check CORS / server availability");
-      throw err;
-    } finally {
-      clearTimeout(timeout);
-    }
-  };
+  //     if (ct.includes("application/json")) {
+  //       return JSON.parse(textBody || "{}");
+  //     }
+  //     return textBody;
+  //   } catch (err: any) {
+  //     if (err.name === "AbortError") throw new Error("Request timed out");
+  //     if (err.message === "Failed to fetch") throw new Error("Network Error — check CORS / server availability");
+  //     throw err;
+  //   } finally {
+  //     clearTimeout(timeout);
+  //   }
+  // };
   
   // GET project + members
   const fetchProject = async () => {
     setLoading(true);
     setError(null);
     try {
+     const token =  localStorage.getItem("accessToken")
       const url = base(`https://6jnqmj85-80.inc1.devtunnels.ms/api/projects/${projectId}`);
       console.log("[members] GET", url);
       const data = await doFetch(url, {
         method: "GET",
-        headers: headersWithAuth({ "Content-Type": "application/json" }),
-        credentials: "same-origin",
+             headers: { Authorization: token ? `Bearer ${token}` : "" },
+       // headers: headersWithAuth({ "Content-Type": "application/json",  }),
+        //credentials: "same-origin",
       });
 
       // ensure data shape
