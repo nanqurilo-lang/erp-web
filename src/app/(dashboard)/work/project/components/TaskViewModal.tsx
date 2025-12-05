@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 
-type Employee = { employeeId: string; name: string; profileUrl?: string | null };
+type Employee = { employeeId: string; name: string; profileUrl?: string | null; role?: string };
 type Label = { id: number; name: string };
 type Milestone = { id: number; title: string };
 
@@ -37,6 +37,15 @@ type Note = {
   title: string;
   type: "public" | "private";
   content?: string;
+};
+
+type TimesheetRow = {
+  id: number;
+  employee: Employee;
+  startTime: string; // ISO or date string
+  endTime: string;
+  memo?: string;
+  minutesLogged: number;
 };
 
 export default function TaskViewModal({
@@ -91,17 +100,57 @@ export default function TaskViewModal({
 
   // Notes data + UI state
   const [notes, setNotes] = useState<Note[]>([
-    // sample note to match your screenshot
     { id: 1, title: "My Note", type: "public", content: "This is the body of My Note." },
   ]);
   const [openNoteMenuId, setOpenNoteMenuId] = useState<number | null>(null);
+  const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [viewNoteOpen, setViewNoteOpen] = useState(false);
   const [editNoteOpen, setEditNoteOpen] = useState(false);
   const [deleteNoteConfirmOpen, setDeleteNoteConfirmOpen] = useState(false);
-  const [currentNote, setCurrentNote] = useState<Note | null>(null);
+  const [addNoteOpen, setAddNoteOpen] = useState(false);
+  const [addNoteTitle, setAddNoteTitle] = useState("");
+  const [addNoteType, setAddNoteType] = useState<"public" | "private">("public");
+  const [addNoteContent, setAddNoteContent] = useState("");
+  const [addNoteTitleError, setAddNoteTitleError] = useState<string | null>(null);
   const [editNoteTitle, setEditNoteTitle] = useState("");
   const [editNoteType, setEditNoteType] = useState<"public" | "private">("public");
   const [editNoteContent, setEditNoteContent] = useState("");
+
+  // Timesheet placeholder data (to match the provided UI)
+  const [timesheets] = useState<TimesheetRow[]>([
+    {
+      id: 1,
+      employee: { employeeId: "u1", name: "Jack Smith", profileUrl: undefined, role: "Trainee" },
+      startTime: "2025-08-02T11:00:00",
+      endTime: "2025-08-02T13:00:00",
+      memo: "---",
+      minutesLogged: 8 * 60,
+    },
+    {
+      id: 2,
+      employee: { employeeId: "u1", name: "Jack Smith", profileUrl: undefined, role: "Trainee" },
+      startTime: "2025-08-02T11:00:00",
+      endTime: "2025-08-02T13:00:00",
+      memo: "---",
+      minutesLogged: 8 * 60,
+    },
+    {
+      id: 3,
+      employee: { employeeId: "u1", name: "Jack Smith", profileUrl: undefined, role: "Trainee" },
+      startTime: "2025-08-02T11:00:00",
+      endTime: "2025-08-02T13:00:00",
+      memo: "---",
+      minutesLogged: 8 * 60,
+    },
+    {
+      id: 4,
+      employee: { employeeId: "u1", name: "Jack Smith", profileUrl: undefined, role: "Trainee" },
+      startTime: "2025-08-02T11:00:00",
+      endTime: "2025-08-02T13:00:00",
+      memo: "---",
+      minutesLogged: 8 * 60,
+    },
+  ]);
 
   useEffect(() => {
     if (open) setIsVisible(true);
@@ -113,12 +162,12 @@ export default function TaskViewModal({
       setAddSubtaskOpen(false);
       setViewSubtaskOpen(false);
       setEditSubtaskOpen(false);
-      // reset notes UI menus/modals when closing
       setOpenNoteMenuId(null);
       setViewNoteOpen(false);
       setEditNoteOpen(false);
       setDeleteNoteConfirmOpen(false);
       setCurrentNote(null);
+      setAddNoteOpen(false);
     }
   }, [open]);
 
@@ -156,7 +205,7 @@ export default function TaskViewModal({
         setReminderConfirmOpen(false);
       }
 
-      // notes row menu: close if click outside any notes menu/button
+      // notes actions popup: click outside of popup/button should close it
       if (openNoteMenuId !== null) {
         const insideMenu = (e.target as Element).closest("[data-notes-menu]");
         const onBtn = (e.target as Element).closest("[data-notes-menu-btn]");
@@ -178,6 +227,7 @@ export default function TaskViewModal({
         setViewNoteOpen(false);
         setEditNoteOpen(false);
         setDeleteNoteConfirmOpen(false);
+        setAddNoteOpen(false);
       }
     }
 
@@ -187,7 +237,7 @@ export default function TaskViewModal({
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("keydown", handleKey);
     };
-  }, [menuOpen, subtaskMenuOpen, reminderConfirmOpen, openNoteMenuId]);
+  }, [menuOpen, subtaskMenuOpen, reminderConfirmOpen, openNoteMenuId, addNoteOpen]);
 
   const priorityDot = useMemo(() => {
     const priority = (task?.priority || "").toLowerCase();
@@ -210,6 +260,16 @@ export default function TaskViewModal({
 
   const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "--");
   const fmtDateTime = (d?: string | null) => (d ? new Date(d).toLocaleString() : "--");
+  const fmtShortDate = (d?: string | null) => {
+    if (!d) return "--";
+    const dt = new Date(d);
+    // format DD/MM/YYYY (as in screenshot)
+    const dd = String(dt.getDate()).padStart(2, "0");
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const yyyy = dt.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+  const fmtTime = (d?: string | null) => (d ? new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--");
   const minsToHuman = (mins?: number | null) => {
     if (mins === null || mins === undefined) return "--";
     const h = Math.floor((mins || 0) / 60);
@@ -272,12 +332,10 @@ export default function TaskViewModal({
   // Subtask menu actions: View, Edit, Delete (UI-only)
   const onSubtaskView = () => {
     setSubtaskMenuOpen(false);
-    // set view modal content: for placeholder we have a single subtask title/desc
     setViewSubtaskOpen(true);
   };
   const onSubtaskEdit = () => {
     setSubtaskMenuOpen(false);
-    // prefill edit form with current placeholder values
     setEditSubtaskTitle("Title of the sub task");
     setEditSubtaskDesc("");
     setEditTitleError(null);
@@ -306,7 +364,6 @@ export default function TaskViewModal({
       setTitleError("Title is required");
       return;
     }
-    // UI-only save: prompt/alert and close. Integrate with API to persist.
     alert(`Subtask "${newSubtaskTitle}" created (UI-only). Integrate API to persist.`);
     setAddSubtaskOpen(false);
   };
@@ -321,7 +378,6 @@ export default function TaskViewModal({
       setEditTitleError("Title is required");
       return;
     }
-    // UI-only update: alert and close. Integrate API to persist.
     alert(`Subtask updated to "${editSubtaskTitle}" (UI-only). Integrate API to persist.`);
     setEditSubtaskOpen(false);
   };
@@ -338,29 +394,30 @@ export default function TaskViewModal({
   };
 
   // ----- Notes handlers (UI-only) -----
-  const onOpenNoteMenu = (id: number) => {
-    setOpenNoteMenuId((prev) => (prev === id ? null : id));
+  const onOpenNoteMenu = (note: Note) => {
+    setCurrentNote(note);
+    setOpenNoteMenuId(note.id);
   };
 
-  const onViewNote = (note: Note) => {
-    setOpenNoteMenuId(null);
-    setCurrentNote(note);
+  const onViewNote = () => {
+    if (!currentNote) return;
     setViewNoteOpen(true);
+    setOpenNoteMenuId(null);
   };
 
-  const onEditNote = (note: Note) => {
-    setOpenNoteMenuId(null);
-    setCurrentNote(note);
-    setEditNoteTitle(note.title);
-    setEditNoteType(note.type);
-    setEditNoteContent(note.content ?? "");
+  const onEditNote = () => {
+    if (!currentNote) return;
+    setEditNoteTitle(currentNote.title);
+    setEditNoteType(currentNote.type);
+    setEditNoteContent(currentNote.content ?? "");
     setEditNoteOpen(true);
+    setOpenNoteMenuId(null);
   };
 
-  const onDeleteNote = (note: Note) => {
-    setOpenNoteMenuId(null);
-    setCurrentNote(note);
+  const onDeleteNote = () => {
+    if (!currentNote) return;
     setDeleteNoteConfirmOpen(true);
+    setOpenNoteMenuId(null);
   };
 
   const confirmDeleteNote = () => {
@@ -398,6 +455,39 @@ export default function TaskViewModal({
   const closeViewNote = () => {
     setViewNoteOpen(false);
     setCurrentNote(null);
+  };
+
+  // Add Note handlers
+  const openAddNote = () => {
+    setAddNoteTitle("");
+    setAddNoteContent("");
+    setAddNoteType("public");
+    setAddNoteTitleError(null);
+    setAddNoteOpen(true);
+  };
+
+  const cancelAddNote = () => {
+    setAddNoteOpen(false);
+    setAddNoteTitleError(null);
+  };
+
+  const saveAddNote = () => {
+    if (!addNoteTitle.trim()) {
+      setAddNoteTitleError("Title is required");
+      return;
+    }
+    const newId = notes.length ? Math.max(...notes.map((n) => n.id)) + 1 : 1;
+    const newNote: Note = {
+      id: newId,
+      title: addNoteTitle.trim(),
+      type: addNoteType,
+      content: addNoteContent,
+    };
+    setNotes((n) => [newNote, ...n]);
+    setAddNoteOpen(false);
+    setAddNoteTitle("");
+    setAddNoteContent("");
+    setAddNoteType("public");
   };
 
   // ----- end Notes handlers -----
@@ -627,10 +717,9 @@ export default function TaskViewModal({
                   </div>
                 )}
 
-                {/* ----- SUBTASK TAB (UI matching your screenshot) ----- */}
+                {/* ----- SUBTASK TAB ----- */}
                 {tab === "subtask" && (
                   <div className="h-full flex flex-col">
-                    {/* Add a Sub Task */}
                     <div className="flex items-center gap-3">
                       <button
                         onClick={openAddSubtask}
@@ -643,7 +732,6 @@ export default function TaskViewModal({
                       </button>
                     </div>
 
-                    {/* Subtask list (single example row to match screenshot) */}
                     <div className="mt-4 flex-1 overflow-auto">
                       <ul className="space-y-3">
                         <li className="flex items-center justify-between pr-2">
@@ -700,25 +788,70 @@ export default function TaskViewModal({
                   </div>
                 )}
 
-                {/* ----- TIMESHEET & NOTES placeholders ----- */}
-                {tab === "timesheet" && <div className="text-gray-500">Timesheet (placeholder)</div>}
+                {/* ----- TIMESHEET TAB: new table matching screenshot ----- */}
+                {tab === "timesheet" && (
+                  <div className="h-full flex flex-col">
+                    <div className="mt-1 flex-1 overflow-auto">
+                      <div className="rounded-md overflow-hidden border">
+                        {/* header row */}
+                        <div className="bg-[#e8f2fb] px-4 py-3 text-sm text-gray-700 grid grid-cols-4 gap-4 items-center rounded-t-md">
+                          <div className="font-medium">Employee</div>
+                          <div className="font-medium">Start Time</div>
+                          <div className="font-medium">End Time</div>
+                          <div className="font-medium text-right">Hours Logged</div>
+                        </div>
 
-                {/* ----- NOTES TAB: table UI matching screenshot + 3-dot actions ----- */}
+                        {/* rows */}
+                        <div className="bg-white divide-y">
+                          {timesheets.map((row) => (
+                            <div key={row.id} className="px-4 py-4 grid grid-cols-4 gap-4 items-center text-sm">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                                  {/* avatar fallback (no external images) */}
+                                  {row.employee.profileUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={row.employee.profileUrl} alt={row.employee.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span className="text-xs text-gray-600">{row.employee.name.split(" ").map(n=>n[0]).join("")}</span>
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="font-medium">{row.employee.name}</div>
+                                  <div className="text-xs text-gray-500">{row.employee.role ?? ""}</div>
+                                </div>
+                              </div>
+
+                              <div className="text-sm">
+                                <div className="font-medium">{fmtShortDate(row.startTime)}</div>
+                                <div className="text-xs text-gray-500">{fmtTime(row.startTime)}</div>
+                              </div>
+
+                              <div className="text-sm">
+                                <div className="font-medium">{fmtShortDate(row.endTime)}</div>
+                                <div className="text-xs text-gray-500">{fmtTime(row.endTime)}</div>
+                              </div>
+
+                              <div className="text-right">
+                                <div className="font-medium">{minsToHuman(row.minutesLogged)}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* footer rounded bottom */}
+                        <div className="h-2 bg-white rounded-b-md" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ----- NOTES TAB ----- */}
                 {tab === "notes" && (
                   <div className="h-full flex flex-col">
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() =>
-                          setNotes((n) => [
-                            ...n,
-                            {
-                              id: n.length ? Math.max(...n.map((x) => x.id)) + 1 : 1,
-                              title: "New Note",
-                              type: "private",
-                              content: "",
-                            },
-                          ])
-                        }
+                        onClick={openAddNote}
+                        data-add-note-btn
                         className="inline-flex items-center gap-2 text-blue-600 text-sm font-medium hover:underline"
                         aria-label="Add a Note"
                         title="Add a Note"
@@ -728,14 +861,29 @@ export default function TaskViewModal({
                       </button>
                     </div>
 
-                    <div className="mt-4 flex-1 overflow-auto">
-                      <div className="rounded-md overflow-hidden border">
+                    <div className="mt-4 flex-1 overflow-auto relative">
+                      <div className="rounded-md overflow-hidden border relative">
                         {/* header */}
                         <div className="bg-[#e8f2fb] px-4 py-3 text-sm text-gray-700 grid grid-cols-3 gap-4 items-center">
                           <div className="font-medium">Note Title</div>
                           <div className="font-medium">Note Type</div>
                           <div className="font-medium text-right">Action</div>
                         </div>
+
+                        {/* actions popup at top-right of this table card */}
+                        {openNoteMenuId !== null && currentNote && (
+                          <div data-notes-menu className="absolute right-3 top-3 z-50 w-44 bg-white border rounded-lg shadow-md p-1">
+                            <button onClick={onViewNote} className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm flex items-center gap-2">
+                              View
+                            </button>
+                            <button onClick={onEditNote} className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm flex items-center gap-2">
+                              Edit
+                            </button>
+                            <button onClick={onDeleteNote} className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm flex items-center gap-2 text-red-600">
+                              Delete
+                            </button>
+                          </div>
+                        )}
 
                         {/* rows */}
                         <div className="bg-white p-3 text-sm">
@@ -746,23 +894,13 @@ export default function TaskViewModal({
                                   <div className="truncate max-w-[40%]">{note.title}</div>
 
                                   <div className="flex items-center gap-2 text-gray-600">
-                                    {note.type === "public" ? (
-                                      <span className="flex items-center gap-1">
-                                        <svg className="w-4 h-4 text-gray-600" viewBox="0 0 24 24" fill="none"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM2 12h20" stroke="currentColor" strokeWidth="1.2"/></svg>
-                                        <span>Public</span>
-                                      </span>
-                                    ) : (
-                                      <span className="flex items-center gap-1">
-                                        <svg className="w-4 h-4 text-gray-600" viewBox="0 0 24 24" fill="none"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM8 12h8" stroke="currentColor" strokeWidth="1.2"/></svg>
-                                        <span>Private</span>
-                                      </span>
-                                    )}
+                                    {note.type === "public" ? <span>Public</span> : <span>Private</span>}
                                   </div>
 
                                   <div className="relative">
                                     <button
                                       data-notes-menu-btn
-                                      onClick={() => onOpenNoteMenu(note.id)}
+                                      onClick={() => onOpenNoteMenu(note)}
                                       className="p-2 rounded hover:bg-gray-100"
                                       aria-label="note actions"
                                     >
@@ -772,23 +910,6 @@ export default function TaskViewModal({
                                         <circle cx="19" cy="12" r="1.5" />
                                       </svg>
                                     </button>
-
-                                    {openNoteMenuId === note.id && (
-                                      <div data-notes-menu className="absolute right-0 top-8 w-40 bg-white border rounded-lg shadow-md p-1 z-50">
-                                        <button onClick={() => onViewNote(note)} className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm flex items-center gap-2">
-                                          <svg className="w-4 h-4 text-gray-600" viewBox="0 0 24 24" fill="none"><path d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7z" stroke="currentColor" strokeWidth="1.2"/></svg>
-                                          View
-                                        </button>
-                                        <button onClick={() => onEditNote(note)} className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm flex items-center gap-2">
-                                          <svg className="w-4 h-4 text-gray-600" viewBox="0 0 24 24" fill="none"><path d="M3 21l3-1 11-11 2 2-11 11-1 3H3z" stroke="currentColor" strokeWidth="1.2"/></svg>
-                                          Edit
-                                        </button>
-                                        <button onClick={() => onDeleteNote(note)} className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm flex items-center gap-2 text-red-600">
-                                          <svg className="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6M10 6V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="1.2"/></svg>
-                                          Delete
-                                        </button>
-                                      </div>
-                                    )}
                                   </div>
                                 </li>
                               ))}
@@ -824,11 +945,10 @@ export default function TaskViewModal({
         </div>
       )}
 
-      {/* Add Subtask modal (matches provided image) */}
+      {/* Add Subtask modal */}
       {addSubtaskOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 px-4">
           <div role="dialog" aria-modal="true" className="w-full max-w-lg bg-white rounded-lg shadow-lg p-6">
-            {/* Title */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700">
                 Title <span className="text-red-500">*</span>
@@ -846,7 +966,6 @@ export default function TaskViewModal({
               {titleError && <div className="mt-1 text-xs text-red-600">{titleError}</div>}
             </div>
 
-            {/* Description */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700">Description</label>
               <textarea
@@ -857,7 +976,6 @@ export default function TaskViewModal({
               />
             </div>
 
-            {/* Buttons: Cancel (outlined) + Save (filled) */}
             <div className="flex items-center justify-center gap-6">
               <button
                 onClick={onCancelAddSubtask}
@@ -876,7 +994,7 @@ export default function TaskViewModal({
         </div>
       )}
 
-      {/* View Subtask modal (read-only, matches second image) */}
+      {/* View Subtask modal */}
       {viewSubtaskOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/30 px-4">
           <div role="dialog" aria-modal="true" className="w-full max-w-lg bg-white rounded-lg shadow-lg p-6">
@@ -886,7 +1004,7 @@ export default function TaskViewModal({
               <div className="font-medium">Title of the sub task</div>
 
               <div className="text-gray-500">Description</div>
-              <div className="font-medium">{/* placeholder desc */} --</div>
+              <div className="font-medium">--</div>
             </div>
 
             <div className="mt-6 flex justify-end">
@@ -901,7 +1019,7 @@ export default function TaskViewModal({
         </div>
       )}
 
-      {/* Edit Subtask modal (matches third image: Title required, Description, Cancel + Update) */}
+      {/* Edit Subtask modal */}
       {editSubtaskOpen && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/30 px-4">
           <div role="dialog" aria-modal="true" className="w-full max-w-lg bg-white rounded-lg shadow-lg p-6">
@@ -950,9 +1068,79 @@ export default function TaskViewModal({
         </div>
       )}
 
-      {/* ----- Notes: View Note modal ----- */}
-      {viewNoteOpen && currentNote && (
+      {/* Add Note modal */}
+      {addNoteOpen && (
         <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/30 px-4">
+          <div data-add-note-modal role="dialog" aria-modal="true" className="w-full max-w-lg bg-white rounded-lg shadow-lg p-6">
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">
+                Note Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                value={addNoteTitle}
+                onChange={(e) => {
+                  setAddNoteTitle(e.target.value);
+                  if (addNoteTitleError) setAddNoteTitleError(null);
+                }}
+                className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="Enter note title"
+                autoFocus
+              />
+              {addNoteTitleError && <div className="mt-1 text-xs text-red-600">{addNoteTitleError}</div>}
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">Note Detail</label>
+              <textarea
+                value={addNoteContent}
+                onChange={(e) => setAddNoteContent(e.target.value)}
+                className="mt-2 w-full min-h-[100px] rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="Enter note details (optional)"
+              />
+            </div>
+
+            <div className="mb-6 flex items-center gap-6">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="note-type"
+                  checked={addNoteType === "public"}
+                  onChange={() => setAddNoteType("public")}
+                />
+                <span className="text-sm">Public</span>
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="note-type"
+                  checked={addNoteType === "private"}
+                  onChange={() => setAddNoteType("private")}
+                />
+                <span className="text-sm">Private</span>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-center gap-6">
+              <button
+                onClick={cancelAddNote}
+                className="px-8 py-2 rounded-full border border-blue-600 text-blue-600 text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveAddNote}
+                className="px-8 py-2 rounded-full bg-blue-600 text-white text-sm hover:bg-blue-700"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Note modal */}
+      {viewNoteOpen && currentNote && (
+        <div className="fixed inset-0 z-[86] flex items-center justify-center bg-black/30 px-4">
           <div role="dialog" aria-modal="true" className="w-full max-w-lg bg-white rounded-lg shadow-lg p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">View Note</h3>
@@ -981,9 +1169,9 @@ export default function TaskViewModal({
         </div>
       )}
 
-      {/* ----- Notes: Edit Note modal ----- */}
+      {/* Edit Note modal */}
       {editNoteOpen && currentNote && (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/30 px-4">
+        <div className="fixed inset-0 z-[87] flex items-center justify-center bg-black/30 px-4">
           <div role="dialog" aria-modal="true" className="w-full max-w-lg bg-white rounded-lg shadow-lg p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Edit Note</h3>
@@ -1037,9 +1225,9 @@ export default function TaskViewModal({
         </div>
       )}
 
-      {/* ----- Notes: Delete Confirm modal ----- */}
+      {/* Delete Note Confirm modal */}
       {deleteNoteConfirmOpen && currentNote && (
-        <div className="fixed inset-0 z-[96] flex items-center justify-center bg-black/30 px-4">
+        <div className="fixed inset-0 z-[88] flex items-center justify-center bg-black/30 px-4">
           <div role="dialog" aria-modal="true" className="w-full max-w-md bg-white rounded-lg shadow-lg p-6">
             <div className="text-center">
               <h3 className="text-xl font-semibold">Are you sure?</h3>
