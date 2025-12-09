@@ -1,485 +1,156 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-
-type EmployeeItem = {
-  employeeId: string;
-  name?: string | null;
-  profileUrl?: string | null;
-  designation?: string | null;
-  department?: string | null;
-};
-
-type Timesheet = {
-  id: number;
-  projectShortCode?: string;
-  taskId?: number;
-  employees?: EmployeeItem[];
-  startDate?: string; // "YYYY-MM-DD"
-  endDate?: string; // "YYYY-MM-DD"
-  startTime?: string; // "HH:MM" or "HH:MM:SS"
-  endTime?: string;
-  memo?: string | null;
-  durationHours?: number;
-};
+import React, { useMemo, useState } from "react";
+import type { Timesheet } from "../page";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type FullCalendarViewProps = {
-  // optional timesheets to render as events (if provided, used as initial/override)
-  events?: Timesheet[];
-  // optional starting month/year; defaults to current month
-  initYear?: number;
-  initMonth?: number; // 0-11
-  // optional onEventClick
-  onEventClick?: (ev: Timesheet) => void;
-  // optional override of base API url (if not provided we use the URL you gave)
-  apiBaseUrl?: string;
+  events: Timesheet[];
+  onEventClick: (ev: Timesheet) => void;
 };
 
-function startOfMonth(year: number, month: number) {
-  return new Date(year, month, 1);
+function getDateKey(date?: string) {
+  return date ?? "";
 }
 
-function daysInMonth(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function pad(n: number) {
-  return String(n).padStart(2, "0");
-}
-
-export default function FullCalendarView({
-  events = [],
-  initYear,
-  initMonth,
+const FullCalendarView: React.FC<FullCalendarViewProps> = ({
+  events,
   onEventClick,
-  apiBaseUrl,
-}: FullCalendarViewProps) {
-  const BASE_URL =
-    apiBaseUrl ?? "https://6jnqmj85-80.inc1.devtunnels.ms"; // user-provided base
+}) => {
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
 
-  const today = new Date();
-  const [viewYear, setViewYear] = useState(initYear ?? today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(initMonth ?? today.getMonth()); // 0-indexed
-
-  // internal events state: start with prop if provided, otherwise empty and we'll fetch
-  const [eventsState, setEventsState] = useState<Timesheet[]>(events ?? []);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // modal open state for full-page view
-  const [isFullPageOpen, setIsFullPageOpen] = useState(false);
-
-  // Keep internal state in sync if parent passes events later/updates them
-  useEffect(() => {
-    if (events && events.length > 0) {
-      setEventsState(events);
-    }
-  }, [events]);
-
-  // Fetch timesheets from API on mount (only if parent didn't already pass events)
-  useEffect(() => {
-    const controller = new AbortController();
-    const signal = controller.signal;
-
-    async function loadTimesheets() {
-      setLoading(true);
-      setError(null);
-      try {
-        const t = localStorage.getItem("accessToken");
-        const res = await fetch(`${BASE_URL}/timesheets`, {
-          method: "GET",
-          signal,
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${t}`,
-          },
-        });
-
-        if (!res.ok) {
-          throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
-        }
-
-        const data = (await res.json()) as any[];
-
-        // map API shape to our Timesheet type (best-effort)
-        const mapped: Timesheet[] = data.map((d) => {
-          // ensure date is YYYY-MM-DD if there's a time portion
-          const makeDateOnly = (v?: string | null) =>
-            v ? v.split("T")[0].split(" ")[0] : undefined;
-
-          // durationHours may be number already
-          const duration =
-            typeof d.durationHours === "number"
-              ? d.durationHours
-              : d.durationHours
-              ? Number(d.durationHours)
-              : undefined;
-
-          // map employees array if exists
-          const emps: EmployeeItem[] | undefined = Array.isArray(d.employees)
-            ? d.employees.map((e: any) => ({
-                employeeId: e.employeeId,
-                name: e.name ?? e.employeeName ?? null,
-                profileUrl: e.profileUrl ?? null,
-                designation: e.designation ?? null,
-                department: e.department ?? null,
-              }))
-            : d.employeeId
-            ? [
-                {
-                  employeeId: d.employeeId,
-                  name: d.employeeName ?? null,
-                  profileUrl: d.profileUrl ?? null,
-                  designation: d.designation ?? null,
-                  department: d.department ?? null,
-                },
-              ]
-            : undefined;
-
-          return {
-            id: typeof d.id === "number" ? d.id : Number(d.id),
-            projectShortCode: d.projectShortCode ?? d.projectCode ?? d.projectName,
-            taskId:
-              typeof d.taskId === "number"
-                ? d.taskId
-                : d.taskId
-                ? Number(d.taskId)
-                : undefined,
-            employees: emps,
-            startDate: makeDateOnly(d.startDate ?? d.start_date ?? d.date),
-            endDate: makeDateOnly(d.endDate ?? d.end_date ?? d.endDate),
-            startTime:
-              typeof d.startTime === "string" ? d.startTime.split(".")[0] : d.startTime,
-            endTime:
-              typeof d.endTime === "string" ? d.endTime.split(".")[0] : d.endTime,
-            memo: d.memo ?? null,
-            durationHours: duration,
-          } as Timesheet;
-        });
-
-        setEventsState(mapped);
-      } catch (err: any) {
-        if (err?.name === "AbortError") {
-          // aborted, ignore
-        } else {
-          setError(err?.message ?? "Unknown error");
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadTimesheets();
-
-    return () => controller.abort();
-  }, [BASE_URL]);
-
-  // Map events by date key "YYYY-MM-DD"
+  // Group events by date
   const eventsByDate = useMemo(() => {
     const map = new Map<string, Timesheet[]>();
-    (eventsState || []).forEach((ev) => {
-      // prefer startDate; fallback to endDate
-      const dateKey = ev.startDate ?? ev.endDate;
-      if (!dateKey) return;
-      const s = map.get(dateKey) ?? [];
-      s.push(ev);
-      map.set(dateKey, s);
+    events.forEach((e) => {
+      if (!e.startDate) return;
+      const key = getDateKey(e.startDate);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(e);
     });
     return map;
-  }, [eventsState]);
+  }, [events]);
 
-  const monthName = useMemo(
-    () =>
-      startOfMonth(viewYear, viewMonth).toLocaleString(undefined, {
-        month: "long",
-      }),
-    [viewYear, viewMonth]
-  );
+  // Build grid for calendar
+  const days = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const startDay = (firstDay.getDay() + 6) % 7; // Monday = 0
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const firstDayIndex = new Date(viewYear, viewMonth, 1).getDay(); // 0 = Sun .. 6 = Sat
+    const cells: { date: Date | null }[] = [];
 
-  const totalDays = daysInMonth(viewYear, viewMonth);
-
-  // build grid rows (weeks)
-  const weeks: Array<Array<{ date?: number; key?: string }>> = useMemo(() => {
-    const cells: Array<Array<{ date?: number; key?: string }>> = [];
-    let current = 1 - firstDayIndex; // start offset (could be negative)
-    while (current <= totalDays) {
-      const week: Array<{ date?: number; key?: string }> = [];
-      for (let d = 0; d < 7; d++) {
-        if (current < 1 || current > totalDays) {
-          week.push({ date: undefined, key: `${current}-${d}` });
-        } else {
-          const key = `${viewYear}-${pad(viewMonth + 1)}-${pad(current)}`;
-          week.push({ date: current, key });
-        }
-        current++;
-      }
-      cells.push(week);
+    for (let i = 0; i < startDay; i++) cells.push({ date: null });
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push({ date: new Date(year, month, d) });
     }
+    while (cells.length % 7 !== 0) cells.push({ date: null });
+
     return cells;
-  }, [viewYear, viewMonth, firstDayIndex, totalDays]);
+  }, [currentMonth]);
 
-  const goPrev = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (viewMonth === 0) {
-      setViewMonth(11);
-      setViewYear((y) => y - 1);
-    } else setViewMonth((m) => m - 1);
-  };
-  const goNext = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (viewMonth === 11) {
-      setViewMonth(0);
-      setViewYear((y) => y + 1);
-    } else setViewMonth((m) => m + 1);
-  };
-  const goToday = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setViewYear(today.getFullYear());
-    setViewMonth(today.getMonth());
-  };
+  // Month label
+  const monthLabel = currentMonth.toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
 
-  // Handle Escape to close full page modal
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && isFullPageOpen) {
-        setIsFullPageOpen(false);
-      }
-    }
-    if (isFullPageOpen) {
-      document.addEventListener("keydown", onKey);
-      // disable body scroll
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.removeEventListener("keydown", onKey);
-        document.body.style.overflow = prev;
-      };
-    }
-    return () => {
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [isFullPageOpen]);
+  function formatISO(d: Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(d.getDate()).padStart(2, "0")}`;
+  }
 
-  // Render calendar content (so we can reuse inside modal and small card)
-  const CalendarContent = ({ stopOpen }: { stopOpen?: boolean }) => {
-    return (
-      <div
-        // if stopOpen is true we prevent the outer click-to-open behaviour by stopping propagation here
-        onClick={(e) => stopOpen && e.stopPropagation()}
-      >
-        <div className="bg-white border rounded-md shadow-sm">
-          <div className="flex items-center justify-between px-4 py-3 border-b">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={goPrev}
-                className="px-2 py-1 rounded hover:bg-gray-100"
-                aria-label="Previous month"
-              >
-                ‹
-              </button>
-              <button
-                onClick={goToday}
-                className="px-2 py-1 rounded text-sm hover:bg-gray-100"
-                aria-label="Today"
-              >
-                today
-              </button>
-              <button
-                onClick={goNext}
-                className="px-2 py-1 rounded hover:bg-gray-100"
-                aria-label="Next month"
-              >
-                ›
-              </button>
-            </div>
-
-            <div className="text-sm text-gray-600 font-medium">
-              {monthName} {viewYear}
-            </div>
-
-            <div className="text-sm text-gray-500">
-              {/* placeholder for controls (view toggles etc) */}
-            </div>
-          </div>
-
-          <div className="p-3">
-            {/* Simple loading / error indicator */}
-            {loading && (
-              <div className="mb-2 text-sm text-gray-500">Loading timesheets…</div>
-            )}
-            {error && <div className="mb-2 text-sm text-red-500">Error: {error}</div>}
-
-            <div className="grid grid-cols-7 gap-0 text-xs text-center text-gray-600 mb-2">
-              <div className="py-2 font-medium">Sun</div>
-              <div className="py-2 font-medium">Mon</div>
-              <div className="py-2 font-medium">Tue</div>
-              <div className="py-2 font-medium">Wed</div>
-              <div className="py-2 font-medium">Thu</div>
-              <div className="py-2 font-medium">Fri</div>
-              <div className="py-2 font-medium">Sat</div>
-            </div>
-
-            <div className="grid grid-rows-6 gap-0">
-              {weeks.map((week, wi) => (
-                <div
-                  key={wi}
-                  className="grid grid-cols-7 border-t"
-                  style={{ minHeight: 80 }}
-                >
-                  {week.map((cell, ci) => {
-                    const ds = cell.date;
-                    const key = cell.key;
-                    const dateKey =
-                      ds != null
-                        ? `${viewYear}-${pad(viewMonth + 1)}-${pad(ds)}`
-                        : null;
-                    const dayEvents =
-                      dateKey && eventsByDate.has(dateKey)
-                        ? eventsByDate.get(dateKey) || []
-                        : [];
-                    return (
-                      <div
-                        key={key}
-                        className={`p-2 text-sm align-top border-r last:border-r-0 ${
-                          ds ? "bg-white" : "bg-gray-50"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div
-                            className={`text-xs font-semibold ${
-                              ds &&
-                              today.getFullYear() === viewYear &&
-                              today.getMonth() === viewMonth &&
-                              today.getDate() === ds
-                                ? "text-white bg-indigo-600 rounded-full w-6 h-6 flex items-center justify-center"
-                                : "text-gray-700"
-                            }`}
-                            style={{ minWidth: 24 }}
-                          >
-                            {ds ?? ""}
-                          </div>
-                        </div>
-
-                        {/* events list (limit to 3, show +n if more) */}
-                        <div className="mt-2 space-y-2">
-                          {dayEvents.slice(0, 3).map((ev) => (
-                            <button
-                              key={ev.id}
-                              onClick={(e) => {
-                                e.stopPropagation(); // important: prevent outer click-to-open
-                                onEventClick ? onEventClick(ev) : undefined;
-                              }}
-                              className="block text-left w-full overflow-hidden whitespace-nowrap text-ellipsis px-2 py-1 rounded text-xs bg-blue-500/90 text-white hover:brightness-95"
-                              title={`${ev.memo ?? ""} • ${ev.durationHours ?? 0}h`}
-                            >
-                              <div className="leading-tight text-xs font-medium">
-                                {ev.projectShortCode ?? `Task ${ev.taskId ?? ""}`}
-                              </div>
-                              <div className="text-[11px] opacity-90">
-                                {ev.durationHours ?? 0}h
-                              </div>
-                            </button>
-                          ))}
-
-                          {dayEvents.length > 3 && (
-                            <div className="text-[11px] text-gray-500">
-                              +{dayEvents.length - 3} more
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  function changeMonth(delta: number) {
+    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+  }
 
   return (
-    <>
-      {/* Compact card — clicking this opens full-page modal */}
-      <div
-        className="cursor-pointer"
-        onClick={() => setIsFullPageOpen(true)}
-        role="button"
-        aria-label="Open full calendar"
-      >
-        {/* We pass stopOpen=false so interactive children also work but events stopPropagation where needed */}
-        <CalendarContent />
+    <div className="w-full bg-white rounded-xl shadow-lg overflow-hidden border">
+
+      {/* HEADER */}
+      <div className="flex items-center justify-between px-6 py-4 border-b  bg-gradient-to-r from-indigo-50 to-blue-50">
+        <button
+          onClick={() => changeMonth(-1)}
+          className="p-2 hover:bg-white rounded-full shadow-sm"
+        >
+          <ChevronLeft className="w-5 h-5 text-gray-700" />
+        </button>
+
+        <div className="text-lg font-semibold text-gray-700">{monthLabel}</div>
+
+        <button
+          onClick={() => changeMonth(1)}
+          className="p-2 hover:bg-white rounded-full shadow-sm"
+        >
+          <ChevronRight className="w-5 h-5 text-gray-700" />
+        </button>
       </div>
 
-      {/* Full-page modal */}
-      {isFullPageOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center p-4"
-          aria-modal="true"
-          role="dialog"
-        >
-          {/* backdrop */}
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setIsFullPageOpen(false)}
-          />
-
-          {/* full page container */}
-          <div className="relative z-10 w-full h-full bg-white rounded shadow-lg overflow-auto">
-            {/* header with close */}
-            <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-20">
-              <div className="text-lg font-semibold">
-                {monthName} {viewYear}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    goPrev();
-                  }}
-                  className="px-3 py-1 rounded hover:bg-gray-100"
-                >
-                  Prev
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    goToday();
-                  }}
-                  className="px-3 py-1 rounded hover:bg-gray-100"
-                >
-                  Today
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    goNext();
-                  }}
-                  className="px-3 py-1 rounded hover:bg-gray-100"
-                >
-                  Next
-                </button>
-
-                <button
-                  onClick={() => setIsFullPageOpen(false)}
-                  className="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200"
-                  aria-label="Close calendar"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-
-            {/* Calendar body — we pass stopOpen to prevent accidental outer opens/closes */}
-            <div className="p-4">
-              <CalendarContent stopOpen />
-            </div>
+      {/* WEEK DAYS */}
+      <div className="grid grid-cols-7 text-xs text-center border-b bg-gray-100">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <div key={d} className="py-3 font-semibold text-gray-700 tracking-wide">
+            {d}
           </div>
-        </div>
-      )}
-    </>
+        ))}
+      </div>
+
+      {/* CALENDAR GRID */}
+      <div className="grid grid-cols-7 gap-[1px] bg-gray-200">
+        {days.map((cell, idx) => {
+          if (!cell.date) {
+            return (
+              <div key={idx} className="bg-gray-50 h-[120px]" />
+            );
+          }
+
+          const iso = formatISO(cell.date);
+          const dayEvents = eventsByDate.get(iso) ?? [];
+
+          return (
+            <div
+              key={idx}
+              className="bg-white h-[120px] p-2 flex flex-col border border-gray-100 hover:bg-gray-50 transition group"
+            >
+              {/* Day number */}
+              <div className="text-[12px] font-semibold text-gray-800 mb-1 group-hover:text-blue-600">
+                {cell.date.getDate()}
+              </div>
+
+              {/* Events */}
+              <div className="flex flex-col gap-1 overflow-hidden">
+                {dayEvents.slice(0, 4).map((ev) => (
+                  <button
+                    key={ev.id}
+                    onClick={() => onEventClick(ev)}
+                    className="text-left rounded-md bg-blue-50 hover:bg-blue-100 transition px-2 py-1 text-[11px] truncate shadow-sm"
+                  >
+                    <span className="font-medium text-blue-700">
+                      Task {ev.taskId ?? ev.id}
+                    </span>
+                    <span className="text-gray-500"> • {ev.durationHours ?? 0}h </span>
+                  </button>
+                ))}
+
+                {/* Show "+more" */}
+                {dayEvents.length > 4 && (
+                  <div className="text-[10px] text-gray-500">
+                    +{dayEvents.length - 4} more…
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
-}
+};
+
+export default FullCalendarView;

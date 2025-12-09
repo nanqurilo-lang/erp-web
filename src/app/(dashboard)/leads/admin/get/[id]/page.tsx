@@ -364,7 +364,7 @@ function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null
                   )}
                 </div>
 
-                <div className="mt-4">Follow ups / files listing area — replicate your existing UI here as needed.</div>
+                <div className="mt-4">Follow ups / files listing area — replicate your existing UI here as needed .</div>
               </div>
             </div>
           </div>
@@ -2087,8 +2087,6 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     </main>
   );
 }
-
-
 
 
 

@@ -2037,7 +2037,7 @@ export default function DealDetailPage() {
                   </div>
 
                   <div className="col-span-2">
-                    <label className="block text-sm text-gray-600">Note Detail</label>
+                    <label className="block text-sm text-gray-600">Note Detail </label>
                     <textarea
                       value={editingNote.noteDetails}
                       onChange={(e) => setEditingNote({ ...editingNote, noteDetails: e.target.value })}

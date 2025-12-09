@@ -34,19 +34,13 @@ const MONTH_NAMES = [
 ];
 
 type WeeklyTimesheetModalProps = {
-  open: boolean;
+  open: boolean; // kept for compatibility but ignored
   onClose: () => void;
   apiBaseUrl?: string;
   authToken?: string | null;
 };
 
-type WeekDay = {
-  date: string;
-  month: string;
-  label: string;
-  iso: string;
-};
-
+// Row type
 type Row = {
   id: string;
   taskId: string;
@@ -66,6 +60,10 @@ const WeeklyTimesheetModal: React.FC<WeeklyTimesheetModalProps> = ({
   apiBaseUrl = DEFAULT_API_BASE,
   authToken = null,
 }) => {
+  /* -----------------------------------------------------
+     FULL-SCREEN MODAL REMOVED → ALWAYS RENDER SECTION
+  ------------------------------------------------------ */
+
   const dateInputRef = useRef<HTMLInputElement | null>(null);
 
   const [rows, setRows] = useState<Row[]>([
@@ -82,8 +80,6 @@ const WeeklyTimesheetModal: React.FC<WeeklyTimesheetModalProps> = ({
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
-  if (!open) return null;
-
   function getEffectiveToken() {
     try {
       const t = localStorage.getItem("accessToken");
@@ -92,23 +88,17 @@ const WeeklyTimesheetModal: React.FC<WeeklyTimesheetModalProps> = ({
     return authToken ?? null;
   }
 
-  /* FETCH TASKS */
   useEffect(() => {
     fetchMyTasks();
   }, []);
 
   async function fetchMyTasks() {
     setLoadingTasks(true);
-
     const token = getEffectiveToken();
-    if (!token) {
-      setLoadingTasks(false);
-      return;
-    }
 
     try {
       const res = await fetch(`${apiBaseUrl}/me/tasks`, {
-        headers: { Authorization:` Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       if (!res.ok) throw new Error("Failed to fetch tasks");
@@ -129,64 +119,21 @@ const WeeklyTimesheetModal: React.FC<WeeklyTimesheetModalProps> = ({
     }
   }
 
-  /* SAVE */
-  async function handleSave() {
-    setLoadingSave(true);
-    setSaveResults(null);
-
-    const validRows = rows.filter((r) => r.taskId.trim() !== "");
-
-    if (!validRows.length) {
-      setSaveResults("Please select a task before saving.");
-      setLoadingSave(false);
-      return;
-    }
-
-    const url = `${apiBaseUrl}${ENDPOINT}`;
-    const token = getEffectiveToken();
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-
-    try {
-      for (const row of validRows) {
-        const payload = {
-          taskId: Number(row.taskId),
-          days: weekDays
-            .map((d, i) => ({
-              date: d.iso,
-              hours: Number(row.hours[i] || 0),
-            }))
-            .filter((x) => x.hours > 0),
-        };
-
-        if (!payload.days.length) continue;
-
-        const res = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(payload),
-          credentials: "include",
-        });
-
-        const body = await res.json();
-
-        setSaveResults(
-          `Saved Task ${payload.taskId}.
-Already filled: ${body.alreadyFilledDates?.join(", ") || "None"}
-Skipped: ${body.skippedInvalidDates?.join(", ") || "None"}`
-        );
-      }
-    } catch (err: any) {
-      setSaveResults(err.message || "Save failed.");
-    } finally {
-      setLoadingSave(false);
-    }
+  function openCalendar() {
+    dateInputRef.current?.showPicker?.();
   }
 
-  /* INPUT HANDLERS */
+  function handleDateSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const chosen = new Date(e.target.value);
+    if (isNaN(chosen.getTime())) return;
+
+    const newMonday = getMonday(chosen);
+    const newWeek = buildWeekDaysFromMonday(newMonday);
+
+    setWeekDays(newWeek);
+    setWeekLabel(generateWeekLabel(newMonday));
+  }
+
   function handleChangeHour(rowIndex: number, dayIndex: number, value: string) {
     setRows((prev) =>
       prev.map((r, i) =>
@@ -231,39 +178,62 @@ Skipped: ${body.skippedInvalidDates?.join(", ") || "None"}`
     return rows.reduce((sum, r) => sum + (Number(r.hours[i]) || 0), 0);
   }
 
-  /* ---------------------------------------------------------
-     OPEN CALENDAR WHEN CLICK "WEEK BOX"
-  ------------------------------------------------------------ */
-  function openCalendar() {
-    dateInputRef.current?.showPicker?.();
+  async function handleSave() {
+    setLoadingSave(true);
+    setSaveResults("");
+
+    const token = getEffectiveToken();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    try {
+      for (const row of rows) {
+        if (!row.taskId) continue;
+
+        const payload = {
+          taskId: Number(row.taskId),
+          days: weekDays
+            .map((d, i) => ({
+              date: d.iso,
+              hours: Number(row.hours[i] || 0),
+            }))
+            .filter((x) => x.hours > 0),
+        };
+
+        if (payload.days.length === 0) continue;
+
+        await fetch(`${apiBaseUrl}${ENDPOINT}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+      }
+
+      setSaveResults("Saved successfully.");
+    } catch (err: any) {
+      setSaveResults("Save failed.");
+    } finally {
+      setLoadingSave(false);
+    }
   }
 
-  function handleDateSelected(e: React.ChangeEvent<HTMLInputElement>) {
-    const chosen = new Date(e.target.value);
-    if (isNaN(chosen.getTime())) return;
-
-    const newMonday = getMonday(chosen);
-    const newWeek = buildWeekDaysFromMonday(newMonday);
-
-    setWeekDays(newWeek);
-    setWeekLabel(generateWeekLabel(newMonday));
-  }
-
-  /* ---------------------------------------------------------
-     RENDER
-  ------------------------------------------------------------ */
+  /* ------------------------------------------------------------------
+        NOW RENDER AS NORMAL SECTION (NOT FULL SCREEN)
+  ------------------------------------------------------------------- */
   return (
-    <div className="fixed left-0 top-0 right-0 bottom-0 md:left-[260px] md:top-[64px] bg-white flex flex-col z-[11000] overflow-hidden">
-      {/* Hidden calendar input */}
+    <div className="w-full bg-white border rounded-md shadow-sm p-6">
+      {/* Hidden Calendar Input */}
       <input
         type="date"
         ref={dateInputRef}
-        onChange={handleDateSelected}
         className="hidden"
+        onChange={handleDateSelected}
       />
 
-      {/* HEADER */}
-      <header className="flex items-center justify-between px-8 py-4 border-b bg-white shadow-sm">
+      {/* HEADER (Kept same UI) */}
+      <header className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-semibold">Weekly Timesheet</h1>
 
         <div className="flex items-center gap-4">
@@ -290,148 +260,129 @@ Skipped: ${body.skippedInvalidDates?.join(", ") || "None"}`
           <div className="w-9 h-9 rounded-full border bg-gray-100 flex items-center justify-center">
             <User className="w-4 h-4" />
           </div>
-
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-full border flex items-center justify-center"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
       </header>
 
-      {/* CONTENT */}
-      <div className="flex-1 overflow-auto bg-[#f7f8fc]">
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          {/* WEEK SELECTOR */}
-          <div className="flex items-center gap-4 mb-4">
-            <span className="w-16 text-sm">Week</span>
+      {/* WEEK SELECTOR */}
+      <div className="flex items-center gap-4 mb-4">
+        <span className="w-16 text-sm">Week</span>
 
-            <div
-              onClick={openCalendar}
-              className="flex items-center border rounded-md bg-white cursor-pointer"
-            >
-              <button className="h-9 px-3 border-r">
-                <ChevronLeft className="w-4 h-4" />
-              </button>
+        <div
+          onClick={openCalendar}
+          className="flex items-center border rounded-md bg-white cursor-pointer"
+        >
+          <button className="h-9 px-3 border-r">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
 
-              <div className="px-4 text-sm min-w-[160px] text-center">
-                {weekLabel}
-              </div>
-
-              <button className="h-9 px-3 border-l">
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+          <div className="px-4 text-sm min-w-[160px] text-center">
+            {weekLabel}
           </div>
 
-          {/* TABLE */}
-          <div className="bg-white rounded-md border shadow-sm">
-            {/* HEADER */}
-            <div className="bg-[#e8f0ff] border-b">
-              <div className="grid grid-cols-[180px_repeat(7,1fr)]">
-                <div className="px-4 py-3 text-xs font-medium">Task</div>
+          <button className="h-9 px-3 border-l">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
 
-                {weekDays.map((d) => (
-                  <div key={d.iso} className="px-2 py-2 text-center border-l">
-                    <div className="text-sm font-semibold">{d.date}</div>
-                    <div className="text-[10px]">{d.month}</div>
-                    <div className="text-[10px] text-gray-500">{d.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+      {/* TABLE SECTION — SAME UI */}
+      <div className="bg-white rounded-md border shadow-sm">
+        {/* HEADER */}
+        <div className="bg-[#e8f0ff] border-b">
+          <div className="grid grid-cols-[180px_repeat(7,1fr)]">
+            <div className="px-4 py-3 text-xs font-medium">Task</div>
 
-            {/* ROWS */}
-            {rows.map((row, rowIndex) => (
-              <div key={row.id} className="border-b">
-                <div className="grid grid-cols-[180px_repeat(7,1fr)]">
-                  {/* TASK DROPDOWN */}
-                  <div className="px-4 py-3 border-r">
-                    <select
-                      className="w-full border rounded-md px-3 py-2 text-sm"
-                      value={row.taskId}
-                      onChange={(e) =>
-                        handleChangeTask(rowIndex, e.target.value)
-                      }
-                    >
-                      <option value="">
-                        {loadingTasks ? "Loading…" : "Select Task"}
-                      </option>
-
-                      {tasks.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* HOURS CELLS */}
-                  {weekDays.map((d, dayIndex) => (
-                    <div
-                      key={dayIndex}
-                      className="px-2 py-3 border-l flex justify-center"
-                    >
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.25"
-                        className="w-14 text-center border rounded-md text-sm"
-                        value={row.hours[dayIndex]}
-                        onChange={(e) =>
-                          handleChangeHour(rowIndex, dayIndex, e.target.value)
-                        }
-                      />
-                    </div>
-                  ))}
-                </div>
+            {weekDays.map((d) => (
+              <div key={d.iso} className="px-2 py-2 text-center border-l">
+                <div className="text-sm font-semibold">{d.date}</div>
+                <div className="text-[10px]">{d.month}</div>
+                <div className="text-[10px] text-gray-500">{d.label}</div>
               </div>
             ))}
-
-            {/* TOTAL ROW */}
-            <div className="border-t bg-white">
-              <div className="grid grid-cols-[180px_repeat(7,1fr)]">
-                <div className="px-4 py-3 border-r text-sm">Total</div>
-
-                {weekDays.map((_, i) => (
-                  <div
-                    key={i}
-                    className="px-2 py-3 border-l text-center text-sm"
-                  >
-                    {totalPerDay(i)} hrs
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* FOOTER */}
-          <div className="flex justify-between mt-4">
-            <div>
-              <button
-                onClick={addRow}
-                className="px-4 py-2 border border-blue-500 text-blue-600 rounded-md bg-white"
-              >
-                + Add More
-              </button>
-
-              {saveResults && (
-                <div className="mt-3 text-sm whitespace-pre-line">
-                  {saveResults}
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={handleSave}
-              disabled={loadingSave}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md"
-            >
-              {loadingSave ? "Saving…" : "Save"}
-            </button>
           </div>
         </div>
+
+        {/* ROWS */}
+        {rows.map((row, rowIndex) => (
+          <div key={row.id} className="border-b">
+            <div className="grid grid-cols-[180px_repeat(7,1fr)]">
+              <div className="px-4 py-3 border-r">
+                <select
+                  className="w-full border rounded-md px-3 py-2 text-sm"
+                  value={row.taskId}
+                  onChange={(e) => handleChangeTask(rowIndex, e.target.value)}
+                >
+                  <option value="">
+                    {loadingTasks ? "Loading…" : "Select Task"}
+                  </option>
+
+                  {tasks.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {weekDays.map((d, dayIndex) => (
+                <div
+                  key={dayIndex}
+                  className="px-2 py-3 border-l flex justify-center"
+                >
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.25"
+                    className="w-14 text-center border rounded-md text-sm"
+                    value={row.hours[dayIndex]}
+                    onChange={(e) =>
+                      handleChangeHour(rowIndex, dayIndex, e.target.value)
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* TOTAL ROW */}
+        <div className="border-t bg-white">
+          <div className="grid grid-cols-[180px_repeat(7,1fr)]">
+            <div className="px-4 py-3 border-r text-sm">Total</div>
+
+            {weekDays.map((_, i) => (
+              <div key={i} className="px-2 py-3 border-l text-center text-sm">
+                {totalPerDay(i)} hrs
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div className="flex justify-between mt-4">
+        <div>
+          <button
+            onClick={addRow}
+            className="px-4 py-2 border border-blue-500 text-blue-600 rounded-md bg-white"
+          >
+            + Add More
+          </button>
+
+          {saveResults && (
+            <div className="mt-3 text-sm whitespace-pre-line">
+              {saveResults}
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={loadingSave}
+          className="px-6 py-2 bg-blue-600 text-white rounded-md"
+        >
+          {loadingSave ? "Saving…" : "Save"}
+        </button>
       </div>
     </div>
   );
@@ -446,11 +397,9 @@ function isoDate(d: Date) {
     "0"
   )}-${String(d.getDate()).padStart(2, "0")}`;
 }
-
 function padNum(n: number) {
   return String(n).padStart(2, "0");
 }
-
 function shortMonth(d: Date) {
   return MONTH_NAMES[d.getMonth()].slice(0, 3);
 }
