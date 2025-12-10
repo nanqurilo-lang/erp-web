@@ -1,95 +1,213 @@
-"use client"
 
-import { useEffect, useRef, useState } from "react"
-import Image from "next/image"
-import useSWR from "swr"
-import ChatInput from "./ChatInput"
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import useSWR from "swr";
+import ChatInput from "./ChatInput";
 
 interface Message {
-  id: number
-  chatRoomId: string
-  senderId: string
-  receiverId: string
-  content: string
-  messageType: "TEXT" | "FILE"
-  fileAttachment: { fileName: string; fileUrl: string } | null
-  status: string
-  createdAt: string
-  deletedForCurrentUser: boolean
+  id: number;
+  chatRoomId: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  messageType: "TEXT" | "FILE";
+  fileAttachment: { fileName: string; fileUrl: string } | null;
+  status: string;
+  createdAt: string;
+  deletedForCurrentUser: boolean;
   senderDetails: {
-    employeeId: string
-    name: string
-    profileUrl: string | null
-    designation: string | null
-    department: string | null
-  }
+    employeeId: string;
+    name: string;
+    profileUrl: string | null;
+    designation: string | null;
+    department: string | null;
+  };
   receiverDetails: {
-    employeeId: string
-    name: string
-    profileUrl: string | null
-    designation: string | null
-    department: string | null
-  }
+    employeeId: string;
+    name: string;
+    profileUrl: string | null;
+    designation: string | null;
+    department: string | null;
+  };
 }
 
 interface ChatWindowProps {
-  chatRoomId: string
-  employeeid: string
-  receiverId: string
+  chatRoomId: string;
+  employeeid: string;
+  receiverId: string;
 }
 
 const fetcher = async (url: string) => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null
-  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
-  const res = await fetch(url, { headers, cache: "no-store" })
+  const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await fetch(url, { headers, cache: "no-store" });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err?.error || "Failed to fetch")
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error || "Failed to fetch");
   }
-  return res.json()
-}
+  return res.json();
+};
 
 export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatWindowProps) {
-  const [currentUserId, setCurrentUserId] = useState(employeeid || "")
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [currentUserId, setCurrentUserId] = useState(employeeid || "");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // message action menu state (which message id has menu open)
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!employeeid) {
-      const fromLS = localStorage.getItem("employeeId")
-      if (fromLS) setCurrentUserId(fromLS)
+      const fromLS = localStorage.getItem("employeeId");
+      if (fromLS) setCurrentUserId(fromLS);
     }
-  }, [employeeid])
+  }, [employeeid]);
 
   const { data, error, isLoading, mutate } = useSWR<Message[]>(
     receiverId ? `/api/chats/history/${receiverId}` : null,
     fetcher,
     { revalidateOnFocus: true }
-  )
+  );
 
-  const messages = data || []
+  const messages = data || [];
+
+  
 
   // receiver details: prefer explicit receiver info from messages, fallback to first message sender
   const receiverDetails =
     messages.length > 0
       ? messages.find((m) => m.receiverDetails.employeeId === receiverId)?.receiverDetails ||
         messages[0]?.senderDetails
-      : null
+      : null;
 
   // Auto-scroll on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages.length])
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
 
   // Optimistic update when new message sent
   const handleMessageSent = (newMessage: Message) => {
-    mutate((prev) => (prev ? [...prev, newMessage] : [newMessage]), false)
+    mutate((prev) => (prev ? [...prev, newMessage] : [newMessage]), false);
     setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    }, 100)
-  }
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
 
-  if (isLoading) return <p className="text-center text-muted-foreground">Loading chat...</p>
-  if (error) return <p className="text-center text-destructive">{(error as Error).message}</p>
+  if (isLoading) return <p className="text-center text-muted-foreground">Loading chat...</p>;
+  if (error) return <p className="text-center text-destructive">{(error as Error).message}</p>;
+
+  // Helpers
+  const isImageFilename = (filename?: string | null) => {
+    if (!filename) return false;
+    return /\.(png|jpe?g|gif|webp|svg|bmp|tiff)$/i.test(filename);
+  };
+
+  const formatTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  // Delete flow: mark deletedForCurrentUser true on success
+  const deleteMessage = async (messageId: number) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+    setDeleting(true);
+
+    // optimistic update: mark deletedForCurrentUser for this user
+    mutate(
+      (prev) =>
+        prev
+          ? prev.map((m) =>
+              m.id === messageId ? { ...m, deletedForCurrentUser: true } : m
+            )
+          : prev,
+      false
+    );
+
+    try {
+      const res = await fetch(`/api/chats/${id }`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      if (!res.ok) {
+        // revert optimistic update on failure by revalidating
+        await mutate();
+        const text = await res.text().catch(() => "");
+        throw new Error(text || `Failed to delete message (${res.status})`);
+      }
+
+      // revalidate to get canonical state from server
+      await mutate();
+    } catch (err) {
+      console.error("Delete message error:", err);
+      // revalidate to get latest server state
+      await mutate();
+    } finally {
+      setDeleting(false);
+      setOpenMenuId(null);
+      setConfirmDeleteId(null);
+    }
+  };
+
+  // Click handler for message bubble -> toggles action menu
+  const handleBubbleClick = (messageId: number) => {
+    // toggle open/close
+    setOpenMenuId((prev) => (prev === messageId ? null : messageId));
+    // reset any pending confirm
+    setConfirmDeleteId(null);
+  };
+
+  // Render file attachment UI (image thumbnail or file card)
+  const Attachment = ({ attachment, isMine }: { attachment: { fileName: string; fileUrl: string } | null; isMine: boolean }) => {
+    if (!attachment) return null;
+    const image = isImageFilename(attachment.fileName);
+
+    if (image) {
+      return (
+        <a
+          href={attachment.fileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block mt-2 rounded-md overflow-hidden border border-border"
+        >
+          {/* next/image requires width/height; using fixed height and letting width auto via css */}
+          <div className="relative w-full h-48">
+            <Image
+              src={attachment.fileUrl}
+              alt={attachment.fileName}
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              style={{ objectFit: "cover" }}
+            />
+          </div>
+        </a>
+      );
+    }
+
+    // non-image file card
+    return (
+      <div
+        className={`mt-2 flex items-center gap-3 p-3 rounded-md border ${
+          isMine ? "bg-primary/5 border-primary/40" : "bg-white border-border"
+        }`}
+      >
+        <div className="flex-none w-10 h-10 rounded-md flex items-center justify-center bg-muted">
+          {/* simple paperclip/file icon */}
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 01-7.78-7.78l9.19-9.19a3.5 3.5 0 014.95 4.95L9.9 17.36a1.5 1.5 0 01-2.12-2.12l8.49-8.49" />
+          </svg>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer" className="block truncate font-medium">
+            {attachment.fileName}
+          </a>
+          <p className="text-xs text-muted-foreground mt-1 truncate">Click to download / open</p>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col h-full border border-border rounded-lg overflow-hidden bg-white">
@@ -117,14 +235,12 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
       {/* Messages list */}
       <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-[rgba(250,250,250,0.8)]">
         {messages.map((msg) => {
-          const isMine = msg.senderId === currentUserId
+          const isMine = msg.senderId === currentUserId;
 
           if (msg.deletedForCurrentUser) {
+            // Deleted placeholder
             return (
-              <div
-                key={msg.id}
-                className={`flex items-start gap-3 ${isMine ? "justify-end" : "justify-start"}`}
-              >
+              <div key={msg.id} className={`flex items-start gap-3 ${isMine ? "justify-end" : "justify-start"}`}>
                 {!isMine && (
                   <Image
                     src={msg.senderDetails.profileUrl || "/placeholder.svg?height=32&width=32&query=User%20avatar"}
@@ -138,14 +254,15 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
                   This message was deleted
                 </div>
               </div>
-            )
+            );
           }
 
+          const bubbleClasses = isMine
+            ? "bg-primary text-primary-foreground"
+            : "bg-white border border-border text-foreground";
+
           return (
-            <div
-              key={msg.id}
-              className={`flex items-start gap-3 ${isMine ? "justify-end" : "justify-start"}`}
-            >
+            <div key={msg.id} className={`relative flex items-start gap-3 ${isMine ? "justify-end" : "justify-start"}`}>
               {!isMine && (
                 <Image
                   src={msg.senderDetails.profileUrl || "/placeholder.svg?height=32&width=32&query=User%20avatar"}
@@ -156,40 +273,79 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
                 />
               )}
 
-              <div
-                className={`px-4 py-3 rounded-2xl max-w-[75%] break-words ${
-                  isMine ? "bg-primary text-primary-foreground" : "bg-white border border-border text-foreground"
-                }`}
-              >
+              <div className={`px-4 py-3 rounded-2xl max-w-[75%] break-words ${bubbleClasses}`} onClick={() => handleBubbleClick(msg.id)}>
+                {/* Message text */}
                 {msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>}
+
+                {/* Attachment preview */}
                 {msg.fileAttachment && (
-                  <a
-                    href={msg.fileAttachment.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`mt-2 inline-block underline break-all ${isMine ? "text-primary-foreground" : "text-foreground"}`}
-                  >
-                    📎 {msg.fileAttachment.fileName}
-                  </a>
+                  <Attachment attachment={msg.fileAttachment} isMine={isMine} />
                 )}
+
                 <div className={`text-[11px] mt-1 ${isMine ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                  <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                  <span>{formatTime(msg.createdAt)}</span>
                 </div>
               </div>
+
+              {/* Action menu */}
+              {openMenuId === msg.id && (
+                <div className="absolute top-0 transform -translate-y-full right-0 z-20">
+                  <div className="bg-white border border-border rounded-md shadow-sm py-2 w-36">
+                    {/* Confirm step */}
+                    {confirmDeleteId === msg.id ? (
+                      <div className="px-3">
+                        <p className="text-sm text-muted-foreground mb-2">Are you sure?</p>
+                        <div className="flex gap-2">
+                          <button
+                            className="flex-1 px-2 py-1 rounded-md border text-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDeleteId(null);
+                              setOpenMenuId(null);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            className="flex-1 px-2 py-1 rounded-md bg-destructive text-white text-sm disabled:opacity-60"
+                            disabled={deleting}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              await deleteMessage(msg.id);
+                            }}
+                          >
+                            {deleting ? "Deleting..." : "Delete"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="px-2">
+                        {/* Delete option available to both sender and receiver */}
+                        <button
+                          className="w-full text-left px-2 py-2 text-sm hover:bg-muted rounded-md"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteId(msg.id);
+                          }}
+                        >
+                          Delete
+                        </button>
+                        {/* Future actions can be added here (Reply, Forward, etc.) */}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          )
+          );
         })}
 
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input (kept identical in behavior) */}
-      <ChatInput
-        chatRoomId={chatRoomId}
-        senderId={currentUserId}
-        receiverId={receiverId}
-        onMessageSent={handleMessageSent}
-      />
+      <ChatInput chatRoomId={chatRoomId} senderId={currentUserId} receiverId={receiverId} onMessageSent={handleMessageSent} />
     </div>
-  )
+  );
 }
+

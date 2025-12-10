@@ -1,7 +1,8 @@
+
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 
 export default function ChatInput({
   chatRoomId,
@@ -17,6 +18,10 @@ export default function ChatInput({
   const [message, setMessage] = useState("")
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  // BASE_URL for file uploads (from your message)
+  const BASE_URL = "https://6jnqmj85-80.inc1.devtunnels.ms"
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,6 +30,47 @@ export default function ChatInput({
     try {
       setLoading(true)
 
+      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null
+
+      // If there's a file, upload it first to the upload endpoint and get back metadata
+      let uploadedFileMeta: any = null
+      if (file) {
+        try {
+          const uploadForm = new FormData()
+          uploadForm.append("file", file)
+
+          const uploadRes = await fetch(`${BASE_URL}/api/chat/files/upload`, {
+            method: "POST",
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            body: uploadForm,
+          })
+
+          // Read upload response robustly
+          const uploadText = await uploadRes.text()
+          let uploadData: any
+          try {
+            uploadData = uploadText ? JSON.parse(uploadText) : null
+          } catch {
+            uploadData = uploadText
+          }
+
+          if (!uploadRes.ok) {
+            console.error("File upload failed:", uploadData)
+            const messageFromServer =
+              typeof uploadData === "object" && uploadData !== null
+                ? uploadData.error || uploadData.message
+                : String(uploadData || "")
+            throw new Error(messageFromServer || "File upload failed")
+          }
+
+          uploadedFileMeta = uploadData
+        } catch (uploadErr) {
+          console.error("Error uploading file:", uploadErr)
+          throw uploadErr
+        }
+      }
+
+      // Now send the chat message. If we uploaded a file, include the returned metadata.
       const formData = new FormData()
       formData.append("chatRoomId", chatRoomId)
       formData.append("senderId", senderId)
@@ -32,12 +78,16 @@ export default function ChatInput({
       formData.append("content", message)
       formData.append("messageType", file ? "FILE" : "TEXT")
       formData.append("status", "SENT")
-      if (file) formData.append("fileAttachment", file)
 
-      const token = localStorage.getItem("accessToken")
+      // If we have uploadedFileMeta, include it as a JSON string under fileAttachment.
+      // This keeps the contract flexible — backend can read JSON or the fields it expects.
+      if (uploadedFileMeta) {
+        formData.append("fileAttachment", JSON.stringify(uploadedFileMeta))
+      }
+
       const res = await fetch("/api/chats/send", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
       })
 
@@ -60,6 +110,11 @@ export default function ChatInput({
       onMessageSent?.(data) // notify parent
       setMessage("")
       setFile(null)
+
+      // Clear native file input so the same file can be selected again if needed
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
     } catch (error) {
       console.error("Send message error:", error)
     } finally {
@@ -75,6 +130,7 @@ export default function ChatInput({
       {/* Upload file button */}
       <div className="flex items-center gap-3">
         <input
+          ref={fileInputRef}
           type="file"
           onChange={(e) => setFile(e.target.files?.[0] || null)}
           className="hidden"
@@ -89,6 +145,8 @@ export default function ChatInput({
           </svg>
           <span className="text-sm">Upload File</span>
         </label>
+        {/* show selected file name (small) */}
+        {file ? <span className="text-xs text-gray-500 truncate max-w-[120px]">{file.name}</span> : null}
       </div>
 
       {/* Message input */}
@@ -111,3 +169,7 @@ export default function ChatInput({
     </form>
   )
 }
+
+
+
+
