@@ -47,23 +47,23 @@ export function AppSidebar() {
   );
 
   return (
-    <div className="min-h-screen bg-[#15173a] text-white">
+    <div className="min-h-screen bg-[#15173a]  text-white">
       <Sidebar className="#211C52">
         <SidebarHeader>
-          <div className="flex items-center justify-center  bg-amber-400 px-4 py-6">
+          <div className="flex items-center justify-center  px-0 py-0">
             {/* <h1 className="text-2xl font-bold text-sidebar-primary">Qurilo</h1> */}
           </div>
         </SidebarHeader>
 
-        <SidebarContent>
+        <SidebarContent className="bg-[#15173a] text-white">
           {/* Dashboard */}
-          <SidebarGroup>
+          <SidebarGroup className=" text-white">
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <Link href="/dashboard">
                     <LayoutDashboard className="size-5" />
-                    <span>Dashboard</span>
+                    <span >Dashboard</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -82,7 +82,7 @@ export function AppSidebar() {
               tabIndex={0}
               aria-expanded={!!openGroups.leads}
             >
-              <SidebarGroupLabel>Leads</SidebarGroupLabel>
+              <SidebarGroupLabel className=" text-white">Leads</SidebarGroupLabel>
               <Chevron open={!!openGroups.leads} />
             </div>
 
@@ -120,7 +120,7 @@ export function AppSidebar() {
               tabIndex={0}
               aria-expanded={!!openGroups.client}
             >
-              <SidebarGroupLabel>Client</SidebarGroupLabel>
+              <SidebarGroupLabel className=" text-white">Client</SidebarGroupLabel>
               <Chevron open={!!openGroups.client} />
             </div>
 
@@ -150,7 +150,7 @@ export function AppSidebar() {
               tabIndex={0}
               aria-expanded={!!openGroups.work}
             >
-              <SidebarGroupLabel>Work</SidebarGroupLabel>
+              <SidebarGroupLabel className=" text-white">Work</SidebarGroupLabel>
               <Chevron open={!!openGroups.work} />
             </div>
 
@@ -204,7 +204,7 @@ export function AppSidebar() {
               tabIndex={0}
               aria-expanded={!!openGroups.hr}
             >
-              <SidebarGroupLabel>HR</SidebarGroupLabel>
+              <SidebarGroupLabel className=" text-white">HR</SidebarGroupLabel>
               <Chevron open={!!openGroups.hr} />
             </div>
 
@@ -287,7 +287,7 @@ export function AppSidebar() {
               tabIndex={0}
               aria-expanded={!!openGroups.finance}
             >
-              <SidebarGroupLabel>Finance</SidebarGroupLabel>
+              <SidebarGroupLabel className=" text-white">Finance</SidebarGroupLabel>
               <Chevron open={!!openGroups.finance} />
             </div>
 
@@ -340,7 +340,7 @@ export function AppSidebar() {
               tabIndex={0}
               aria-expanded={!!openGroups.settings}
             >
-              <SidebarGroupLabel>Settings</SidebarGroupLabel>
+              <SidebarGroupLabel className=" text-white">Settings</SidebarGroupLabel>
               <Chevron open={!!openGroups.settings} />
             </div>
 
@@ -350,7 +350,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild>
                     <Link href="/settings/company-settings">
                       <CalendarCheck className="size-5" />
-                      <span>Company Settings</span>
+                      <span>Company Settings </span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -368,9 +368,9 @@ export function AppSidebar() {
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter>
-          <div className="p-4 text-xs text-sidebar-foreground/60 text-center border-t border-sidebar-border">
-            © 2025 Qurilo
+        <SidebarFooter className="bg-[#15173a] text-white">
+          <div className="p-4 text-xs text-white text-sidebar-foreground/60 text-center ">
+            © 2025 Qurilo 
           </div>
         </SidebarFooter>
       </Sidebar>
