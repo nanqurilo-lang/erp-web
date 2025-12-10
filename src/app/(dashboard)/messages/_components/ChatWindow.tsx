@@ -39,15 +39,26 @@ interface ChatWindowProps {
   receiverId: string;
 }
 
+// === Update this constant if the base URL changes ===
+const BASE_URL = "https://6jnqmj85-80.inc1.devtunnels.ms";
+
 const fetcher = async (url: string) => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-  const res = await fetch(url, { headers, cache: "no-store" });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error || "Failed to fetch");
+  try {
+    const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+    const res = await fetch(url, { headers, cache: "no-store" });
+    if (!res.ok) {
+      const contentType = res.headers.get("content-type") || "";
+      const errBody = contentType.includes("application/json") ? await res.json().catch(() => ({})) : await res.text().catch(() => "");
+      const message = (errBody && typeof errBody === "object" && (errBody.error || errBody.message)) || errBody || `Failed to fetch (${res.status})`;
+      throw new Error(message);
+    }
+    return res.json();
+  } catch (err) {
+    // normalize error
+    if (err instanceof Error) throw err;
+    throw new Error(String(err));
   }
-  return res.json();
 };
 
 export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatWindowProps) {
@@ -60,21 +71,23 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    if (!employeeid) {
+    if (!employeeid && typeof window !== "undefined") {
       const fromLS = localStorage.getItem("employeeId");
       if (fromLS) setCurrentUserId(fromLS);
+    } else if (employeeid) {
+      setCurrentUserId(employeeid);
     }
   }, [employeeid]);
 
+  const historyUrl = receiverId ? `/api/chats/history/${encodeURIComponent(receiverId)}` : null;
+
   const { data, error, isLoading, mutate } = useSWR<Message[]>(
-    receiverId ? `/api/chats/history/${receiverId}` : null,
+    historyUrl,
     fetcher,
     { revalidateOnFocus: true }
   );
 
   const messages = data || [];
-
-  
 
   // receiver details: prefer explicit receiver info from messages, fallback to first message sender
   const receiverDetails =
@@ -125,7 +138,9 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
     );
 
     try {
-      const res = await fetch(`/api/chats/${id }`, {
+      const url = `${BASE_URL}/api/chat/message/${encodeURIComponent(String(messageId))}`; 
+      console.log("bc",url)
+      const res = await fetch(url, {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
@@ -141,7 +156,7 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
       await mutate();
     } catch (err) {
       console.error("Delete message error:", err);
-      // revalidate to get latest server state
+      // revalidate to get latest server state (revert optimistic)
       await mutate();
     } finally {
       setDeleting(false);
@@ -179,6 +194,7 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
               style={{ objectFit: "cover" }}
+              unoptimized
             />
           </div>
         </a>
@@ -221,6 +237,7 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
               width={56}
               height={56}
               className="object-cover w-full h-full"
+              unoptimized
             />
           </div>
 
@@ -248,6 +265,7 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
                     width={32}
                     height={32}
                     className="rounded-full"
+                    unoptimized
                   />
                 )}
                 <div className="px-3 py-2 rounded-xl max-w-xs bg-muted italic text-muted-foreground">
@@ -270,6 +288,7 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
                   width={32}
                   height={32}
                   className="rounded-full"
+                  unoptimized
                 />
               )}
 
@@ -348,4 +367,5 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
     </div>
   );
 }
+
 
