@@ -50,7 +50,7 @@ export function AppSidebar() {
     <div className="min-h-screen bg-[#15173a]  text-white">
       <Sidebar className="#211C52">
         <SidebarHeader>
-          <div className="flex items-center justify-center  px-0 py-0">
+          <div className="flex items-center justify-center  px-1 py-6">
             {/* <h1 className="text-2xl font-bold text-sidebar-primary">Qurilo</h1> */}
           </div>
         </SidebarHeader>
@@ -369,7 +369,7 @@ export function AppSidebar() {
         </SidebarContent>
 
         <SidebarFooter className="bg-[#15173a] text-white">
-          <div className="p-4 text-xs text-white text-sidebar-foreground/60 text-center ">
+          <div className="p-4 text-xs text-white text-sidebar-foreground/60 text-center border-t border-sidebar-border">
             © 2025 Qurilo 
           </div>
         </SidebarFooter>
