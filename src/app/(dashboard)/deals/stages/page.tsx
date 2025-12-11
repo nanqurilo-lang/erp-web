@@ -129,7 +129,7 @@ export default function StagesPage() {
 
         <footer className="mt-6">
           <Link href="/" className="text-blue-600 hover:underline">
-            Back to Home
+            Back to Home 
           </Link>
         </footer>
       </div>

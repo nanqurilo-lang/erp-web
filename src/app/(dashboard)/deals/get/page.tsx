@@ -563,7 +563,7 @@ export default function DealsPage() {
 
       <div className="mt-4">
         <Link href="/" className="underline">
-          Back to Home
+          Back to Home 
         </Link>
       </div>
     </div>
