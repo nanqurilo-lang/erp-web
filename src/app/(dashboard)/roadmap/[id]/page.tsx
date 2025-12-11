@@ -336,7 +336,7 @@ export default function ProjectView() {
 
           {/* Task Statistics */}
           <div className="bg-white rounded-2xl shadow-md border p-4 flex flex-col items-center">
-            <h2 className="font-semibold mb-2">Task Statistics</h2>
+            <h2 className="font-semibold mb-2">Task Statistics </h2>
             <PieChart width={250} height={200}>
               <Pie data={TaskStats} dataKey="value" outerRadius={80} label>
                 {TaskStats.map((entry, index) => (
