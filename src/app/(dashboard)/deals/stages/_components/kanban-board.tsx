@@ -16,6 +16,8 @@ const API_BASE = "https://6jnqmj85-80.inc1.devtunnels.ms"
 const PRIORITIES_ADMIN_ENDPOINT = `${API_BASE}/deals/admin/priorities`
 const PRIORITY_ASSIGN = (dealId: string | number) => `${API_BASE}/deals/${dealId}/priority/assign`
 const PRIORITY_UPDATE = (dealId: string | number) => `${API_BASE}/deals/${dealId}/priority`
+const DEALS_BULK = (dealId: string | number) => `${API_BASE}/deals/${dealId}/bulk`
+const EMPLOYEES_ALL = `${API_BASE}/employee/all`
 // ---------------
 
 export default function KanbanBoard({
@@ -346,7 +348,7 @@ function DealCard({
 
   const dealName = deal.title ?? "Deal"
 
-  const tags: string[] = Array.isArray((deal as any).tags)
+  const initialTags: string[] = Array.isArray((deal as any).tags)
     ? (deal as any).tags
     : (deal as any).tags
     ? String((deal as any).tags)
@@ -364,10 +366,16 @@ function DealCard({
     (deal as any).mobile ||
     ""
 
-  const watchers = Array.isArray((deal as any).watchers)
+  const initialWatchers = Array.isArray((deal as any).watchers)
     ? (deal as any).watchers
     : Array.isArray((deal as any).dealWatchers)
     ? (deal as any).dealWatchers
+    : (deal as any).dealWatchersMeta
+    ? (deal as any).dealWatchersMeta
+    : (deal as any).assignedEmployeesMeta
+    ? (deal as any).assignedEmployeesMeta
+    : (deal as any).assignedEmployees
+    ? (deal as any).assignedEmployees
     : []
 
   const rawPriority = (deal as any).priority
@@ -392,6 +400,46 @@ function DealCard({
   const [modalPriorityColor, setModalPriorityColor] = useState("#000000")
   const [saving, setSaving] = useState(false)
 
+  // NEW: state for the Add (tags/people/comment) modal that opens when clicking the plus watcher button
+  const [openAddModal, setOpenAddModal] = useState(false)
+  const [addTags, setAddTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState("")
+  // people stores employeeIds as strings (payload expects employeeIds)
+  const [people, setPeople] = useState<string[]>([])
+  const [peopleInput, setPeopleInput] = useState("")
+  const [comment, setComment] = useState("")
+
+  // employees list (fetched from API) and map for quick lookup
+  const [employees, setEmployees] = useState<any[]>([])
+  const [employeesMap, setEmployeesMap] = useState<Record<string, any>>({})
+  const [employeeLoading, setEmployeeLoading] = useState(false)
+  const [showPeopleDropdown, setShowPeopleDropdown] = useState(false)
+
+  // local UI state to reflect API changes on the card without changing other code
+  const [localTags, setLocalTags] = useState<string[]>(initialTags)
+  const [localWatchers, setLocalWatchers] = useState<any[]>(initialWatchers)
+
+  // --- NEW: Sync incoming deal props into local card state so Kanban shows same people/tags as Deal -> People view
+  useEffect(() => {
+    setLocalTags(
+      Array.isArray((deal as any).tags)
+        ? (deal as any).tags
+        : (deal as any).tags
+        ? String((deal as any).tags).split(",").map((s: string) => s.trim())
+        : []
+    )
+
+    const watchersSource =
+      (deal as any).assignedEmployeesMeta ??
+      (deal as any).dealWatchersMeta ??
+      (deal as any).dealWatchers ??
+      (deal as any).assignedEmployees ??
+      (deal as any).watchers ??
+      []
+
+    setLocalWatchers(Array.isArray(watchersSource) ? watchersSource : [])
+  }, [deal])
+
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       if (!openPopover) return
@@ -402,6 +450,41 @@ function DealCard({
     document.addEventListener("mousedown", onDoc)
     return () => document.removeEventListener("mousedown", onDoc)
   }, [openPopover])
+
+  // Fetch employees once token is loaded (to populate People dropdown)
+  useEffect(() => {
+    let mounted = true
+    if (token === null) return
+
+    const fetchEmployees = async () => {
+      setEmployeeLoading(true)
+      try {
+        const headers: Record<string, string> = { "Content-Type": "application/json" }
+        if (token) headers["Authorization"] = `Bearer ${token}`
+        const res = await fetch(EMPLOYEES_ALL, { headers })
+        if (!res.ok) {
+          throw new Error(`Failed to fetch employees: ${res.status}`)
+        }
+        const json = await res.json()
+        if (!mounted) return
+        setEmployees(Array.isArray(json) ? json : [])
+        const map: Record<string, any> = {}
+        ;(Array.isArray(json) ? json : []).forEach((e: any) => {
+          if (e?.employeeId) map[String(e.employeeId)] = e
+        })
+        setEmployeesMap(map)
+      } catch (err) {
+        console.error("Error fetching employees:", err)
+      } finally {
+        if (mounted) setEmployeeLoading(false)
+      }
+    }
+
+    fetchEmployees()
+    return () => {
+      mounted = false
+    }
+  }, [token])
 
   /**
    * applyPalettePriority:
@@ -454,6 +537,144 @@ function DealCard({
 
   const onCancelModal = () => {
     setOpenModal(false)
+  }
+
+  // --- Tag handlers for Add modal
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault()
+      const val = tagInput.trim()
+      if (val && !addTags.includes(val)) {
+        setAddTags((s) => [...s, val])
+      }
+      setTagInput("")
+    } else if (e.key === "Backspace" && tagInput === "") {
+      // remove last tag
+      setAddTags((s) => s.slice(0, -1))
+    }
+  }
+  const removeTag = (t: string) => setAddTags((s) => s.filter((x) => x !== t))
+
+  // --- People handlers for Add modal (autocomplete + selection)
+  const handlePeopleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      // if input matches employeeId exactly, add it
+      const val = peopleInput.trim()
+      if (!val) return
+      // if employee exists by id, add that id; else treat input as raw id and add it
+      const matched = employees.find((emp) => emp.employeeId === val || emp.name?.toLowerCase() === val.toLowerCase())
+      const idToAdd = matched ? String(matched.employeeId) : val
+      if (idToAdd && !people.includes(idToAdd)) {
+        setPeople((s) => [...s, idToAdd])
+      }
+      setPeopleInput("")
+      setShowPeopleDropdown(false)
+    } else if (e.key === "Backspace" && peopleInput === "") {
+      setPeople((s) => s.slice(0, -1))
+    } else {
+      setShowPeopleDropdown(true)
+    }
+  }
+
+  const removePerson = (p: string) => setPeople((s) => s.filter((x) => x !== p))
+
+  const onSelectEmployee = (emp: any) => {
+    if (!emp || !emp.employeeId) return
+    const id = String(emp.employeeId)
+    if (!people.includes(id)) {
+      setPeople((s) => [...s, id])
+    }
+    setPeopleInput("")
+    setShowPeopleDropdown(false)
+  }
+
+  // Derived list of filtered employees for dropdown
+  const filteredEmployees = employees.filter((emp) => {
+    if (!peopleInput) return true
+    const q = peopleInput.toLowerCase()
+    return String(emp.employeeId || "").toLowerCase().includes(q) || String(emp.name || "").toLowerCase().includes(q)
+  }).slice(0, 8) // limit to 8 results
+
+  // Save for the Add modal: calls the bulk API and updates card UI (tags + assigned employees)
+  const onSaveAddModal = async () => {
+    // Merge existing card tags + new modal tags (dedupe)
+    const mergedTags = Array.from(new Set([...localTags.map((t) => String(t).trim()).filter(Boolean), ...addTags.map((t) => String(t).trim()).filter(Boolean)]))
+
+    // Merge existing employeeIds from localWatchers (extract employeeId/name) + people input
+    const existingEmployeeIds: string[] = []
+    for (const w of localWatchers) {
+      if (!w) continue
+      if (typeof w === "string") {
+        existingEmployeeIds.push(w)
+      } else if (w.employeeId) {
+        existingEmployeeIds.push(String(w.employeeId))
+      } else if (w.employeeId === undefined && w.name && typeof w.name === "string") {
+        // cannot infer id if only name provided — skip
+      }
+    }
+    const peopleTrimmed = people.map((p) => String(p).trim()).filter(Boolean)
+    const mergedEmployeeIds = Array.from(new Set([...existingEmployeeIds, ...peopleTrimmed]))
+
+    // Build payload per your example (only include keys if non-empty)
+    const payload: any = {}
+    if (mergedTags.length > 0) payload.tags = mergedTags
+    if (mergedEmployeeIds.length > 0) payload.employeeIds = mergedEmployeeIds
+    if (comment && comment.trim()) payload.comments = [{ commentText: comment.trim() }]
+
+    // if nothing to send, just close
+    if (!payload.tags && !payload.employeeIds && !payload.comments) {
+      setOpenAddModal(false)
+      return
+    }
+
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      if (token) headers["Authorization"] = `Bearer ${token}`
+
+      const res = await fetch(DEALS_BULK((deal as any).id), {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        // try to read response text for debugging then throw
+        const text = await safeReadResponseText(res)
+        throw new Error(`Bulk update failed: ${res.status} ${text}`)
+      }
+
+      const json = await res.json()
+      // update local UI from server response (per your example response keys)
+      if (Array.isArray(json.tags)) {
+        setLocalTags(json.tags)
+      } else if (payload.tags) {
+        // fallback: use mergedTags we sent
+        setLocalTags(payload.tags)
+      }
+
+      if (Array.isArray(json.assignedEmployeesMeta) && json.assignedEmployeesMeta.length > 0) {
+        setLocalWatchers(json.assignedEmployeesMeta)
+      } else if (Array.isArray(json.dealWatchersMeta) && json.dealWatchersMeta.length > 0) {
+        setLocalWatchers(json.dealWatchersMeta)
+      } else if (payload.employeeIds && payload.employeeIds.length > 0) {
+        // convert to objects using employeesMap (prefer server info if present)
+        const watchers = payload.employeeIds.map((id: string) => {
+          const emp = employeesMap[id]
+          return emp ? { employeeId: id, name: emp.name, profilePictureUrl: emp.profilePictureUrl } : { employeeId: id, name: id }
+        })
+        setLocalWatchers(watchers)
+      }
+
+      // close modal
+      setOpenAddModal(false)
+      // optionally clear modal inputs
+      // setAddTags([]); setPeople([]); setComment(""); setTagInput(""); setPeopleInput("")
+    } catch (err) {
+      console.error("Failed to save Add modal data:", err)
+      // close modal (same as before)
+      setOpenAddModal(false)
+    }
   }
 
   return (
@@ -521,9 +742,12 @@ function DealCard({
 
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2 w-full">
+                  {/* <-- CHANGED: This now opens the PRIORITY modal (original form), not the add tags/people modal */}
                   <button
                     type="button"
-                    onClick={onOpenAddModal}
+                    onClick={() => {
+                      setOpenModal(true) // open priority modal (as you requested / matches your screenshot)
+                    }}
                     className="h-8 w-8 rounded-full flex items-center justify-center bg-blue-600 text-white"
                     title="Add"
                   >
@@ -543,9 +767,9 @@ function DealCard({
           </div>
         </div>
 
-        {tags.length > 0 && (
+        {localTags.length > 0 && (
           <div className="flex gap-2 flex-wrap">
-            {tags.slice(0, 3).map((t, i) => (
+            {localTags.slice(0, 3).map((t, i) => (
               <span key={i} className="text-xs px-2 py-0.5 rounded-md bg-muted/60 text-muted-foreground">
                 {t}
               </span>
@@ -587,10 +811,10 @@ function DealCard({
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center">
             <div className="flex -space-x-2">
-              {watchers && watchers.length > 0 ? (
-                watchers.slice(0, 4).map((w: any, i: number) => {
-                  const img = w?.profilePictureUrl || w?.avatar || w?.avatarUrl
-                  const name = w?.name || w?.displayName || String(w)
+              {localWatchers && localWatchers.length > 0 ? (
+                localWatchers.slice(0, 4).map((w: any, i: number) => {
+                  const img = w?.profilePictureUrl || w?.profileUrl || w?.avatar || w?.avatarUrl
+                  const name = w?.name || w?.displayName || w?.employeeId || String(w)
                   return img ? (
                     <img
                       key={i}
@@ -615,9 +839,9 @@ function DealCard({
                 </div>
               )}
 
-              {watchers && watchers.length > 4 && (
+              {localWatchers && localWatchers.length > 4 && (
                 <div className="h-7 w-7 rounded-full bg-muted/80 flex items-center justify-center text-xs font-medium border-2 border-white shadow-sm">
-                  +{watchers.length - 4}
+                  +{localWatchers.length - 4}
                 </div>
               )}
             </div>
@@ -627,7 +851,8 @@ function DealCard({
             <button
               type="button"
               onClick={() => {
-                /* visual only — no behavior changed per request */
+                // open the Add modal showing tags / people / comment fields (matches provided screenshot UI)
+                setOpenAddModal(true)
               }}
               className="h-8 w-8 rounded-full border border-border flex items-center justify-center bg-white text-blue-600 shadow-sm"
               title="Add watcher"
@@ -637,45 +862,174 @@ function DealCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium pt-2">Details removed</div>
+        {/* <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium pt-2">Details removed</div> */}
       </div>
 
+      {/* ------------------ PRIORITY modal (restored look per your screenshot) ------------------ */}
       {openModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Priority modal">
           <div className="absolute inset-0 bg-black/40" onClick={onCancelModal} />
 
-          <div className="relative z-10 w-[320px] bg-white rounded-lg shadow-lg border border-border p-4">
-            <h3 className="text-lg font-semibold mb-3">Add</h3>
+          <div className="relative z-10 w-[380px] bg-white rounded-lg shadow-lg border border-border p-5">
+            <h3 className="text-lg font-semibold mb-4">Add</h3>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Priority Status *</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">Priority Status *</label>
                 <input
                   type="text"
                   value={modalPriorityName}
                   onChange={(e) => setModalPriorityName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border border-border text-sm"
+                  className="w-full px-4 py-3 rounded-xl border border-border text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Color Code *</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">Color Code *</label>
                 <input
                   type="text"
                   value={modalPriorityColor}
                   onChange={(e) => setModalPriorityColor(e.target.value)}
                   placeholder="eg #000000"
-                  className="w-full px-3 py-2 rounded-md border border-border text-sm"
+                  className="w-full px-4 py-3 rounded-xl border border-border text-sm"
                 />
               </div>
             </div>
 
-            <div className="mt-4 flex items-center justify-end gap-3">
-              <button type="button" onClick={onCancelModal} className="px-4 py-2 rounded-md border border-border text-sm font-medium">
+            <div className="mt-6 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={onCancelModal}
+                className="w-1/2 px-6 py-3 rounded-full border border-blue-600 text-blue-600 text-sm font-medium"
+              >
                 Cancel
               </button>
-              <button type="button" onClick={onSaveModal} className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium" disabled={saving}>
+              <button
+                type="button"
+                onClick={onSaveModal}
+                className="w-1/2 px-6 py-3 rounded-full bg-blue-600 text-white text-sm font-medium"
+                disabled={saving}
+              >
                 {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------ Add modal (tags / people / comment) ------------------ */}
+      {openAddModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Add modal">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setOpenAddModal(false)} />
+
+          <div className="relative z-20 w-[380px] bg-white rounded-lg shadow-lg border border-border p-4">
+            <h3 className="text-lg font-semibold mb-3">Add</h3>
+
+            <div className="space-y-3">
+              {/* Tags */}
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Tags</label>
+                <div className="min-h-[40px] border border-border rounded-md px-2 py-2 flex items-center gap-2 flex-wrap">
+                  {addTags.map((t) => (
+                    <div key={t} className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 rounded-full px-2 py-1 text-xs">
+                      <span>{t}</span>
+                      <button type="button" onClick={() => removeTag(t)} className="text-[12px] leading-none px-1">✕</button>
+                    </div>
+                  ))}
+                  <input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={handleTagKeyDown}
+                    placeholder="Add a tag and press Enter"
+                    className="flex-1 min-w-[80px] text-sm outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* People with autocomplete */}
+              <div className="relative">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">People</label>
+                <div className="min-h-[40px] border border-border rounded-md px-2 py-2 flex items-center gap-2 flex-wrap">
+                  {people.map((p) => {
+                    const emp = employeesMap[p]
+                    const display = emp ? emp.name : p
+                    return (
+                      <div key={p} className="inline-flex items-center gap-1 bg-muted/20 text-muted-foreground rounded-full px-2 py-1 text-xs">
+                        <span>{display}</span>
+                        <button type="button" onClick={() => removePerson(p)} className="text-[12px] leading-none px-1">✕</button>
+                      </div>
+                    )
+                  })}
+                  <input
+                    value={peopleInput}
+                    onChange={(e) => {
+                      setPeopleInput(e.target.value)
+                      setShowPeopleDropdown(true)
+                    }}
+                    onKeyDown={handlePeopleKeyDown}
+                    placeholder="Add people and press Enter (e.g. EMP-002)"
+                    className="flex-1 min-w-[80px] text-sm outline-none"
+                    onFocus={() => setShowPeopleDropdown(true)}
+                  />
+                </div>
+
+                {/* dropdown */}
+                {showPeopleDropdown && filteredEmployees.length > 0 && (
+                  <div className="absolute left-0 right-0 mt-1 bg-white border border-border shadow z-30 rounded-md max-h-56 overflow-auto">
+                    {employeeLoading ? (
+                      <div className="p-2 text-xs text-muted-foreground">Loading...</div>
+                    ) : (
+                      filteredEmployees.map((emp: any) => (
+                        <button
+                          key={emp.employeeId}
+                          type="button"
+                          onClick={() => onSelectEmployee(emp)}
+                          className="w-full text-left px-3 py-2 hover:bg-muted/20 flex items-center gap-3"
+                        >
+                          {emp.profilePictureUrl ? (
+                            <img src={emp.profilePictureUrl} alt={emp.name} className="h-6 w-6 rounded-full object-cover" />
+                          ) : (
+                            <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">{initials(emp.name || emp.employeeId)}</div>
+                          )}
+                          <div className="flex-1 text-sm">
+                            <div className="font-medium text-foreground">{emp.name}</div>
+                            <div className="text-xs text-muted-foreground">{emp.employeeId}</div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                    {filteredEmployees.length === 0 && (
+                      <div className="p-2 text-xs text-muted-foreground">No employees found</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Comment */}
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Comment</label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="w-full min-h-[100px] rounded-md border border-border p-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setOpenAddModal(false)}
+                className="w-1/2 px-4 py-2 rounded-md border border-blue-600 text-blue-600 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={onSaveAddModal}
+                className="w-1/2 px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium"
+              >
+                Save
               </button>
             </div>
           </div>
