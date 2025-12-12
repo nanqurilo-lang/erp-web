@@ -87,6 +87,7 @@ export default function StagesPage() {
         <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           {/* <h1 className="text-3xl font-bold text-foreground text-balance">Deals – Kanban </h1> */}
           <div className="flex items-center gap-2 flex-wrap">
+            
             <AddStagePanel
               onCreated={async () => {
                 await mutateStages()
@@ -119,6 +120,7 @@ export default function StagesPage() {
         </header>
 
         <main className="flex-1 overflow-x-auto">
+          
           <KanbanBoard
             stages={stagesData}
             deals={dealsData}

@@ -35,7 +35,7 @@ export default function Filters({
         <input
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search deals by title, id, agent..."
+          placeholder="Search deals by title, id, agent... "
           className="w-full md:max-w-md rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring"
         />
       </div>

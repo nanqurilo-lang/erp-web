@@ -177,7 +177,7 @@ function InvoicePaymentsListInner() {
         >
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Invoice
         </Button>
-        <h1 className="text-3xl font-bold text-gray-900">Payments for Invoice {invoiceNumber}</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Payments for Invoice{invoiceNumber}</h1>
         <p className="text-gray-600 mt-1">Track payments associated with invoice {invoiceNumber}</p>
       </div>
 
