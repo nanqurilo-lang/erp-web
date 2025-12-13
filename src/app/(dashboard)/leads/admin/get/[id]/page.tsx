@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 type EmployeeMeta = {
   employeeId?: string;
@@ -364,7 +365,7 @@ function DealViewModal({ deal, lead, onClose }: { deal: Deal; lead?: Lead | null
                   )}
                 </div>
 
-                <div className="mt-4">Follow ups / files listing area — replicate your existing UI here as needed .</div>
+                <div className="mt-4">Follow ups / files listing area — replicate your existing UI here as needed.</div>
               </div>
             </div>
           </div>
@@ -1318,7 +1319,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
   //   router.push(`/clients/new`);
   // };
 
-  
+
   const convertToClient = async () => {
     setMenuOpen(false);
     //router.push(`/clients/new`);
@@ -1806,21 +1807,23 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
                                     }}
                                     className="text-sm px-2 py-1 border rounded hover:bg-slate-50"
                                   >
-                                    View
+                                    {/* View */}
+                                    <Link href={`/deals/get/${d.id}`}>View</Link>
                                   </button>
+                                  {/* <Link href={`/deals/get/${deal.id}`}>View</Link> */}
 
-                               {/* EDIT BUTTON - navigates to /deals/[id]/edit */}
-                              <button
-                                onClick={() => {
-                                  // navigate to edit page within the app
-                                  //router.push(`/deals/${d.id}/edit`);
-                                router.push(`/deals/create/DealEdit/${d.id}`);
-                                 //router.push(`/deals/create/[id]/DealEdit${d.id}`);
-                                }}
-                                className="text-sm px-2 py-1 border rounded hover:bg-slate-50"
-                              >
-                                Edit
-                              </button>
+                                  {/* EDIT BUTTON - navigates to /deals/[id]/edit */}
+                                  <button
+                                    onClick={() => {
+                                      // navigate to edit page within the app
+                                      //router.push(`/deals/${d.id}/edit`);
+                                      router.push(`/deals/create/DealEdit/${d.id}`);
+                                      //router.push(`/deals/create/[id]/DealEdit${d.id}`);
+                                    }}
+                                    className="text-sm px-2 py-1 border rounded hover:bg-slate-50"
+                                  >
+                                    Edit
+                                  </button>
 
 
 
@@ -2087,6 +2090,8 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     </main>
   );
 }
+
+
 
 
 

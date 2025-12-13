@@ -1987,7 +1987,7 @@ export default function DealDetailPage() {
                   <div className="text-gray-500">Note Title</div>
                   <div className="text-gray-900">{editingNote.noteTitle || "—"}</div>
 
-                  <div className="text-gray-500">Note Type</div>
+                  <div className="text-gray-500">Note Type </div>
                   <div className="text-gray-900">{editingNote.noteType === "PUBLIC" ? "Public" : "Private"}</div>
 
                   <div className="text-gray-500">Note Detail</div>
