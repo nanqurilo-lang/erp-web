@@ -203,10 +203,22 @@ export default function InvoiceTable({
 
                                             <DropdownMenuSeparator />
 
-                                            {/* --- COMMON ALWAYS --- */}
+                                            {/* --- COMMON ALWAYS ---
                                             <DropdownMenuItem onClick={() => handleDuplicate(inv)}>
-                                                <Copy className="h-4 w-4 mr-2" /> Duplicate
-                                            </DropdownMenuItem>
+                                                <Copy className="h-4 w-4 mr-2" /> Duplicate 
+                                            </DropdownMenuItem> */}
+
+                             <DropdownMenuItem
+                                onClick={() => {
+                                    setActiveInvoice(inv);                 // original invoice
+                                    setModal(m => ({ ...m, create: true })); // SAME create modal open
+                                }}
+                            >
+                                <Copy className="h-4 w-4 mr-2" /> Duplicate
+                            </DropdownMenuItem>
+
+
+
 
                                             <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(inv.invoiceNumber)}>
                                                 <Trash className="h-4 w-4 mr-2" /> Delete
