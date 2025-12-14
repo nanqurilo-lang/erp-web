@@ -55,8 +55,15 @@ export default function InvoiceViewReceiptModal({
     try {
       setLoading(true);
       const res = await fetch(
-        `${BASE_URL}/api/invoice/receipt/${invoiceId}`
-      );
+        `${BASE_URL}/api/invoice/receipt/${invoiceId}`,
+        {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      });
+
+
+    //   );
       const text = await res.text();
       if (!text) {
         setReceipts([]);
