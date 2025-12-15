@@ -4,6 +4,9 @@ import { useState } from "react";
 import Modal from "./Modal";
 import { Button } from "@/components/ui/button";
 
+
+const BASE_URL = process.env.NEXT_PUBLIC_MAIN!;
+
 export default function InvoicePaymentModal({
     open,
     onClose,
@@ -29,7 +32,7 @@ export default function InvoicePaymentModal({
 
         if (file) fd.append("file", file);
 
-        await fetch("/api/payments", {
+        await fetch(`${BASE_URL}/api/payments`, {
             method: "POST",
             headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` },
             body: fd,
