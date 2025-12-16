@@ -58,11 +58,9 @@ export default function DiscussionDetailPage({
   const [reply, setReply] = useState("");
   const [file, setFile] = useState<File | null>(null);
 
-  // ✅ EDIT MODAL STATE (UNCHANGED)
   const [editMessage, setEditMessage] = useState<MessageItem | null>(null);
   const [editContent, setEditContent] = useState("");
 
-  // ✅ 3 DOT CLICK MENU STATE
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -172,7 +170,7 @@ export default function DiscussionDetailPage({
     loadMessages();
   };
 
-  /* ================= DELETE ================= */
+  /* ================= DELETE MESSAGE (CONFIRMED) ================= */
   const deleteMessage = async (id: number) => {
     setOpenMenuId(null);
     await fetch(
@@ -187,7 +185,7 @@ export default function DiscussionDetailPage({
     loadMessages();
   };
 
-  /* ================= MARK / UNMARK BEST REPLY (UPDATED) ================= */
+  /* ================= MARK / UNMARK BEST REPLY ================= */
   const toggleBestReply = async (message: MessageItem) => {
     setOpenMenuId(null);
 
@@ -195,13 +193,11 @@ export default function DiscussionDetailPage({
       (m) => m.isBestReply && m.id !== message.id
     );
 
-    // ❌ Another best reply exists
     if (!message.isBestReply && alreadyBest) {
       alert("Please unmark the current Best Reply first.");
       return;
     }
 
-    // ✅ UNMARK
     if (message.isBestReply) {
       await fetch(
         `${BASE_URL}/api/projects/discussion-rooms/${roomId}/messages/${message.id}/unmark-best-reply`,
@@ -212,9 +208,7 @@ export default function DiscussionDetailPage({
           },
         }
       );
-    } 
-    // ✅ MARK
-    else {
+    } else {
       await fetch(
         `${BASE_URL}/api/projects/discussion-rooms/${roomId}/messages/${message.id}/mark-best-reply`,
         {
@@ -233,13 +227,13 @@ export default function DiscussionDetailPage({
 
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col">
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
       <div className="flex justify-between items-center px-6 py-4 border-b">
         <h3 className="text-lg font-medium">Discussion</h3>
         <X className="cursor-pointer" onClick={onClose} />
       </div>
 
-      {/* ================= TITLE ================= */}
+      {/* TITLE */}
       <div className="px-6 py-4 border-b">
         <h2 className="font-medium text-lg">{detail.title}</h2>
         <p className="text-sm text-gray-400">
@@ -247,7 +241,7 @@ export default function DiscussionDetailPage({
         </p>
       </div>
 
-      {/* ================= MESSAGES ================= */}
+      {/* MESSAGES */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         {messages.map((m, index) => {
           const isInitialMessage = index === 0;
@@ -266,7 +260,6 @@ export default function DiscussionDetailPage({
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-medium">{m.sender?.name}</p>
-
                       {m.isBestReply && (
                         <span className="bg-green-100 text-green-700 text-xs font-medium px-3 py-1 rounded-full">
                           Best Reply
@@ -302,7 +295,6 @@ export default function DiscussionDetailPage({
                   </div>
                 </div>
 
-                {/* ================= ACTIONS ================= */}
                 <div className="relative flex items-center gap-3 text-xs text-gray-400">
                   {formatTime(m.createdAt)}
 
@@ -376,13 +368,17 @@ export default function DiscussionDetailPage({
         <div ref={bottomRef} />
       </div>
 
-      {/* ================= REPLY BOX ================= */}
+      {/* REPLY BOX */}
       <div className="border-t px-6 py-4">
+        <h1 className="">Reply *</h1>
         <textarea
           value={reply}
           onChange={(e) => setReply(e.target.value)}
           className="border rounded px-3 py-2 w-full mb-3 min-h-[80px]"
         />
+
+
+        <h1>Add File *</h1>
 
         <label className="border border-dashed rounded flex flex-col items-center py-6 cursor-pointer text-gray-400 mb-4">
           <Upload />
@@ -406,7 +402,7 @@ export default function DiscussionDetailPage({
         </div>
       </div>
 
-      {/* ================= EDIT MODAL ================= */}
+      {/* EDIT MODAL */}
       {editMessage && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white w-[500px] rounded p-6">
