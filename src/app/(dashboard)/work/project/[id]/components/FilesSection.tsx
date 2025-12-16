@@ -162,8 +162,8 @@ export default function ProjectDocuments({
       await fetch(`${BASE_URL}/files/projects/${projectId}/${id}`, {
         method: "DELETE",
         headers: {
-          ...(authToken && { Authorization: `Bearer ${authToken}` }),
-        },
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
       });
     } catch {
       setError("Delete failed");
