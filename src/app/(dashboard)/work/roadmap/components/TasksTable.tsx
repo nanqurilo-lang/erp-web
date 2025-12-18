@@ -1086,7 +1086,7 @@ export default function TasksTable({ projectId }: { projectId: number }) {
 
       {/* header */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-4">
+        {/* <div className="flex items-center gap-4">
           <button
             onClick={() => {
               setForm({ ...emptyForm, projectId });
@@ -1096,7 +1096,7 @@ export default function TasksTable({ projectId }: { projectId: number }) {
           >
             + Add Task
           </button>
-        </div>
+        </div> */}
 
         <div className="flex items-center gap-3">
           <input
@@ -1132,7 +1132,7 @@ export default function TasksTable({ projectId }: { projectId: number }) {
                 <th className="px-4 py-3">Milestones</th>
                 <th className="px-4 py-3">Assigned to</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Action</th>
+                {/* <th className="px-4 py-3">Action</th> */}
               </tr>
             </thead>
 
@@ -1185,11 +1185,11 @@ export default function TasksTable({ projectId }: { projectId: number }) {
                         {/* Status pill with dropdown icon */}
                         <div className="relative inline-block">
                           <button
-                            onClick={(ev) => {
-                              ev.stopPropagation();
-                              setActionOpenFor(null);
-                              setStatusOpenFor((cur) => (cur === t.id ? null : t.id));
-                            }}
+                            // onClick={(ev) => {
+                            //   ev.stopPropagation();
+                            //   setActionOpenFor(null);
+                            //   setStatusOpenFor((cur) => (cur === t.id ? null : t.id));
+                            // }}
                             className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs bg-white hover:bg-gray-50"
                             title="Change status"
                           >
@@ -1208,16 +1208,16 @@ export default function TasksTable({ projectId }: { projectId: number }) {
                               <span className={`w-2 h-2 rounded-full ${statusColorClass(displayStatus?.name ?? "Doing")}`} />
                             )}
                             <span>{String(statusName)}</span>
-                            <span className="text-xs">▾</span>
+                            {/* <span className="text-xs">▾</span> */}
                           </button>
 
                           {statusOpenFor === t.id && (
-                            <div onClick={(e) => e.stopPropagation()} className="absolute right-0 mt-2 z-30 w-44 bg-white border rounded-md shadow-lg text-sm">
+                            <div  className="absolute right-0 mt-2 z-30 w-44 bg-white border rounded-md shadow-lg text-sm">
                               {statuses.length > 0 ? (
                                 statuses.map((st) => (
                                   <button
                                     key={st.id}
-                                    onClick={() => changeStatus(t, st)}
+                                    
                                     className={`w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 ${st.id === displayStatus?.id ? "font-medium" : ""}`}
                                   >
                                     {st.labelColor ? (
@@ -1232,10 +1232,10 @@ export default function TasksTable({ projectId }: { projectId: number }) {
                                 ["To Do", "Doing", "Completed", "Incomplete", "Waiting for Approval"].map((opt) => (
                                   <button
                                     key={opt}
-                                    onClick={() => {
-                                      const fake: StatusItem = { id: 0, name: opt };
-                                      changeStatus(t, fake);
-                                    }}
+                                    // onClick={() => {
+                                    //   const fake: StatusItem = { id: 0, name: opt };
+                                    //   changeStatus(t, fake);
+                                    // }}
                                     className="w-full text-left px-4 py-2 hover:bg-gray-50"
                                   >
                                     <span className={`w-2 h-2 rounded-full ${statusColorClass(opt)}`} /> <span>{opt}</span>
@@ -1247,57 +1247,7 @@ export default function TasksTable({ projectId }: { projectId: number }) {
                         </div>
                       </td>
 
-                      <td className="px-4 py-4 align-top relative">
-                        <button
-                          onClick={(ev) => {
-                            ev.stopPropagation();
-                            setStatusOpenFor(null);
-                            setActionOpenFor((cur) => (cur === t.id ? null : t.id));
-                          }}
-                          className="p-1 rounded hover:bg-gray-100"
-                          aria-haspopup="true"
-                          aria-expanded={actionOpenFor === t.id}
-                          title="More"
-                        >
-                          ⋮
-                        </button>
-
-                        {/* ACTION menu - anchored to row */}
-                        {actionOpenFor === t.id && (
-                          <div onClick={(e) => e.stopPropagation()} className="absolute right-2 top-10 z-20 w-48 bg-white border rounded-md shadow-md">
-                            <button
-                              onClick={() => {
-                                // OPEN external TaskViewModal
-                                openView(t);
-                                setActionOpenFor(null);
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-gray-50"
-                            >
-                              View
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                openEdit(t);
-                                setActionOpenFor(null);
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-gray-50"
-                            >
-                              Edit
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                setActionOpenFor(null);
-                                handleDelete(t.id);
-                              }}
-                              className="w-full text-left px-4 py-2 text-red-600 hover:bg-gray-50"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </td>
+                    
                     </tr>
                   );
                 })

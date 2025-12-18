@@ -410,11 +410,11 @@ export default function MilestonesTable({
 
       {/* top controls: button on left, filters/actions on right */}
       <div className="flex items-center justify-between mb-4">
-        <div>
+        {/* <div>
           <button onClick={openCreate} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
             + Create Milestone
           </button>
-        </div>
+        </div> */}
 
         <div className="flex items-center gap-3">
           <button
@@ -430,12 +430,12 @@ export default function MilestonesTable({
       {/* table */}
       <div className="rounded-md border overflow-hidden">
         <div className="bg-blue-50 text-gray-700 text-sm">
-          <div className="grid grid-cols-12 gap-0 items-center px-4 py-3">
+          <div className="grid grid-cols-12 gap-0 items-left px-4 py-3">
             <div className="col-span-4 font-medium">Title</div>
-            <div className="col-span-2 font-medium">Milestone Cost</div>
+            <div className="col-span-3 font-medium">Milestone Cost</div>
             <div className="col-span-2 font-medium">Task Count</div>
-            <div className="col-span-2 font-medium">Status</div>
-            <div className="col-span-2 font-medium text-right">Action</div>
+            <div className="col-span-3 font-medium">Status</div>
+            {/* <div className="col-span-2 font-medium text-right">Action</div> */}
           </div>
         </div>
 
@@ -450,15 +450,15 @@ export default function MilestonesTable({
             {rows.map((m) => (
               <div key={m.id ?? Math.random()} className="grid grid-cols-12 gap-0 items-center px-4 py-4 border-t">
                 <div className="col-span-4 text-sm">{m.title}</div>
-                <div className="col-span-2 text-sm">{formatCurrency(m.milestoneCost)}</div>
+                <div className="col-span-3 text-sm">{formatCurrency(m.milestoneCost)}</div>
                 <div className="col-span-2 text-sm">{String(m.taskCount ?? "00").padStart(2, "0")}</div>
 
                 {/* STATUS with dropdown - styled to look like your screenshot */}
-                <div className="col-span-2 text-sm">
+                <div className="col-span-3 text-sm">
                   <div className="relative inline-block">
                     <button
-                      onClick={() => setStatusMenuOpenFor(statusMenuOpenFor === m.id ? null : (m.id ?? null))}
-                      className={`inline-flex items-center justify-between w-full gap-2 px-3 py-1 rounded-md border text-sm bg-white ${statusIsCompleted(m.status) ? "border-green-200" : "border-gray-200"}`}
+                     // onClick={() => setStatusMenuOpenFor(statusMenuOpenFor === m.id ? null : (m.id ?? null))}
+                      className={`inline-flex items-center justify-between w-full gap-2 px-3 py-1 rounded-md  text-sm bg-white ${statusIsCompleted(m.status) ? "border-green-200" : "border-gray-200"}`}
                       title="Change status"
                       aria-haspopup="true"
                       aria-expanded={statusMenuOpenFor === m.id}
@@ -469,43 +469,15 @@ export default function MilestonesTable({
                       </div>
 
                       {/* small down chevron */}
-                      <svg className="w-3 h-3 shrink-0 text-gray-500" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                        <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+                     
                     </button>
 
-                    {statusMenuOpenFor === m.id && (
-                      <div className="absolute mt-2 right-0 z-20 w-44 bg-white border rounded-md shadow-lg">
-                        <button
-                          onClick={() => changeStatus(m, "COMPLETED")}
-                          className={`w-full text-left px-4 py-2 hover:bg-gray-50 text-sm flex items-center justify-between ${statusIsCompleted(m.status) ? "font-semibold" : ""}`}
-                        >
-                          <span>COMPLETED</span>
-                          {statusIsCompleted(m.status) && (
-                            <svg className="w-4 h-4 text-green-600" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M5 10l3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
-                        </button>
-
-                        <button
-                          onClick={() => changeStatus(m, "INCOMPLETE")}
-                          className={`w-full text-left px-4 py-2 hover:bg-gray-50 text-sm flex items-center justify-between ${!statusIsCompleted(m.status) ? "font-semibold" : ""}`}
-                        >
-                          <span>INCOMPLETE</span>
-                          {!statusIsCompleted(m.status) && (
-                            <svg className="w-4 h-4 text-gray-600" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M5 10l3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
-                        </button>
-                      </div>
-                    )}
+                  
                   </div>
                 </div>
 
                 {/* ACTIONS as three-dot dropdown */}
-                <div className="col-span-2 text-right relative">
+                {/* <div className="col-span-2 text-right relative">
                   <button
                     onClick={() => setActionOpenFor(actionOpenFor === m.id ? null : (m.id ?? null))}
                     className="px-3 py-1 rounded text-sm border hover:bg-gray-50"
@@ -547,7 +519,7 @@ export default function MilestonesTable({
                       </button>
                     </div>
                   )}
-                </div>
+                </div> */}
               </div>
             ))}
           </div>

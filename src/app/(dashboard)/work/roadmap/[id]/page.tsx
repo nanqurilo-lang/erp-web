@@ -1408,12 +1408,12 @@ export default function ProjectDetailsPage() {
             <nav className="flex items-center gap-6 h-14">
               {[
                 { key: 'overview', label: 'Overview' },
-                { key: 'invoices', label: 'Invoices' },
-                { key: 'payments', label: 'Payments' },
-                { key: 'files', label: 'Files' },
-                { key: 'notes', label: 'Notes' },
-                { key: 'activity', label: 'Activity' },
-                { key: 'discussion', label: 'Discussion' },
+                // { key: 'invoices', label: 'Invoices' },
+                // { key: 'payments', label: 'Payments' },
+                // { key: 'files', label: 'Files' },
+                // { key: 'notes', label: 'Notes' },
+                // { key: 'activity', label: 'Activity' },
+                // { key: 'discussion', label: 'Discussion' },
               ].map(t => {
                 const isActive = activeTab === (t.key as any);
                 return (
@@ -1617,7 +1617,7 @@ export default function ProjectDetailsPage() {
         {/* other components shown for reference */}
         <div className="mt-6 grid grid-cols-1 lg:grid-rows-2 gap-2">
           <ProjectMembersTable projectId={project.id} />
-          <TimesheetsTableNew gatewayPath="https://6jnqmj85-80.inc1.devtunnels.ms/timesheets" />
+          {/* <TimesheetsTableNew gatewayPath="https://6jnqmj85-80.inc1.devtunnels.ms/timesheets" /> */}
           <MilestonesTable projectId={project.id} />
         </div>
       </div>

@@ -1422,26 +1422,29 @@ headers: {
 
         <TableCell className="py-4 px-4 align-top text-right">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreVertical className="h-4 w-4" /></Button>
-            </DropdownMenuTrigger>
+            {/* <DropdownMenuTrigger asChild> */}
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => window.location.assign(`/work/roadmap/${p.id}`)}><Eye className="h-4 w-4 mr-2" /> </Button>
+
+              {/* <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <MoreVertical className="h-4 w-4" /></Button> */}
+            {/* </DropdownMenuTrigger> */}
 
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={() => window.location.assign(`/work/roadmap/${p.id}`)}><Eye className="h-4 w-4 mr-2" /> View</DropdownMenuItem>
 
-              <DropdownMenuItem onClick={() => { setUpdateProjectId(p.id); setShowUpdateModal(true); }}>
+              {/* <DropdownMenuItem onClick={() => { setUpdateProjectId(p.id); setShowUpdateModal(true); }}>
                 <Edit2 className="h-4 w-4 mr-2" /> Edit
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
 
-              <DropdownMenuItem onClick={() => handlePin(p.id)}><Pin className="h-4 w-4 mr-2" /> {p.pinned ? "Unpin" : "Pin"} Project</DropdownMenuItem>
+              {/* <DropdownMenuItem onClick={() => handlePin(p.id)}><Pin className="h-4 w-4 mr-2" /> {p.pinned ? "Unpin" : "Pin"} Project</DropdownMenuItem> */}
 
-              <DropdownMenuItem onClick={() => handleArchive(p.id)}>
+              {/* <DropdownMenuItem onClick={() => handleArchive(p.id)}>
                 <Archive className="h-4 w-4 mr-2" /> {p.archived ? "Unarchive" : "Archive"}
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
 
-              <DropdownMenuSeparator />
+              {/* <DropdownMenuSeparator /> */}
 
-              <DropdownMenuItem onClick={() => handleDelete(p.id)} className="text-red-600"><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
+              {/* <DropdownMenuItem onClick={() => handleDelete(p.id)} className="text-red-600"><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem> */}
             </DropdownMenuContent>
           </DropdownMenu>
         </TableCell>
@@ -1541,63 +1544,7 @@ headers: {
           </div>
 
           {/* ROW: Add Project + Search + Top-right icons */}
-          <div className="flex items-center justify-between mb-4">
-            <div><Button className="bg-blue-600 text-white" onClick={() => setShowAddModal(true)}>+ Add Project</Button></div>
-
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 border rounded px-2 py-1 bg-white">
-                <Search className="w-4 h-4 text-gray-400" />
-                <Input placeholder="Search" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setSearchQuery(searchInput); setCurrentPage(1); } }} className="border-0 bg-transparent focus-visible:ring-0" />
-              </div>
-
-              <div className="flex items-center bg-white border rounded-lg overflow-hidden">
-                {/* List */}
-                <button
-                  onClick={() => toggleView("list")}
-                  className={`px-3 py-2 hover:bg-gray-50 ${viewMode === "list" && !calendarOpen ? "bg-gray-100" : ""}`}
-                  title="List view"
-                >
-                  <List className="w-4 h-4" />
-                </button>
-
-                {/* Grid / Table (default) */}
-                <button
-                  onClick={() => toggleView("grid")}
-                  className={`px-3 py-2 hover:bg-gray-50 ${viewMode === "grid" && !calendarOpen ? "bg-violet-600 text-white" : ""}`}
-                  title="Grid / Table view"
-                >
-                  <Grid className="w-4 h-4" />
-                </button>
-
-                {/* Archive toggle */}
-                <button
-                  onClick={() => { toggleArchivedOnly(); }}
-                  className={`px-3 py-2 hover:bg-gray-50 ${showArchivedOnly ? "bg-gray-100" : ""}`}
-                  title={showArchivedOnly ? "Showing archived projects" : "Show archived projects"}
-                >
-                  <Archive className="w-4 h-4" />
-                </button>
-
-                {/* Pin toggle */}
-                <button
-                  onClick={() => { togglePinnedOnly(); }}
-                  className={`px-3 py-2 hover:bg-gray-50 ${showPinnedOnly ? "bg-gray-100" : ""}`}
-                  title={showPinnedOnly ? "Showing pinned only" : "Show pinned only"}
-                >
-                  <Pin className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Calendar toggle (separate button to the right) */}
-              <button
-                onClick={() => toggleView("calendar")}
-                className={`w-10 h-10 rounded bg-white border flex items-center justify-center ${calendarOpen ? "ring-2 ring-indigo-300" : ""}`}
-                title="Calendar view"
-              >
-                <Calendar className="w-4 h-4 text-gray-600" />
-              </button>
-            </div>
-          </div>
+         
 
           {/* MAIN content area */}
           <div className="bg-white rounded-lg border overflow-hidden">
@@ -1633,7 +1580,7 @@ headers: {
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="text-sm">{p.progressPercent ?? 0}%</div>
-                            <Button variant="ghost" size="sm" onClick={() => window.location.assign(`/work/project/${p.id}`)}>View</Button>
+                            <Button variant="ghost" size="sm" onClick={() => window.location.assign(`/work/roadmap/${p.id}`)}>View</Button>
                           </div>
                         </div>
                       ))}
