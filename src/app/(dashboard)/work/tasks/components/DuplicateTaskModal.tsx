@@ -1,12 +1,11 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 
 import { Button } from "@/components/ui/button";
@@ -15,209 +14,214 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
-    Select,
-    SelectTrigger,
-    SelectContent,
-    SelectItem,
-    SelectValue,
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 
-interface AddTaskModalProps {
-    open: boolean;
-    onOpenChange: (v: boolean) => void;
-    onCreated: () => void;
+/* ================= PROPS ================= */
+interface DuplicateTaskModalProps {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onCreated: () => void;
+  task: any; // existing task to duplicate
 }
 
-export const AddTaskModal: React.FC<AddTaskModalProps> = ({
-    open,
-    onOpenChange,
-    onCreated,
+/* ================= COMPONENT ================= */
+export const DuplicateTaskModal: React.FC<DuplicateTaskModalProps> = ({
+  open,
+  onOpenChange,
+  onCreated,
+  task,
 }) => {
-    // const GATEWAY = process.env.NEXT_PUBLIC_GATEWAY;
-    const MAIN = process.env.NEXT_PUBLIC_MAIN;
+  const MAIN = process.env.NEXT_PUBLIC_MAIN;
+  const token =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("accessToken")
+      : null;
 
-    // ---------------- FORM STATES ----------------
-    const [title, setTitle] = useState("");
-    const [category, setCategory] = useState("");
-    const [projectId, setProjectId] = useState("");
-    const [startDate, setStartDate] = useState("");
-    const [dueDate, setDueDate] = useState("");
-    const [taskStageId, setTaskStageId] = useState("");
-    const [assignedEmployeeIds, setAssignedEmployeeIds] = useState<string[]>([]);
-    const [description, setDescription] = useState("");
-    const [labelIds, setLabelIds] = useState<string[]>([]);
-    const [priority, setPriority] = useState("");
-    const [isPrivate, setIsPrivate] = useState(false);
-    const [timeEstimate, setTimeEstimate] = useState(false);
-    const [timeEstimateMinutes, setTimeEstimateMinutes] = useState("");
-    const [isDependent, setIsDependent] = useState(false);
-    const [milestoneId, setMilestoneId] = useState("");
-    const [file, setFile] = useState<File | null>(null);
+  /* ================= FORM STATES ================= */
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [taskStageId, setTaskStageId] = useState("");
+  const [assignedEmployeeIds, setAssignedEmployeeIds] = useState<string[]>([]);
+  const [description, setDescription] = useState("");
+  const [labelIds, setLabelIds] = useState<string[]>([]);
+  const [priority, setPriority] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [timeEstimate, setTimeEstimate] = useState(false);
+  const [timeEstimateMinutes, setTimeEstimateMinutes] = useState("");
+  const [isDependent, setIsDependent] = useState(false);
+  const [milestoneId, setMilestoneId] = useState("");
+  const [file, setFile] = useState<File | null>(null);
 
-    const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-    // ---------------- API DATA STATES ----------------
-    const [categories, setCategories] = useState<any[]>([]);
-    const [projects, setProjects] = useState<any[]>([]);
-    const [stages, setStages] = useState<any[]>([]);
-    const [employees, setEmployees] = useState<any[]>([]);
-    const [milestones, setMilestones] = useState<any[]>([]);
-    const [labels, setLabels] = useState<any[]>([]);
+  /* ================= API DATA ================= */
+  const [categories, setCategories] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [stages, setStages] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [milestones, setMilestones] = useState<any[]>([]);
+  const [labels, setLabels] = useState<any[]>([]);
 
-    // ---------------- API FETCH ----------------
-    const token = typeof window !== "undefined" ? window.localStorage.getItem("accessToken") : null
-    // Task Categories
-    const fetchCategories = async () => {
-        const token = localStorage.getItem("accessToken");
-        const res = await fetch(`${MAIN}/task/task-categories`, {
-            // TODO: yaha pe agar token chahiye ho to header add karna
-            headers: { Authorization: `Bearer ${token}` },
-            // credentials: "include",
-        });
-        const data = await res.json();
-        setCategories(data);
-    };
+  /* ================= FETCHERS ================= */
+  const fetchCategories = async () => {
+    const res = await fetch(`${MAIN}/task/task-categories`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setCategories(await res.json());
+  };
 
-    // Projects
-    const fetchProjects = async () => {
-        const res = await fetch(`${MAIN}/api/projects`, {
-            // TODO: yaha pe agar token chahiye ho to header add karna
-            headers: { Authorization: `Bearer ${token}` },
-            // credentials: "include",
-        });
-        const data = await res.json();
-        setProjects(data);
-    };
+  const fetchProjects = async () => {
+    const res = await fetch(`${MAIN}/api/projects`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setProjects(await res.json());
+  };
 
-    // Stages
-    const fetchStages = async () => {
-        const res = await fetch(`${MAIN}/status`, {
-            // TODO: yaha pe agar token chahiye ho to header add karna
-            headers: { Authorization: `Bearer ${token}` },
-            // credentials: "include",
-        });
-        const data = await res.json();
-        setStages(data);
-    };
+  const fetchStages = async () => {
+    const res = await fetch(`${MAIN}/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setStages(await res.json());
+  };
 
-    // Employees
-    const fetchEmployees = async () => {
-        const res = await fetch(`${MAIN}/employee/all`, {
-            // TODO: yaha pe agar token chahiye ho to header add karna
-            headers: { Authorization: `Bearer ${token}` },
-            // credentials: "include",
-        });
-        const data = await res.json();
-        setEmployees(data);
-    };
+  const fetchEmployees = async () => {
+    const res = await fetch(`${MAIN}/employee/all`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setEmployees(await res.json());
+  };
 
-    // Milestones (depends on project)
-    const fetchMilestones = async (pid: string) => {
-        if (!pid) return;
-        const res = await fetch(`${MAIN}/api/projects/${pid}/milestones`, {
-            // TODO: yaha pe agar token chahiye ho to header add karna
-            headers: { Authorization: `Bearer ${token}` },
-            // credentials: "include",
-        });
-        const data = await res.json();
-        setMilestones(data);
-    };
+  const fetchMilestones = async (pid: string) => {
+    if (!pid) return;
+    const res = await fetch(`${MAIN}/api/projects/${pid}/milestones`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setMilestones(await res.json());
+  };
 
-    // Labels (depends on project)
-    const fetchLabels = async (pid: string) => {
-        if (!pid) return;
-        const res = await fetch(`${MAIN}/projects/${pid}/labels`, {
-            // TODO: yaha pe agar token chahiye ho to header add karna
-            headers: { Authorization: `Bearer ${token}` },
-            // credentials: "include",
-        });
-        const data = await res.json();
-        setLabels(data);
-    };
+  const fetchLabels = async (pid: string) => {
+    if (!pid) return;
+    const res = await fetch(`${MAIN}/projects/${pid}/labels`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setLabels(await res.json());
+  };
 
-    // Initial load
-    useEffect(() => {
-        if (open) {
-            fetchCategories();
-            fetchProjects();
-            fetchStages();
-            fetchEmployees();
-        }
-    }, [open]);
+  /* ================= INITIAL LOAD ================= */
+  useEffect(() => {
+    if (!open) return;
 
-    // Project change → milestones + labels reload
-    useEffect(() => {
-        if (projectId) {
-            fetchMilestones(projectId);
-            fetchLabels(projectId);
-        }
-    }, [projectId]);
+    fetchCategories();
+    fetchProjects();
+    fetchStages();
+    fetchEmployees();
+  }, [open]);
 
-    // Multi-select toggle
-    const toggle = (arr: string[], v: string) =>
-        arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
+  /* ================= PREFILL DATA ================= */
+  useEffect(() => {
+    if (!open || !task) return;
 
-    // ---------------- SUBMIT ----------------
-    const handleSave = async () => {
-        try {
-            setLoading(true);
+    setTitle(task.title || "");
+    setCategory(String(task.categoryId || ""));
+    setProjectId(String(task.projectId || ""));
+    setStartDate(task.startDate || "");
+    setDueDate(task.dueDate || "");
+    setTaskStageId(String(task.taskStageId || ""));
+    setDescription(task.description || "");
+    setPriority(task.priority || "");
+    setIsPrivate(Boolean(task.isPrivate));
+    setTimeEstimate(Boolean(task.timeEstimate));
+    setTimeEstimateMinutes(
+      task.timeEstimateMinutes ? String(task.timeEstimateMinutes) : ""
+    );
+    setIsDependent(Boolean(task.isDependent));
+    setMilestoneId(String(task.milestoneId || ""));
 
-            const fd = new FormData();
-            fd.append("title", title);
-            fd.append("category", category); // ID
-            fd.append("projectId", projectId); // ID
-            fd.append("startDate", startDate);
-            fd.append("dueDate", dueDate);
-            fd.append("taskStageId", taskStageId); // ID
-            fd.append("description", description);
-            fd.append("priority", priority);
-            fd.append("isPrivate", String(isPrivate));
-            fd.append("timeEstimate", String(timeEstimate));
-            fd.append("timeEstimateMinutes", timeEstimateMinutes);
-            fd.append("isDependent", String(isDependent));
-            fd.append("milestoneId", milestoneId); // REQUIRED
+    setAssignedEmployeeIds(
+      task.assignedEmployees?.map((e: any) => e.employeeId) || []
+    );
 
-            // Arrays
-            assignedEmployeeIds.forEach((id) =>
-                fd.append("assignedEmployeeIds", id)
-            );
+    setLabelIds(task.labels?.map((l: any) => String(l.id)) || []);
+  }, [open, task]);
 
-            labelIds.forEach((id) => fd.append("labelIds", id));
+  /* ================= DEPENDENCIES ================= */
+  useEffect(() => {
+    if (projectId) {
+      fetchMilestones(projectId);
+      fetchLabels(projectId);
+    }
+  }, [projectId]);
 
-            if (file) fd.append("taskFile", file);
+  /* ================= HELPERS ================= */
+  const toggle = (arr: string[], v: string) =>
+    arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 
-            const res = await fetch(`${MAIN}/api/projects/tasks`, {
-                method: "POST",
-                body: fd,
-                // TODO: yaha pe agar token chahiye ho to header add karna
-                headers: { Authorization: `Bearer ${token}` },
-                // credentials: "include",
+  /* ================= SUBMIT ================= */
+  const handleSave = async () => {
+    try {
+      setLoading(true);
 
-            });
+      const fd = new FormData();
+      fd.append("title", title);
+      fd.append("category", category);
+      fd.append("projectId", projectId);
+      fd.append("startDate", startDate);
+      fd.append("dueDate", dueDate);
+      fd.append("taskStageId", taskStageId);
+      fd.append("description", description);
+      fd.append("priority", priority);
+      fd.append("isPrivate", String(isPrivate));
+      fd.append("timeEstimate", String(timeEstimate));
+      fd.append("timeEstimateMinutes", timeEstimateMinutes);
+      fd.append("isDependent", String(isDependent));
+      fd.append("milestoneId", milestoneId);
 
-            if (!res.ok) throw new Error("Failed");
+      assignedEmployeeIds.forEach((id) =>
+        fd.append("assignedEmployeeIds", id)
+      );
+      labelIds.forEach((id) => fd.append("labelIds", id));
 
-            onCreated();
-            onOpenChange(false);
-        } catch (e) {
-            console.log(e);
-            alert("Failed to create task");
-        } finally {
-            setLoading(false);
-        }
-    };
+      if (file) fd.append("taskFile", file);
 
-    // ---------------- UI ----------------
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-h-[95vh] w-[900px] overflow-y-auto rounded-xl">
-                <DialogHeader>
-                    <DialogTitle>Add New Task</DialogTitle>
-                </DialogHeader>
+      const res = await fetch(`${MAIN}/api/projects/tasks`, {
+        method: "POST",
+        body: fd,
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-                {/* FORM */}
-                <div className="grid gap-5">
+      if (!res.ok) throw new Error("Failed");
+
+      onCreated();
+      onOpenChange(false);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to duplicate task");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ================= UI ================= */
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[95vh] w-[900px] overflow-y-auto rounded-xl">
+        <DialogHeader>
+          <DialogTitle>Duplicate Task</DialogTitle>
+        </DialogHeader>
+
+        {/* SAME UI AS ADD TASK */}
+        {/* (UI intentionally kept identical) */}
+
+   <div className="grid gap-5">
                     {/* Title */}
                     <div>
                         <Label>Title *</Label>
@@ -420,24 +424,25 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                     </div>
                 </div>
 
-                {/* FOOTER */}
-                <div className="flex justify-end gap-3 pt-4">
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>
-                        Cancel
-                    </Button>
 
-                    <Button onClick={handleSave} disabled={loading}>
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Task"}
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
+
+
+
+        {/* FOOTER */}
+        <div className="flex justify-end gap-3 pt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+
+          <Button onClick={handleSave} disabled={loading}>
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Save Task"
+            )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 };
-
-
-
-
-
-
-
