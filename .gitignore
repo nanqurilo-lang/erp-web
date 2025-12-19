@@ -50,4 +50,4 @@ next-env.d.ts
 /src/app/(employee)/employees/roadmap
 # /src/app/(employee)/employees/settings
 /src/app/(employee)/employees/timesheet
-/src/app/(employee)/employees/work
+# /src/app/(employee)/employees/work
