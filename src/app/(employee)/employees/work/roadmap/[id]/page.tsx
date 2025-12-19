@@ -1535,16 +1535,10 @@ export default function ProjectDetailsPage() {
               {/* end Hours Logged chart */}
             </div>
 
-            <div className="space-y-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <p className="text-sm text-gray-500">Project Budget</p>
-                <div className="text-2xl font-semibold text-blue-600 mt-2">{currency}{(project.budget ?? 0).toFixed(2)}</div>
-              </div>
+            {/* <div className="space-y-4">
+             
 
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <p className="text-sm text-gray-500">Hours Logged</p>
-                <div className="text-2xl font-semibold text-blue-600 mt-2">{hoursEstimate}hrs 0 min</div>
-              </div>
+             
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
@@ -1566,7 +1560,7 @@ export default function ProjectDetailsPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Bottom row */}

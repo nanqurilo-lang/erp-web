@@ -74,8 +74,8 @@ export default function ProjectMembersTableFetch({
       setLoading(true);
       setError(null);
 
-      const url = `/api/projects/${projectId}`;
-      const full = `${MAIN}/api/projects/${projectId}`;
+      const url = `/projects/${projectId}`;
+      const full = `${MAIN}/projects/${projectId}`;
       console.log("GET:", full);
 
       const data = await api.get(full);
