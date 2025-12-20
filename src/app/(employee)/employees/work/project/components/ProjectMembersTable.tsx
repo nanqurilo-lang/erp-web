@@ -249,7 +249,7 @@ export default function ProjectMembersTableFetch({
           <thead>
             <tr className="bg-blue-50 text-left ">
               <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">User Role</th>
+              <th className="px-4 py-3">User Role </th>
               {/* <th className="px-4 py-3">Action</th> */}
             </tr>
           </thead>

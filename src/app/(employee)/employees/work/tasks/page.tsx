@@ -311,6 +311,7 @@ const TasksPage: React.FC = () => {
 
 
     return (
+        <main className="container mx-auto max-w-6xl px-4 py-8">
         <div className="flex min-h-screen flex-col bg-slate-50">
             {/* Top header */}
             <header className="flex items-center justify-between px-8 py-6">
@@ -454,6 +455,7 @@ const TasksPage: React.FC = () => {
 
 
         </div>
+        </main>
     );
 };
 

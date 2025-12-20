@@ -44,7 +44,7 @@ export default function ProjectCalendarMonth() {
     try {
       setLoading(true);
 
-      const res = await fetch(`${BASE_URL}/api/projects`, {
+      const res = await fetch(`${BASE_URL}/projects`, {
          headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
           },
