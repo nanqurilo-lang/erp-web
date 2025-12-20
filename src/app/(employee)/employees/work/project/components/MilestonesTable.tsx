@@ -428,7 +428,7 @@ export default function MilestonesTable({
       </div>
 
       {/* table */}
-      <div className="rounded-md border overflow-hidden">
+      <div className="rounded-md border h-full overflow-hidden">
         <div className="bg-blue-50 text-gray-700 text-sm">
           <div className="grid grid-cols-12 gap-0 items-center px-4 py-3">
             <div className="col-span-4 font-medium">Title</div>

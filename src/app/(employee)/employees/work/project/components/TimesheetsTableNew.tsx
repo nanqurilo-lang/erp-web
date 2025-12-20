@@ -35,7 +35,9 @@ export default function TimesheetsTableNew({
   gatewayPath = "/timesheets",
   mainBase,
   authToken = PROVIDED_TOKEN,
+  projectId,
 }: {
+  projectId: number | string;
   gatewayPath?: string;
   mainBase?: string;
   authToken?: string | null;
@@ -93,7 +95,7 @@ export default function TimesheetsTableNew({
     const timeout = setTimeout(() => controller.abort(), msTimeout);
     try {
       const merged = { ...init, signal: controller.signal };
-      const res = await fetch(url, merged);
+      const res = await fetch(`${MAIN}/timesheets/project/${projectId}`, merged);
       clearTimeout(timeout);
 
       const ct = res.headers.get("content-type") || "";
@@ -392,8 +394,8 @@ export default function TimesheetsTableNew({
         <>
           {error && <div className="mb-4 p-3 rounded bg-red-50 text-red-700"><strong>Error:</strong> {error}</div>}
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+          <div className="overflow-x-auto h-full">
+            <table className="min-w-full  text-sm">
               <thead>
                 <tr className="bg-blue-50 text-left text-gray-600">
                   <th className="px-4 py-3">Code</th>

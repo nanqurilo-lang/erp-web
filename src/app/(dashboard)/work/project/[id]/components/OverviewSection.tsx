@@ -1,29 +1,512 @@
+// "use client";
+
+// import TaskStatistics from "./TaskStatistics";
+// import TasksTable from "../../components/TasksTable";
+
+// export default function OverviewSection({ project, metrics }: any) {
+//     return (
+//         <div className="space-y-6">
+
+//             {/* SUMMARY */}
+//             <div className="border rounded-xl p-6">
+//                 <h3 className="text-lg font-medium mb-2">Project Summary</h3>
+//                 <p className="text-sm text-gray-600">
+//                     {project.summary || "No summary available"}
+//                 </p>
+//             </div>
+
+//             {/* STATS */}
+//             <div className="border rounded-xl p-6">
+//                 <h3 className="text-lg font-medium mb-4">Task Statistics</h3>
+//                 <TaskStatistics projectId={project.id} />
+//             </div>
+
+//             {/* TASK TABLE */}
+//             <div className="border rounded-xl p-4">
+//                 <TasksTable projectId={project.id} />
+//             </div>
+//         </div>
+//     );
+// }
+
+
+// app/(your-route)/page.tsx
 "use client";
 
-import TaskStatistics from "./TaskStatistics";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
+import { UserIcon } from "@heroicons/react/24/outline";
 import TasksTable from "../../components/TasksTable";
+import ProjectMembersTable from "../../components/ProjectMembersTable";
+import TimesheetsTableNew from "../../components/TimesheetsTableNew";
+import MilestonesTable from "../../components/MilestonesTable";
+// import { getStorage } from "../../../../../lib/storage/storege"; // adjust path if needed
+import axios from "axios";
 
-export default function OverviewSection({ project, metrics }: any) {
+interface Project {
+    id: number;
+    shortCode: string;
+    name: string;
+    startDate: string;
+    deadline?: string;
+    noDeadline?: boolean;
+    category?: string;
+    client?: { name: string; profilePictureUrl?: string } | null;
+    summary?: string;
+    currency: string;
+    budget: number;
+    hoursEstimate?: number;
+    assignedEmployees?: { employeeId: string; name: string; profileUrl?: string; designation?: string; department?: string }[];
+    progressPercent?: number | null;
+    totalTimeLoggedMinutes?: number | null;
+    createdBy?: string;
+    createdAt?: string;
+    pinned?: boolean;
+    pinnedAt?: string | null;
+    archived?: boolean;
+    archivedAt?: string | null;
+}
+
+type StatusItem = {
+    id: number;
+    name: string;
+    position?: number;
+    labelColor?: string | null;
+    projectId?: number | null;
+    createdBy?: string;
+};
+
+type TaskItem = {
+    id: number;
+    taskStageId?: number | null;
+    taskStage?: { id?: number; name?: string } | null;
+    // other fields not needed for counting
+};
+
+const MAIN = process.env.NEXT_PUBLIC_MAIN || "https://6jnqmj85-80.inc1.devtunnels.ms";
+
+/**
+ * Small helper: convert hex-like labelColor from backend to usable CSS color
+ * backend sometimes returns "88aaff11" — we'll take first 6 hex chars (if any)
+ */
+const normalizeLabelColor = (raw?: string | null) => {
+    if (!raw) return null;
+    const hex = String(raw).replace(/[^0-9a-fA-F]/g, "");
+    if (hex.length >= 6) return `#${hex.slice(0, 6)}`;
+    return null;
+};
+
+/**
+ * Simple name-based fallback color map
+ */
+const nameColorFallback = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.includes("complete") || n.includes("complete")) return "#10b981"; // green
+    if (n.includes("to-do") || n.includes("todo") || n.includes("to do")) return "#f59e0b"; // yellow
+    if (n.includes("doing")) return "#2563eb"; // blue
+    if (n.includes("incomplete")) return "#ef4444"; // red
+    if (n.includes("wait") || n.includes("waiting")) return "#9ca3af"; // gray
+    return "#6b7280"; // neutral gray
+};
+
+/**
+ * Create a pie slice path (SVG) from angles in degrees
+ */
+const polarToCartesian = (cx: number, cy: number, r: number, angleInDegrees: number) => {
+    const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+    return {
+        x: cx + r * Math.cos(angleInRadians),
+        y: cy + r * Math.sin(angleInRadians),
+    };
+};
+
+const describeArc = (cx: number, cy: number, r: number, startAngle: number, endAngle: number) => {
+    const start = polarToCartesian(cx, cy, r, endAngle);
+    const end = polarToCartesian(cx, cy, r, startAngle);
+    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+    return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y} Z`;
+};
+
+/**
+ * TaskStatistics component: fetches statuses + tasks, computes counts and renders pie + legend
+ */
+function TaskStatistics({ projectId }: { projectId: number }) {
+    const [statuses, setStatuses] = useState<StatusItem[]>([]);
+    const [tasks, setTasks] = useState<TaskItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const token = localStorage.getItem("accessToken") || "";
+
+    useEffect(() => {
+        let mounted = true;
+        const fetchAll = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                // fetch statuses
+                const statusUrl = `${MAIN}/status`;
+                const [sRes, tRes] = await Promise.all([
+                    axios.get(statusUrl, { headers: { Authorization: token ? `Bearer ${token}` : "" } }),
+                    axios.get(`${MAIN}/projects/${projectId}/tasks`, { headers: { Authorization: token ? `Bearer ${token}` : "" } }),
+                ]);
+
+                if (mounted) {
+                    setStatuses(Array.isArray(sRes.data) ? sRes.data : []);
+                    setTasks(Array.isArray(tRes.data) ? tRes.data : []);
+                }
+            } catch (err: any) {
+                console.error("Failed to load task statistics:", err?.response?.data ?? err?.message ?? err);
+                if (mounted) {
+                    setError("Failed to load task statistics");
+                    setStatuses([]);
+                    setTasks([]);
+                }
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        };
+        fetchAll();
+        return () => {
+            mounted = false;
+        };
+    }, [projectId, token]);
+
+    // compute counts per status id (use status.id from statuses)
+    const counts = useMemo(() => {
+        const map = new Map<number | string, { status: StatusItem; count: number }>();
+
+        // seed map with statuses (so legend includes them even if count=0)
+        statuses.forEach((s) => map.set(s.id, { status: s, count: 0 }));
+
+        // For each task, try to find matching status:
+        tasks.forEach((task) => {
+            // prefer explicit taskStageId
+            const id = task.taskStageId ?? task.taskStage?.id ?? null;
+            if (id !== null && id !== undefined) {
+                const key = Array.from(map.keys()).find((k) => k === id);
+                if (key !== undefined) {
+                    const cur = map.get(key as number)!;
+                    cur.count += 1;
+                    map.set(key as number, cur);
+                    return;
+                }
+            }
+            // fallback: find by name inclusion
+            const stageName = task.taskStage?.name ?? "";
+            const matched = statuses.find((s) => stageName && String(s.name).toLowerCase().includes(stageName.toLowerCase()));
+            if (matched) {
+                const cur = map.get(matched.id) ?? { status: matched, count: 0 };
+                cur.count += 1;
+                map.set(matched.id, cur);
+                return;
+            }
+            // otherwise increment "unknown" bucket keyed by 'unknown'
+            const unknownKey = "unknown";
+            if (!map.has(unknownKey as any)) {
+                map.set(unknownKey as any, { status: { id: 0, name: "Other", labelColor: null }, count: 0 });
+            }
+            const cur = map.get(unknownKey as any)!;
+            cur.count += 1;
+            map.set(unknownKey as any, cur);
+        });
+
+        return Array.from(map.values());
+    }, [statuses, tasks]);
+
+    const total = counts.reduce((s, c) => s + c.count, 0) || 0;
+
+    // prepare slices for pie
+    let accAngle = 0;
+    const slices = counts
+        .filter((c) => c.count > 0)
+        .map((c) => {
+            const proportion = total === 0 ? 0 : c.count / total;
+            const start = accAngle;
+            const sweep = proportion * 360;
+            accAngle += sweep;
+            const color = normalizeLabelColor(c.status.labelColor) || nameColorFallback(c.status.name);
+            return {
+                ...c,
+                start,
+                end: accAngle,
+                color,
+            };
+        });
+
     return (
-        <div className="space-y-6">
+        <div>
+            {loading ? (
+                <div className="py-6 text-center text-gray-500">Loading task statistics...</div>
+            ) : error ? (
+                <div className="py-6 text-center text-red-500">{error}</div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex items-center">
+                        <svg viewBox="0 0 100 100" width="180" height="180" className="flex-shrink-0">
+                            {/* background circle if no data */}
+                            {slices.length === 0 && <circle cx="50" cy="50" r="40" fill="#e5e7eb" />}
+                            {slices.map((s, idx) => (
+                                <path key={idx} d={describeArc(50, 50, 40, s.start, s.end)} fill={s.color} stroke="#ffffff" strokeWidth="0.5" />
+                            ))}
+                        </svg>
+                    </div>
 
-            {/* SUMMARY */}
-            <div className="border rounded-xl p-6">
-                <h3 className="text-lg font-medium mb-2">Project Summary</h3>
-                <p className="text-sm text-gray-600">
-                    {project.summary || "No summary available"}
-                </p>
-            </div>
+                    <div className="flex flex-col justify-center">
+                        <ul className="space-y-3 text-sm">
+                            {counts.map((c, idx) => {
+                                const color = normalizeLabelColor(c.status.labelColor) || nameColorFallback(c.status.name);
+                                return (
+                                    <li key={idx} className="flex items-center gap-3">
+                                        <span style={{ width: 18, height: 12, background: color }} className="rounded-sm inline-block" />
+                                        <span className="flex-1">{c.status.name}</span>
+                                        <span className="text-xs text-gray-500">{c.count}</span>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                        <div className="mt-4 text-xs text-gray-500">Total tasks: {total}</div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
-            {/* STATS */}
-            <div className="border rounded-xl p-6">
-                <h3 className="text-lg font-medium mb-4">Task Statistics</h3>
-                <TaskStatistics projectId={project.id} />
-            </div>
+export default function ProjectDetailsPage() {
+    const params = useParams() as any;
+    const { id } = params || {};
 
-            {/* TASK TABLE */}
-            <div className="border rounded-xl p-4">
-                <TasksTable projectId={project.id} />
+    const [project, setProject] = useState<Project | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'overview' | 'invoices' | 'payments' | 'files' | 'notes' | 'activity' | 'discussion'>('overview');
+
+    // Fetch project; fallback demo so UI always matches preview
+    const getProjectDetails = async (accessToken: string) => {
+        try {
+            const res = await fetch(`/api/work/project/${id}`, {
+                headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+            });
+            if (!res.ok) throw new Error("Failed to fetch");
+            const data = await res.json();
+            setProject(Array.isArray(data) ? data[0] : data);
+        } catch (err) {
+            // fallback demo data
+            setProject({
+                id: Number(id || 1),
+                shortCode: "PRJ-001",
+                name: "Project Name",
+                category: "Website",
+                startDate: "2025-08-02",
+                deadline: "2025-09-12",
+                client: { name: "John Doe", profilePictureUrl: "https://i.pravatar.cc/80?img=5" },
+                summary: "Short description of the project and goals.",
+                currency: "$",
+                budget: 0,
+                hoursEstimate: 40,
+                assignedEmployees: [
+                    { employeeId: "1", name: "Aman Sharma", designation: "Developer", department: "Engineering" },
+                    { employeeId: "2", name: "Riya Singh", designation: "Designer", department: "Design" },
+                ],
+                progressPercent: 76,
+                totalTimeLoggedMinutes: 300,
+                createdBy: "Admin",
+                createdAt: new Date().toISOString(),
+                pinned: false,
+                archived: false,
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        const token = localStorage.getItem("accessToken") || "";
+        getProjectDetails(token);
+    }, [id]);
+
+    if (loading) return <p className="p-8 text-center">Loading project...</p>;
+    if (!project) return <p className="p-8 text-center text-red-600">Project not found</p>;
+
+    const totalHours = project.totalTimeLoggedMinutes ? Math.floor(project.totalTimeLoggedMinutes / 60) : 0;
+
+    return (
+        <div className="min-h-screen bg-gray-50">
+            <div className="px-6 py-6">
+                {/* Header */}
+                <div className="mb-4">
+                    <h1 className="text-3xl font-semibold text-gray-800">{project.name}</h1>
+                </div>
+
+                {/* Tabs container */}
+                {/* <div className="bg-white rounded-t-lg shadow-sm border border-b-0">
+          <div className="px-4">
+            <nav className="flex items-center gap-6 h-14">
+              {[
+                { key: 'overview', label: 'Overview' },
+                { key: 'invoices', label: 'Invoices' },
+                { key: 'payments', label: 'Payments' },
+                { key: 'files', label: 'Files' },
+                { key: 'notes', label: 'Notes' },
+                { key: 'activity', label: 'Activity' },
+                { key: 'discussion', label: 'Discussion' },
+              ].map(t => {
+                const isActive = activeTab === (t.key as any);
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => setActiveTab(t.key as any)}
+                    className={`py-3 text-sm font-medium ${isActive ? 'text-blue-600' : 'text-gray-600'}`}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <span className="relative inline-block">
+                      {t.label}
+                      {isActive && <span className="absolute -bottom-5 left-0 w-full h-0.5 bg-blue-400 rounded" />}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+          <div className="h-1"><div className="border-t-2 border-blue-300" /></div>
+        </div> */}
+
+                {/* Content */}
+                <div className="mt-6 space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
+                            <div className="flex items-center justify-between gap-6">
+                                <div className="flex items-center gap-6">
+                                    <div className="w-36 h-20">
+                                        <svg viewBox="0 0 100 50" className="w-full h-full">
+                                            <path d="M5 50 A45 45 0 0 1 95 50" fill="none" stroke="#e6e6e6" strokeWidth="10" strokeLinecap="round" />
+                                            <path d="M5 50 A45 45 0 0 1 75 18" fill="none" stroke="#f5c518" strokeWidth="10" strokeLinecap="round" />
+                                            <text x="50" y="40" fontSize="8" textAnchor="middle" fill="#374151">{project.progressPercent}%</text>
+                                        </svg>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-sm text-gray-500">Start Date</p>
+                                        <p className="font-medium">{new Date(project.startDate).toLocaleDateString()}</p>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-sm text-gray-500">End Date</p>
+                                        <p className="font-medium">{project.noDeadline ? "No Deadline" : (project.deadline ? new Date(project.deadline).toLocaleDateString() : "TBD")}</p>
+                                    </div>
+                                </div>
+
+                                <div className="hidden lg:block max-w-xs text-gray-600">
+                                    {project.summary ? <p>{project.summary}</p> : <p className="text-sm text-gray-400">No summary available</p>}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4">
+                            <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                                {project.client?.profilePictureUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={project.client.profilePictureUrl} alt="client" className="w-full h-full object-cover" />
+                                ) : (
+                                    <UserIcon className="w-8 h-8 text-gray-400" />
+                                )}
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500">Client</p>
+                                <p className="font-medium">{project.client?.name || `Client ID: ${project.client?.name ?? ''}`}</p>
+                                <p className="text-xs text-gray-400">Qurilo Solutions</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Middle row: Task statistics + metrics */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
+                            <h3 className="text-lg font-medium mb-4">Task Statistics</h3>
+                            <TaskStatistics projectId={project.id} />
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="bg-white rounded-xl border border-gray-200 p-4">
+                                <p className="text-sm text-gray-500">Project Budget</p>
+                                <div className="text-2xl font-semibold text-blue-600 mt-2">{project.currency}{project.budget.toFixed(2)}</div>
+                            </div>
+
+                            <div className="bg-white rounded-xl border border-gray-200 p-4">
+                                <p className="text-sm text-gray-500">Hours Logged</p>
+                                <div className="text-2xl font-semibold text-blue-600 mt-2">{totalHours}hrs 0 min</div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                                    <p className="text-sm text-gray-500">Earnings</p>
+                                    <div className="text-lg font-semibold text-blue-600 mt-1">{project.currency}0.00</div>
+                                </div>
+                                <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                                    <p className="text-sm text-gray-500">Expenses</p>
+                                    <div className="text-lg font-semibold text-blue-600 mt-1">{project.currency}0.00</div>
+                                </div>
+                                <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                                    <p className="text-sm text-gray-500">Profit</p>
+                                    <div className="text-lg font-semibold text-blue-600 mt-1">{project.currency}0.00</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Bottom row */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-4">
+                            <div className="mb-4">
+                                <h4 className="text-lg font-medium">Assigned Employees</h4>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {project.assignedEmployees && project.assignedEmployees.length ? (
+                                    project.assignedEmployees.map(emp => (
+                                        <div key={emp.employeeId} className="flex items-center gap-3 p-3 bg-gray-50 rounded">
+                                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                                                {emp.profileUrl ? (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img src={emp.profileUrl} alt={emp.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <UserIcon className="w-5 h-5 text-gray-400" />
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-sm">{emp.name}</p>
+                                                <p className="text-xs text-gray-500">{emp.designation ? emp.designation + ', ' : ''}{emp.department}</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-gray-500 text-center py-6">No employees assigned</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl border border-gray-200 p-4">
+                            <h4 className="text-lg font-medium mb-2">Project Summary</h4>
+                            <div className="text-xs text-gray-500 space-y-2">
+                                <div>Created by: {project.summary}</div>
+                                <div>Created on: {new Date(project.createdAt || '').toLocaleDateString()}</div>
+                                {project.pinned && <div>Pinned on: {new Date(project.pinnedAt || '').toLocaleDateString()}</div>}
+                                {project.archived && <div>Archived on: {new Date(project.archivedAt || '').toLocaleDateString()}</div>}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Keep the tasks table below as before */}
+                {project && <div className="mt-6"><TasksTable projectId={project.id} /></div>}
+
+                {/* other components shown for reference */}
+                <div className="mt-6 grid grid-cols-1 lg:grid-rows-2 gap-2">
+                    <ProjectMembersTable projectId={project.id} />
+                    <TimesheetsTableNew gatewayPath="https://6jnqmj85-80.inc1.devtunnels.ms/timesheets" />
+                    <MilestonesTable projectId={project.id} />
+
+
+                </div>
             </div>
         </div>
     );
