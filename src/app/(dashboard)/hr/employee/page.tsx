@@ -575,7 +575,7 @@ export default function EmployeePage() {
   useEffect(() => {
     const fetchEmployees = async () => {
       const token = localStorage.getItem('accessToken');
-      const res = await fetch(`${BASE_URL}/employee?page=0&size=2000`, {
+      const res = await fetch(`${BASE_URL}/employee?page=0&size=200`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();

@@ -374,6 +374,11 @@ import WorkTab from "./work/page"
 import DocumentsTab from "./Documents/page"
 import EmergencyTab from "./emergency-contacts/page"
 import PromotionsTab from "./promotions/page"
+import AppreciationsTable from "./components/AppreciationsTable"
+import AttendanceCalendar from "./components/AttendanceCalendar"
+import LeaveQuotaTable from "./components/LeaveQuotaTable"
+import EmployeeLeaveTable from "./components/EmployeeLeaveTable"
+import EmployeeWorkTab from "./work/page"
 
 const BASE_URL = process.env.NEXT_PUBLIC_MAIN
 
@@ -401,6 +406,8 @@ export default function EmployeeViewPage() {
     { revalidateOnFocus: false }
   )
 
+  console.log("gggggggggg", employee)
+
   if (isLoading) return <div className="p-6">Loading employee…</div>
   if (error) return <div className="p-6 text-red-600">Failed to load employee</div>
   if (!employee) return <div className="p-6">Employee not found</div>
@@ -418,7 +425,7 @@ export default function EmployeeViewPage() {
       {activeTab === "profile" && (
         <>
           {/* 🔹 HEADER + STATS */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 border">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             <div className="lg:col-span-2 border ">
               <EmployeeHeader employee={employee} />
             </div>
@@ -437,12 +444,16 @@ export default function EmployeeViewPage() {
             {/* RIGHT */}
             <div className="space-y-4">
               <AboutCard about={employee.about} />
+              <AppreciationsTable employeeId={employee.employeeId} />
               {/* Appreciations, Tasks chart later */}
             </div>
           </div>
 
           {/* 🔹 ATTENDANCE (NEXT STEP) */}
-          {/* <AttendanceCalendar employeeId={employee.employeeId} /> */}
+
+          <AttendanceCalendar employeeId={employee.employeeId} />
+          <LeaveQuotaTable employeeId={employee.employeeId} />
+          <EmployeeLeaveTable employeeId={employee.employeeId} />
 
           {/* 🔹 LEAVES QUOTA */}
           {/* <LeaveQuota employeeId={employee.employeeId} /> */}
@@ -453,7 +464,7 @@ export default function EmployeeViewPage() {
       )}
 
       {/* ================= OTHER TABS ================= */}
-      {activeTab === "work" && <WorkTab employee={employee} />}
+      {activeTab === "work" && <EmployeeWorkTab employeeId={employee.employeeId} />}
       {activeTab === "documents" && <DocumentsTab employeeId={employee.employeeId} />}
       {activeTab === "emergency" && <EmergencyTab employeeId={employee.employeeId} />}
       {activeTab === "promotions" && <PromotionsTab employeeId={employee.employeeId} />}

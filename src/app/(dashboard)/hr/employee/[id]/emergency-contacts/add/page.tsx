@@ -1,177 +1,129 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState } from "react"
 
-type EmergencyContactPayload = {
-  name: string;
-  email: string;
-  mobile: string;
-  address: string;
-  relationship: string;
-};
+const BASE_URL = process.env.NEXT_PUBLIC_MAIN
 
-export default function AddEmergencyContactPage() {
-  const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const employeeId = params?.id;
+type Props = {
+  open: boolean
+  onClose: () => void
+  employeeId: string
+  onSuccess: () => void
+}
 
-  const [form, setForm] = useState<EmergencyContactPayload>({
+export default function AddEmergencyContactModal({
+  open,
+  onClose,
+  employeeId,
+  onSuccess,
+}: Props) {
+  const [form, setForm] = useState({
     name: "",
     email: "",
     mobile: "",
-    address: "",
     relationship: "",
-  });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+    address: "",
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!employeeId) {
-      setError("Missing employee ID in route");
-      return;
-    }
+  if (!open) return null
 
-    // Basic client-side validation
+  const submit = async () => {
     if (!form.name || !form.email || !form.mobile || !form.relationship) {
-      setError("Name, email, mobile, and relationship are required");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      setError("Invalid email format");
-      return;
-    }
-    if (!/^\d{10}$/.test(form.mobile)) {
-      setError("Mobile number must be 10 digits");
-      return;
+      setError("All required fields must be filled")
+      return
     }
 
-    setSubmitting(true);
-    setError(null);
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-      if (!token) {
-        throw new Error("Authentication required");
-      }
+      setLoading(true)
+      setError(null)
 
-      const res = await fetch(`/api/hr/employee/${employeeId}/emergency-contacts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
-      });
+      const token = localStorage.getItem("accessToken")
+      if (!token) throw new Error("Unauthorized")
 
-      const contentType = res.headers.get("content-type") || "application/json";
-      const raw = await res.text();
-      let data: any = raw;
-      if (contentType.includes("application/json")) {
-        try {
-          data = JSON.parse(raw);
-        } catch {
-          // Fallback to raw text
+      const res = await fetch(
+        `${BASE_URL}/employee/${employeeId}/emergency-contacts`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(form),
         }
-      }
+      )
 
-      if (!res.ok) {
-        const message = typeof data === "string" && data.trim().length > 0
-          ? data
-          : (data?.error || `Failed to create emergency contact (status ${res.status})`);
-        throw new Error(message);
-      }
+      if (!res.ok) throw new Error("Failed to create contact")
 
-      alert("Emergency contact saved successfully");
-      router.push(`/hr/employee/${employeeId}`);
-    } catch (err: any) {
-      setError(err?.message || "Unexpected error");
+      onSuccess()
+      onClose()
+    } catch (e: any) {
+      setError(e.message)
     } finally {
-      setSubmitting(false);
+      setLoading(false)
     }
   }
 
   return (
-    <div className="p-4 max-w-2xl">
-      <h1 className="text-xl font-semibold mb-4">Add Emergency Contact</h1>
-      {error ? (
-        <div className="mb-4 text-red-600 text-sm">{error}</div>
-      ) : null}
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Name</span>
-            <input
-              type="text"
-              className="border rounded px-3 py-2"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              required
-              placeholder="John Doe"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Email</span>
-            <input
-              type="email"
-              className="border rounded px-3 py-2"
-              value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              required
-              placeholder="john.e@example.com"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Mobile</span>
-            <input
-              type="text"
-              className="border rounded px-3 py-2"
-              value={form.mobile}
-              onChange={(e) => setForm((f) => ({ ...f, mobile: e.target.value }))}
-              required
-              placeholder="9876543210"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Relationship</span>
-            <input
-              type="text"
-              className="border rounded px-3 py-2"
-              value={form.relationship}
-              onChange={(e) => setForm((f) => ({ ...f, relationship: e.target.value }))}
-              required
-              placeholder="Brother"
-            />
-          </label>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+      <div className="bg-white w-full max-w-lg rounded-xl p-6 space-y-4">
+        <h2 className="text-lg font-semibold">Add Emergency Contact</h2>
+
+        {error && <div className="text-sm text-red-600">{error}</div>}
+
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            placeholder="Name *"
+            className="border rounded px-3 py-2"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+          <input
+            placeholder="Relationship *"
+            className="border rounded px-3 py-2"
+            value={form.relationship}
+            onChange={(e) =>
+              setForm({ ...form, relationship: e.target.value })
+            }
+          />
+          <input
+            placeholder="Email *"
+            className="border rounded px-3 py-2"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+          <input
+            placeholder="Mobile *"
+            className="border rounded px-3 py-2"
+            value={form.mobile}
+            onChange={(e) => setForm({ ...form, mobile: e.target.value })}
+          />
         </div>
 
-        <label className="flex flex-col gap-1">
-          <span className="text-sm">Address</span>
-          <textarea
-            className="border rounded px-3 py-2 min-h-[100px]"
-            value={form.address}
-            onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-            placeholder="New Delhi, India"
-          />
-        </label>
+        <textarea
+          placeholder="Address"
+          className="border rounded px-3 py-2 w-full min-h-[80px]"
+          value={form.address}
+          onChange={(e) => setForm({ ...form, address: e.target.value })}
+        />
 
-        <div className="flex gap-3">
+        <div className="flex justify-end gap-3 pt-4">
           <button
-            type="submit"
-            disabled={submitting}
-            className="bg-black text-white px-4 py-2 rounded disabled:opacity-60"
-          >
-            {submitting ? "Saving..." : "Save Emergency Contact"}
-          </button>
-          <button
-            type="button"
-            className="border px-4 py-2 rounded"
-            onClick={() => router.back()}
+            onClick={onClose}
+            className="px-4 py-2 border rounded-lg"
           >
             Cancel
           </button>
+          <button
+            onClick={submit}
+            disabled={loading}
+            className="px-5 py-2 bg-blue-600 text-white rounded-lg"
+          >
+            {loading ? "Saving..." : "Save"}
+          </button>
         </div>
-      </form>
+      </div>
     </div>
-  );
+  )
 }
