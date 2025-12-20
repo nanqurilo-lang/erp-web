@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 
-import { MoreVertical, Eye, Pencil, Trash } from "lucide-react";
+import { MoreVertical, Eye, Pencil, Trash, List } from "lucide-react";
 import { Award, Calendar, Search, User, Plus } from "lucide-react";
 import Link from "next/link";
 
@@ -200,12 +200,22 @@ export default function AppreciationPage() {
             </p>
           </div>
 
-          <Link href="/hr/appreciation/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Appreciation
+          {/* <Link href="/hr/appreciation/new"> */}
+            
+
+            <div>
+              <Button>
+              <List className="h-4 w-4 mr-2" />
+            
             </Button>
-          </Link>
+              
+              
+              
+                <Button>
+              <List className="h-4 w-4 mr-2" />
+            
+            </Button></div>
+          {/* </Link> */}
         </div>
 
         {/* SEARCH + FILTERS */}
@@ -377,28 +387,12 @@ export default function AppreciationPage() {
 
                   <TableCell>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
+                      {/* <DropdownMenuTrigger asChild> */}
+                        <Button onClick={() => handleView(a.id)}  variant="ghost" size="icon">
+                           <Eye className="h-4 w-4 mr-2" />
+                          {/* <MoreVertical className="h-4 w-4" /> */}
                         </Button>
-                      </DropdownMenuTrigger>
-
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleView(a.id)}>
-                          <Eye className="h-4 w-4 mr-2" /> View
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem onClick={() => handleEdit(a.id)}>
-                          <Pencil className="h-4 w-4 mr-2" /> Edit
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem
-                          onClick={() => handleDelete(a.id)}
-                          className="text-red-600"
-                        >
-                          <Trash className="h-4 w-4 mr-2" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
+                    
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>

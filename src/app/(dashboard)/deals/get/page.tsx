@@ -882,6 +882,7 @@ export default function DealsPage() {
   }
 
   return (
+     <main className="container mx-auto max-w-6xl px-4 py-8">
     <div className="p-0 ">
       {/* Top mini nav (matches provided image) */}
       <div className="mb-4 rounded-md border bg-white py-2 px-4 flex items-center justify-between gap-4">
@@ -1192,5 +1193,6 @@ export default function DealsPage() {
         </Link>
       </div>
     </div>
+    </main>
   )
 }

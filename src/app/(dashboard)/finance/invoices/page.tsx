@@ -84,7 +84,9 @@ export default function InvoiceList() {
   // };
 
   return (
-    <div className="container mx-auto py-6 px-4">
+ 
+    
+    <div className="py-6 px-4">
       {/* HEADER */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
@@ -98,9 +100,12 @@ export default function InvoiceList() {
           </div>
         </div>
       </div>
+      
 
       {/* FILTERS */}
+      
       <InvoiceFilters filters={filters} setFilters={setFilters} invoices={invoices} />
+     
 
       {/* TABLE */}
       <InvoiceTable
@@ -188,5 +193,6 @@ export default function InvoiceList() {
       />
 
     </div>
+   
   );
 }

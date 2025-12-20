@@ -82,7 +82,9 @@ export default function StagesPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen w-full overflow-x-hidden">
+ <main className="container mx-auto max-w-6xl px-4 py-8">
+
+    <div className="flex flex-col min-h-screen  overflow-x-hidden">
       <div className="p-6 max-w-[1400px] mx-auto w-full">
         <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           {/* <h1 className="text-3xl font-bold text-foreground text-balance">Deals – Kanban </h1> */}
@@ -136,5 +138,6 @@ export default function StagesPage() {
         </footer>
       </div>
     </div>
+    </main>
   )
 }

@@ -12,6 +12,7 @@ export default function InvoiceFilters({ filters, setFilters, invoices }) {
     const statusList = ["All", ...new Set(invoices.map(i => i.status).filter(Boolean))];
 
     return (
+        
         <div className="border rounded-md bg-white px-3 py-3 mb-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
 

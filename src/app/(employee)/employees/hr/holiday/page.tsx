@@ -680,8 +680,8 @@ export default function HolidayPage() {
               <th className="px-6 py-3 text-left">Date</th>
               <th className="px-6 py-3 text-left">Day</th>
               <th className="px-6 py-3 text-left">Occasion</th>
-              <th className="px-6 py-3 text-left">Weekly</th>
-              <th className="px-6 py-3 text-left">Actions</th>
+              {/* <th className="px-6 py-3 text-left">Weekly</th> */}
+              {/* <th className="px-6 py-3 text-left">Actions</th> */}
             </tr>
           </thead>
 
@@ -725,11 +725,11 @@ export default function HolidayPage() {
                   )}
                 </td>
 
-                <td className="px-6 py-4">
+                {/* <td className="px-6 py-4">
                   {holiday.isDefaultWeekly ? "Yes" : "No"}
-                </td>
+                </td> */}
 
-                <td className="px-6 py-4">
+                {/* <td className="px-6 py-4">
                   {editingHoliday?.id === holiday.id ? (
                     <div className="flex gap-2">
                       <button
@@ -753,7 +753,7 @@ export default function HolidayPage() {
                       <MoreVertical className="w-5 h-5" />
                     </button>
                   )}
-                </td>
+                </td> */}
               </tr>
             ))}
           </tbody>
@@ -761,7 +761,7 @@ export default function HolidayPage() {
       </div>
 
       {/* ACTION MODAL */}
-      {actionHoliday && (
+      {/* {actionHoliday && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
           <div className="bg-white rounded-lg w-64 shadow-lg">
             <div className="flex justify-between items-center px-4 py-3 border-b">
@@ -794,7 +794,7 @@ export default function HolidayPage() {
             </button>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* DELETE CONFIRM */}
       {deleteId !== null && (

@@ -558,7 +558,7 @@ export default function LeavesList() {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
 
-    const res = await fetch(`${BASE_URL}/employee/api/leaves`, {
+    const res = await fetch(`${BASE_URL}/employee/api/leaves/my-leaves`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     setLeaves(await res.json());
@@ -570,7 +570,7 @@ export default function LeavesList() {
     const token = localStorage.getItem("accessToken");
     if (!empId) return;
 
-    const res = await fetch(`${BASE_URL}/employee/leave-quota/employee/${empId}`, {
+    const res = await fetch(`${BASE_URL}/employee/leave-quota/me`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     });
