@@ -1030,7 +1030,7 @@ export default function LeavesList() {
                   <th className="px-6 py-3 text-left text-xs font-medium">Leave Type</th>
                   <th className="px-6 py-3 text-left text-xs font-medium">Duration</th>
                   <th className="px-6 py-3 text-left text-xs font-medium">Dates</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium">Reason</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium">Paid</th>
                   <th className="px-6 py-3 text-left text-xs font-medium">Status</th>
                   <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
                 </tr>
@@ -1042,7 +1042,20 @@ export default function LeavesList() {
                     <td className="px-6 py-4">{leave.leaveType}</td>
                     <td className="px-6 py-4">{leave.durationType}</td>
                     <td className="px-6 py-4">{getDisplayDates(leave)}</td>
-                    <td className="px-6 py-4 max-w-xs truncate">{leave.paid}</td>
+                    {/* <td className="px-6 py-4 max-w-xs truncate">{leave.paid}</td> */}
+      <td className="px-6 py-4">
+  <span
+    className={`px-2 py-1 text-xs rounded-full font-medium
+      ${leave.isPaid
+        ? "bg-green-100 text-green-700"
+        : "bg-red-100 text-red-700"
+      }`}
+  >
+    {leave.isPaid ? "Paid" : "Unpaid"}
+  </span>
+</td>
+
+
                     <td className="px-6 py-4">
                       <span className={getStatusClass(leave.status)}>
                         {leave.status}

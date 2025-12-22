@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreVertical } from "lucide-react";
+import { Eye, MoreVertical, View } from "lucide-react";
 
 interface Props {
     status: string;
@@ -25,16 +25,34 @@ export default function LeaveActionMenu({
 
     return (
         <div className="relative">
-            <button
-                onClick={() => setOpen((s) => !s)}
-                className="p-2 rounded hover:bg-gray-100"
+            <Eye className="text-right    w-4 h-4"
+                // onClick={() => setOpen((s) => !s)}
+                  onClick={() => {
+
+                            setOpen(false);
+                            onView();
+                        }}
+                // className="p-2 rounded hover:bg-gray-100"
             >
-                <MoreVertical className="w-4 h-4" />
-            </button>
+
+  {/* <View className=" w-8 h-8"
+                        onClick={() => {
+
+                            setOpen(false);
+                            onView();
+                        }}
+                        
+                    >
+                        View
+                    </View> */}
+
+
+                {/* <MoreVertical className="w-4 h-4" /> */}
+            </Eye>
 
             {open && (
                 <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-md z-50">
-                    <button
+                    {/* <View
                         onClick={() => {
 
                             setOpen(false);
@@ -43,11 +61,11 @@ export default function LeaveActionMenu({
                         className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
                     >
                         View
-                    </button>
+                    </View> */}
 
                     {status === "PENDING" && (
                         <>
-                            <button
+                            {/* <button
                                 disabled={loading}
                                 onClick={() => {
                                     setOpen(false);
@@ -56,9 +74,9 @@ export default function LeaveActionMenu({
                                 className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-green-600"
                             >
                                 Approve
-                            </button>
+                            </button> */}
 
-                            <button
+                            {/* <button
                                 disabled={loading}
                                 onClick={() => {
                                     setOpen(false);
@@ -67,21 +85,21 @@ export default function LeaveActionMenu({
                                 className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-red-600"
                             >
                                 Reject
-                            </button>
+                            </button> */}
                         </>
                     )}
 
                     <div className="border-t my-1" />
 
-                    <button
+                    {/* <button
                         onClick={() => {
                             setOpen(false);
                             onDelete();
                         }}
                         className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-red-600"
                     >
-                        Delete
-                    </button>
+                        Delete 
+                    </button> */}
                 </div>
             )}
         </div>
