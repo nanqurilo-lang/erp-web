@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 
-import { MoreVertical, Eye, Pencil, Trash } from "lucide-react";
+import { MoreVertical, Eye, Pencil, Trash, Trophy } from "lucide-react";
 import { Award, Calendar, Search, User, Plus } from "lucide-react";
 import Link from "next/link";
 
@@ -201,11 +201,33 @@ export default function AppreciationPage() {
           </div>
 
           <Link href="/hr/appreciation/new">
-            <Button>
+            <Button >
               <Plus className="h-4 w-4 mr-2" />
               Add Appreciation
             </Button>
           </Link>
+          {/* <Link href="/hr/awards">
+            <Button>
+              <Award className="h-4 w-4 mr-2" />
+
+            </Button>
+          </Link> */}
+          <div className="gap-8">
+
+            <Link href="/hr/appreciation">
+              <Button>
+                <Trophy className="h-4 w-4 mr-2" />
+
+              </Button>
+            </Link>
+            <Link href="/hr/awards">
+              <Button>
+                <Award className="h-4 w-4 mr-2" />
+
+              </Button>
+            </Link>
+          </div>
+
         </div>
 
         {/* SEARCH + FILTERS */}

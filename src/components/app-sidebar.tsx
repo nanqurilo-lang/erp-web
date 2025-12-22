@@ -222,6 +222,16 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
+ <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/hr/attendence">
+                      <Award className="size-5" />
+                      <span>Attandance</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <Link href="/hr/leave/admin">
@@ -260,14 +270,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
 
 
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/hr/awards">
-                      <Award className="size-5" />
-                      <span>Awards</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+               
 
 
 

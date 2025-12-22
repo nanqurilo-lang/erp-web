@@ -43,7 +43,7 @@
 //         return;
 //       }
 
-//       const res = await fetch(`/api/hr/holidays`, {
+//       const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/employee/api/holidays`, {
 //         headers: { Authorization: `Bearer ${token}` },
 //       });
 
@@ -237,7 +237,7 @@
 //         <button
 //           onClick={() => {
 //             setAddingHoliday(!addingHoliday);
-//             if (!addingHoliday) setNewHoliday({ date: "", occasion: "" });
+//             if (!addingHoliday) setNewHolidays([{ date: "", occasion: "" }]);
 //           }}
 //           className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md shadow-sm transition-colors"
 //           disabled={saving}
@@ -517,9 +517,6 @@
 //                       </>
 //                     )}
 //                   </td>
-
-
-
 //                 </tr>
 //               ))
 //             ) : (
@@ -539,10 +536,33 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 "use client";
 
 import { useEffect, useState } from "react";
-import { MoreVertical, Pencil, Trash2, X } from "lucide-react";
 
 interface Holiday {
   id: number;
@@ -553,273 +573,376 @@ interface Holiday {
   isActive: boolean;
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_MAIN;
+
 export default function HolidayPage() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [filteredHolidays, setFilteredHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  /* filters */
   const [year, setYear] = useState(new Date().getFullYear());
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [month, setMonth] = useState<number | "">(new Date().getMonth() + 1);
   const [search, setSearch] = useState("");
 
+  /* add modal */
+  const [addingHoliday, setAddingHoliday] = useState(false);
+  const [newHolidays, setNewHolidays] = useState([{ date: "", occasion: "" }]);
+
+  /* edit / action */
   const [editingHoliday, setEditingHoliday] = useState<Holiday | null>(null);
-  const [actionHoliday, setActionHoliday] = useState<Holiday | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [openActionId, setOpenActionId] = useState<number | null>(null);
 
-  const [saving, setSaving] = useState(false);
-
-  // ---------------- FETCH ----------------
+  /* ================= FETCH ================= */
   const fetchHolidays = async () => {
     try {
       setLoading(true);
-      setError("");
       const token = localStorage.getItem("accessToken");
-      if (!token) return;
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/employee/api/holidays`, {
+      const res = await fetch(`${BASE_URL}/employee/api/holidays`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       if (!res.ok) throw new Error("Failed to fetch holidays");
-      const data = await res.json();
-      setHolidays(data);
-    } catch (e: any) {
-      setError(e.message);
+      setHolidays(await res.json());
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // ---------------- UPDATE ----------------
+  useEffect(() => {
+    fetchHolidays();
+  }, []);
+
+  /* ================= FILTER ================= */
+  useEffect(() => {
+    let list = holidays;
+
+    if (year || month) {
+      list = list.filter((h) => {
+        const [y, m] = h.date.split("-").map(Number);
+        if (year && y !== year) return false;
+        if (month && m !== month) return false;
+        return true;
+      });
+    }
+
+    if (search.trim()) {
+      list = list.filter((h) =>
+        h.occasion.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    setFilteredHolidays(list);
+  }, [holidays, year, month, search]);
+
+  /* ================= ADD ================= */
+  const addRow = () =>
+    setNewHolidays([...newHolidays, { date: "", occasion: "" }]);
+
+  const updateRow = (i: number, k: "date" | "occasion", v: string) => {
+    const copy = [...newHolidays];
+    copy[i][k] = v;
+    setNewHolidays(copy);
+  };
+
+  const removeRow = (i: number) =>
+    setNewHolidays(newHolidays.filter((_, idx) => idx !== i));
+
+  const handleAdd = async () => {
+    const validHolidays = newHolidays.filter(
+      (h) => h.date && h.occasion.trim()
+    );
+
+    if (!validHolidays.length) {
+      setError("At least one holiday is required");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError("");
+
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        setError("Authentication required");
+        return;
+      }
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_MAIN}/employee/api/holidays/bulk`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            holidays: validHolidays, // ✅ EXACT API FORMAT
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to add holidays");
+      }
+
+      // response is array of created holidays
+      await fetchHolidays(); // refresh table
+      setAddingHoliday(false);
+      setNewHolidays([{ date: "", occasion: "" }]);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+
+  /* ================= UPDATE ================= */
   const handleUpdate = async () => {
     if (!editingHoliday) return;
     try {
       setSaving(true);
       const token = localStorage.getItem("accessToken");
-      if (!token) return;
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/employee/api/holidays/${editingHoliday.id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          date: editingHoliday.date,
-          occasion: editingHoliday.occasion,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Update failed");
-      setEditingHoliday(null);
-      fetchHolidays();
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ---------------- DELETE ----------------
-  const handleDelete = async (id: number) => {
-    try {
-      setSaving(true);
-      const token = localStorage.getItem("accessToken");
-      if (!token) return;
-
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_MAIN}/employee/api/holidays/${id}`,
+      await fetch(
+        `${BASE_URL}/employee/api/holidays/${editingHoliday.id}`,
         {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            date: editingHoliday.date,
+            occasion: editingHoliday.occasion,
+          }),
         }
       );
 
-      if (!res.ok) throw new Error("Delete failed");
-      fetchHolidays();
-    } catch (e: any) {
-      setError(e.message);
+      await fetchHolidays();
+      setEditingHoliday(null);
     } finally {
       setSaving(false);
     }
   };
 
-  // ---------------- EFFECTS ----------------
-  useEffect(() => {
-    fetchHolidays();
-  }, []);
+  /* ================= DELETE ================= */
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete this holiday?")) return;
+    try {
+      setSaving(true);
+      const token = localStorage.getItem("accessToken");
+      await fetch(`${BASE_URL}/employee/api/holidays/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await fetchHolidays();
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  useEffect(() => {
-    let data = holidays;
-
-    data = data.filter((h) => {
-      const [y, m] = h.date.split("-").map(Number);
-      if (year && y !== year) return false;
-      if (month && m !== month) return false;
-      if (search && !h.occasion.toLowerCase().includes(search.toLowerCase()))
-        return false;
-      return true;
-    });
-
-    setFilteredHolidays(data);
-  }, [holidays, year, month, search]);
-
-  if (loading) return <p className="p-4">Loading…</p>;
-  if (error) return <p className="p-4 text-red-500">{error}</p>;
+  if (loading) return <p className="p-6">Loading…</p>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Holiday Management</h1>
+    <div className="p-6 max-w-7xl mx-auto bg-white rounded-lg border">
 
-      {/* TABLE */}
-      <div className="bg-white border rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left">Date</th>
-              <th className="px-6 py-3 text-left">Day</th>
-              <th className="px-6 py-3 text-left">Occasion</th>
-              <th className="px-6 py-3 text-left">Weekly</th>
-              <th className="px-6 py-3 text-left">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y">
-            {filteredHolidays.map((holiday) => (
-              <tr key={holiday.id}>
-                <td className="px-6 py-4">
-                  {editingHoliday?.id === holiday.id ? (
-                    <input
-                      type="date"
-                      value={editingHoliday.date}
-                      onChange={(e) =>
-                        setEditingHoliday({
-                          ...editingHoliday,
-                          date: e.target.value,
-                        })
-                      }
-                      className="border rounded p-1"
-                    />
-                  ) : (
-                    holiday.date
-                  )}
-                </td>
-
-                <td className="px-6 py-4">{holiday.day}</td>
-
-                <td className="px-6 py-4">
-                  {editingHoliday?.id === holiday.id ? (
-                    <input
-                      value={editingHoliday.occasion}
-                      onChange={(e) =>
-                        setEditingHoliday({
-                          ...editingHoliday,
-                          occasion: e.target.value,
-                        })
-                      }
-                      className="border rounded p-1"
-                    />
-                  ) : (
-                    holiday.occasion
-                  )}
-                </td>
-
-                <td className="px-6 py-4">
-                  {holiday.isDefaultWeekly ? "Yes" : "No"}
-                </td>
-
-                <td className="px-6 py-4">
-                  {editingHoliday?.id === holiday.id ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleUpdate}
-                        className="bg-green-600 text-white px-3 py-1 rounded"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingHoliday(null)}
-                        className="bg-gray-300 px-3 py-1 rounded"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setActionHoliday(holiday)}
-                      className="p-2 rounded-full hover:bg-gray-100"
-                    >
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-xl font-semibold">Holiday Management</h1>
+        <button
+          onClick={() => {
+            setAddingHoliday(true);
+            setNewHolidays([{ date: "", occasion: "" }]);
+          }}
+          className="bg-blue-600 text-white px-4 py-2 rounded-md"
+        >
+          + Add Holiday
+        </button>
       </div>
 
-      {/* ACTION MODAL */}
-      {actionHoliday && (
+      {/* FILTERS */}
+      <div className="flex gap-3 mb-4">
+        <input
+          type="number"
+          value={year}
+          onChange={(e) => setYear(+e.target.value)}
+          className="border px-2 py-1 rounded w-24"
+        />
+        <select
+          value={month}
+          onChange={(e) => setMonth(e.target.value ? +e.target.value : "")}
+          className="border px-2 py-1 rounded"
+        >
+          <option value="">All Months</option>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <option key={i} value={i + 1}>
+              {new Date(0, i).toLocaleString("default", { month: "long" })}
+            </option>
+          ))}
+        </select>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search occasion"
+          className="border px-3 py-1 rounded flex-1"
+        />
+      </div>
+
+      {/* TABLE */}
+      <table className="w-full border rounded-lg overflow-hidden">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-4 py-2 text-left">Date</th>
+            <th className="px-4 py-2 text-left">Day</th>
+            <th className="px-4 py-2 text-left">Occasion</th>
+            <th className="px-4 py-2 text-left">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredHolidays.map((h) => (
+            <tr key={h.id} className="border-t">
+              <td className="px-4 py-2">
+                {editingHoliday?.id === h.id ? (
+                  <input
+                    value={editingHoliday.date}
+                    onChange={(e) =>
+                      setEditingHoliday({ ...editingHoliday, date: e.target.value })
+                    }
+                    className="border px-2 py-1 rounded"
+                  />
+                ) : (
+                  h.date
+                )}
+              </td>
+              <td className="px-4 py-2">{h.day}</td>
+              <td className="px-4 py-2">
+                {editingHoliday?.id === h.id ? (
+                  <input
+                    value={editingHoliday.occasion}
+                    onChange={(e) =>
+                      setEditingHoliday({
+                        ...editingHoliday,
+                        occasion: e.target.value,
+                      })
+                    }
+                    className="border px-2 py-1 rounded"
+                  />
+                ) : (
+                  h.occasion
+                )}
+              </td>
+              <td className="px-4 py-2 relative">
+                {editingHoliday?.id === h.id ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleUpdate}
+                      className="bg-green-600 text-white px-3 py-1 rounded"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setEditingHoliday(null)}
+                      className="bg-gray-300 px-3 py-1 rounded"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={() =>
+                        setOpenActionId(openActionId === h.id ? null : h.id)
+                      }
+                    >
+                      ⋮
+                    </button>
+
+                    {openActionId === h.id && (
+                      <div className="absolute right-0 mt-2 w-32 bg-white border rounded shadow z-20">
+                        <button
+                          onClick={() => {
+                            setEditingHoliday(h);
+                            setOpenActionId(null);
+                          }}
+                          className="block w-full text-left px-3 py-2 hover:bg-gray-100"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(h.id)}
+                          className="block w-full text-left px-3 py-2 text-red-600 hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* ADD MODAL */}
+      {addingHoliday && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg w-64 shadow-lg">
-            <div className="flex justify-between items-center px-4 py-3 border-b">
-              <span className="font-semibold">Actions</span>
-              <button onClick={() => setActionHoliday(null)}>
-                <X className="w-4 h-4" />
+          <div className="bg-white w-full max-w-3xl rounded-lg shadow-lg">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="font-semibold">Add Holidays</h2>
+              <button onClick={() => setAddingHoliday(false)}>✕</button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {newHolidays.map((h, i) => (
+                <div key={i} className="grid grid-cols-5 gap-3">
+                  <input
+                    type="date"
+                    value={h.date}
+                    onChange={(e) => updateRow(i, "date", e.target.value)}
+                    className="border px-2 py-1 rounded col-span-2"
+                  />
+                  <input
+                    value={h.occasion}
+                    onChange={(e) =>
+                      updateRow(i, "occasion", e.target.value)
+                    }
+                    className="border px-2 py-1 rounded col-span-2"
+                    placeholder="Occasion"
+                  />
+                  {newHolidays.length > 1 && (
+                    <button
+                      onClick={() => removeRow(i)}
+                      className="bg-red-500 text-white rounded"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button onClick={addRow} className="text-blue-600">
+                + Add Row
               </button>
             </div>
 
-            <button
-              onClick={() => {
-                setEditingHoliday(actionHoliday);
-                setActionHoliday(null);
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100"
-            >
-              <Pencil className="w-4 h-4 text-blue-600" />
-              Edit
-            </button>
-
-            <button
-              onClick={() => {
-                setDeleteId(actionHoliday.id);
-                setActionHoliday(null);
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 text-red-600"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* DELETE CONFIRM */}
-      {deleteId !== null && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg w-80 p-6">
-            <h3 className="font-semibold mb-3">Delete Holiday</h3>
-            <p className="text-sm mb-5">
-              Are you sure you want to delete this holiday?
-            </p>
-
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-3 p-4 border-t">
               <button
-                onClick={() => setDeleteId(null)}
+                onClick={() => setAddingHoliday(false)}
                 className="px-4 py-2 bg-gray-200 rounded"
               >
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  handleDelete(deleteId);
-                  setDeleteId(null);
-                }}
-                className="px-4 py-2 bg-red-600 text-white rounded"
+                onClick={handleAdd}
+                className="px-4 py-2 bg-blue-600 text-white rounded"
               >
-                Delete
+                Save
               </button>
             </div>
           </div>
@@ -828,3 +951,345 @@ export default function HolidayPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// "use client";
+
+// import { useEffect, useState } from "react";
+// import { MoreVertical, Pencil, Trash2, X } from "lucide-react";
+
+// interface Holiday {
+//   id: number;
+//   date: string;
+//   day: string;
+//   occasion: string;
+//   isDefaultWeekly: boolean;
+//   isActive: boolean;
+// }
+
+// export default function HolidayPage() {
+//   const [holidays, setHolidays] = useState<Holiday[]>([]);
+//   const [filteredHolidays, setFilteredHolidays] = useState<Holiday[]>([]);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState("");
+
+//   const [year, setYear] = useState(new Date().getFullYear());
+//   const [month, setMonth] = useState(new Date().getMonth() + 1);
+//   const [search, setSearch] = useState("");
+
+//   const [editingHoliday, setEditingHoliday] = useState<Holiday | null>(null);
+//   const [actionHoliday, setActionHoliday] = useState<Holiday | null>(null);
+//   const [deleteId, setDeleteId] = useState<number | null>(null);
+
+//   const [saving, setSaving] = useState(false);
+
+//   // ---------------- FETCH ----------------
+//   const fetchHolidays = async () => {
+//     try {
+//       setLoading(true);
+//       setError("");
+//       const token = localStorage.getItem("accessToken");
+//       if (!token) return;
+
+//       const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/employee/api/holidays`, {
+//         headers: { Authorization: `Bearer ${token}` },
+//       });
+
+//       if (!res.ok) throw new Error("Failed to fetch holidays");
+//       const data = await res.json();
+//       setHolidays(data);
+//     } catch (e: any) {
+//       setError(e.message);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   // ---------------- UPDATE ----------------
+//   const handleUpdate = async () => {
+//     if (!editingHoliday) return;
+//     try {
+//       setSaving(true);
+//       const token = localStorage.getItem("accessToken");
+//       if (!token) return;
+
+//       const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/employee/api/holidays/${editingHoliday.id}`, {
+//         method: "PUT",
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           "Content-Type": "application/json",
+//         },
+//         body: JSON.stringify({
+//           date: editingHoliday.date,
+//           occasion: editingHoliday.occasion,
+//         }),
+//       });
+
+//       if (!res.ok) throw new Error("Update failed");
+//       setEditingHoliday(null);
+//       fetchHolidays();
+//     } catch (e: any) {
+//       setError(e.message);
+//     } finally {
+//       setSaving(false);
+//     }
+//   };
+
+//   // ---------------- DELETE ----------------
+//   const handleDelete = async (id: number) => {
+//     try {
+//       setSaving(true);
+//       const token = localStorage.getItem("accessToken");
+//       if (!token) return;
+
+//       const res = await fetch(
+//         `${process.env.NEXT_PUBLIC_MAIN}/employee/api/holidays/${id}`,
+//         {
+//           method: "DELETE",
+//           headers: { Authorization: `Bearer ${token}` },
+//         }
+//       );
+
+//       if (!res.ok) throw new Error("Delete failed");
+//       fetchHolidays();
+//     } catch (e: any) {
+//       setError(e.message);
+//     } finally {
+//       setSaving(false);
+//     }
+//   };
+
+//   // ---------------- EFFECTS ----------------
+//   useEffect(() => {
+//     fetchHolidays();
+//   }, []);
+
+//   useEffect(() => {
+//     let data = holidays;
+
+//     data = data.filter((h) => {
+//       const [y, m] = h.date.split("-").map(Number);
+//       if (year && y !== year) return false;
+//       if (month && m !== month) return false;
+//       if (search && !h.occasion.toLowerCase().includes(search.toLowerCase()))
+//         return false;
+//       return true;
+//     });
+
+//     setFilteredHolidays(data);
+//   }, [holidays, year, month, search]);
+
+//   if (loading) return <p className="p-4">Loading…</p>;
+//   if (error) return <p className="p-4 text-red-500">{error}</p>;
+
+//   return (
+//     <div className="p-6 max-w-7xl mx-auto">
+//       <h1 className="text-2xl font-bold mb-6">Holiday Management</h1>
+
+//       {/* TABLE */}
+//       <div className="bg-white border rounded-lg overflow-hidden">
+//         <table className="w-full">
+//           <thead className="bg-gray-50">
+//             <tr>
+//               <th className="px-6 py-3 text-left">Date</th>
+//               <th className="px-6 py-3 text-left">Day</th>
+//               <th className="px-6 py-3 text-left">Occasion</th>
+//               <th className="px-6 py-3 text-left">Weekly</th>
+//               <th className="px-6 py-3 text-left">Actions</th>
+//             </tr>
+//           </thead>
+
+//           <tbody className="divide-y">
+//             {filteredHolidays.map((holiday) => (
+//               <tr key={holiday.id}>
+//                 <td className="px-6 py-4">
+//                   {editingHoliday?.id === holiday.id ? (
+//                     <input
+//                       type="date"
+//                       value={editingHoliday.date}
+//                       onChange={(e) =>
+//                         setEditingHoliday({
+//                           ...editingHoliday,
+//                           date: e.target.value,
+//                         })
+//                       }
+//                       className="border rounded p-1"
+//                     />
+//                   ) : (
+//                     holiday.date
+//                   )}
+//                 </td>
+
+//                 <td className="px-6 py-4">{holiday.day}</td>
+
+//                 <td className="px-6 py-4">
+//                   {editingHoliday?.id === holiday.id ? (
+//                     <input
+//                       value={editingHoliday.occasion}
+//                       onChange={(e) =>
+//                         setEditingHoliday({
+//                           ...editingHoliday,
+//                           occasion: e.target.value,
+//                         })
+//                       }
+//                       className="border rounded p-1"
+//                     />
+//                   ) : (
+//                     holiday.occasion
+//                   )}
+//                 </td>
+
+//                 <td className="px-6 py-4">
+//                   {holiday.isDefaultWeekly ? "Yes" : "No"}
+//                 </td>
+
+//                 <td className="px-6 py-4">
+//                   {editingHoliday?.id === holiday.id ? (
+//                     <div className="flex gap-2">
+//                       <button
+//                         onClick={handleUpdate}
+//                         className="bg-green-600 text-white px-3 py-1 rounded"
+//                       >
+//                         Save
+//                       </button>
+//                       <button
+//                         onClick={() => setEditingHoliday(null)}
+//                         className="bg-gray-300 px-3 py-1 rounded"
+//                       >
+//                         Cancel
+//                       </button>
+//                     </div>
+//                   ) : (
+//                     <button
+//                       onClick={() => setActionHoliday(holiday)}
+//                       className="p-2 rounded-full hover:bg-gray-100"
+//                     >
+//                       <MoreVertical className="w-5 h-5" />
+//                     </button>
+//                   )}
+//                 </td>
+//               </tr>
+//             ))}
+//           </tbody>
+//         </table>
+//       </div>
+
+//       {/* ACTION MODAL */}
+//       {actionHoliday && (
+//         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+//           <div className="bg-white rounded-lg w-64 shadow-lg">
+//             <div className="flex justify-between items-center px-4 py-3 border-b">
+//               <span className="font-semibold">Actions</span>
+//               <button onClick={() => setActionHoliday(null)}>
+//                 <X className="w-4 h-4" />
+//               </button>
+//             </div>
+
+//             <button
+//               onClick={() => {
+//                 setEditingHoliday(actionHoliday);
+//                 setActionHoliday(null);
+//               }}
+//               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100"
+//             >
+//               <Pencil className="w-4 h-4 text-blue-600" />
+//               Edit
+//             </button>
+
+//             <button
+//               onClick={() => {
+//                 setDeleteId(actionHoliday.id);
+//                 setActionHoliday(null);
+//               }}
+//               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 text-red-600"
+//             >
+//               <Trash2 className="w-4 h-4" />
+//               Delete
+//             </button>
+//           </div>
+//         </div>
+//       )}
+
+//       {/* DELETE CONFIRM */}
+//       {deleteId !== null && (
+//         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+//           <div className="bg-white rounded-lg w-80 p-6">
+//             <h3 className="font-semibold mb-3">Delete Holiday</h3>
+//             <p className="text-sm mb-5">
+//               Are you sure you want to delete this holiday?
+//             </p>
+
+//             <div className="flex justify-end gap-3">
+//               <button
+//                 onClick={() => setDeleteId(null)}
+//                 className="px-4 py-2 bg-gray-200 rounded"
+//               >
+//                 Cancel
+//               </button>
+//               <button
+//                 onClick={() => {
+//                   handleDelete(deleteId);
+//                   setDeleteId(null);
+//                 }}
+//                 className="px-4 py-2 bg-red-600 text-white rounded"
+//               >
+//                 Delete
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+//       )}
+//     </div>
+//   );
+// }

@@ -223,264 +223,6 @@
 
 
 
-// "use client";
-// import { useEffect, useMemo, useState } from "react";
-
-// interface Leave {
-//   id: number;
-//   employeeId: string;
-//   employeeName: string;
-//   leaveType: string;
-//   durationType: string;
-//   startDate: string | null;
-//   endDate: string | null;
-//   singleDate: string | null;
-//   reason: string;
-//   status: string;
-//   rejectionReason: string | null;
-//   approvedByName: string | null;
-//   isPaid: boolean;
-//   approvedAt: string | null;
-//   rejectedAt: string | null;
-//   documentUrls: string[];
-//   createdAt: string;
-//   updatedAt: string;
-// }
-
-// interface LeaveQuota {
-//   id: number;
-//   leaveType: string;
-//   totalLeaves: number;
-//   monthlyLimit: number;
-//   totalTaken: number;
-//   overUtilized: number;
-//   remainingLeaves: number;
-// }
-
-
-
-// const BASE_URL = process.env.NEXT_PUBLIC_MAIN;
-// export default function LeavesPage() {
-//   /* ================= STATE ================= */
-//   const [view, setView] = useState<"LIST" | "CALENDAR" | "PROFILE">("LIST");
-//   const [leaves, setLeaves] = useState<Leave[]>([]);
-//   const [quota, setQuota] = useState<LeaveQuota[]>([]);
-//   const [loadingId, setLoadingId] = useState<number | null>(null);
-
-//   /* ================= FILTER STATE ================= */
-//   const [filters, setFilters] = useState({
-//     fromDate: "",
-//     toDate: "",
-//     status: "",
-//     leaveType: "",
-//     paid: "",
-//   });
-
-//   const employeeId =
-//     typeof window !== "undefined"
-//       ? localStorage.getItem("employeeId")
-//       : null;
-
-//   /* ================= FETCH LEAVES ================= */
-//   const fetchLeaves = async () => {
-//     const token = localStorage.getItem("accessToken");
-//     if (!token) return;
-
-//     const res = await fetch(`${BASE_URL}/employee/api/leaves`, {
-//       method: "GET",
-//       headers: { Authorization: `Bearer ${token}` },
-//     });
-//     setLeaves(await res.json());
-//   };
-
-//   /* ================= FETCH QUOTA ================= */
-//   const fetchQuota = async () => {
-//     const employeeId = localStorage.getItem("employeeId");
-//     const token = localStorage.getItem("accessToken");
-//     // if (!employeeId) return;
-//     const res = await fetch(
-//       `${BASE_URL}/employee/leave-quota/employee/${employeeId}`, {
-//       method: "GET",
-//       headers: { Authorization: `Bearer ${token}` },
-//     }
-//     );
-//     setQuota(await res.json());
-//   };
-
-//   useEffect(() => {
-//     fetchLeaves();
-//   }, []);
-
-//   useEffect(() => {
-//     if (view === "PROFILE") fetchQuota();
-//   }, [view]);
-
-//   /* ================= FILTERED DATA ================= */
-//   const filteredLeaves = useMemo(() => {
-//     return leaves.filter((l) => {
-//       const baseDate = l.singleDate ?? l.startDate;
-//       if (!baseDate) return false;
-
-//       if (filters.fromDate && baseDate < filters.fromDate) return false;
-//       if (filters.toDate && baseDate > filters.toDate) return false;
-//       if (filters.status && l.status !== filters.status) return false;
-//       if (filters.leaveType && l.leaveType !== filters.leaveType) return false;
-//       if (filters.paid !== "" && String(l.isPaid) !== filters.paid) return false;
-
-//       return true;
-//     });
-//   }, [leaves, filters]);
-
-//   /* ================= HELPERS (UNCHANGED) ================= */
-//   const getDisplayDates = (leave: Leave) => {
-//     if (leave.singleDate) return leave.singleDate;
-//     if (leave.startDate && leave.endDate) {
-//       return `${leave.startDate} to ${leave.endDate}`;
-//     }
-//     return "N/A";
-//   };
-
-//   const getStatusClass = (status: string) => {
-//     switch (status) {
-//       case "APPROVED":
-//         return "bg-green-100 text-green-800";
-//       case "REJECTED":
-//         return "bg-red-100 text-red-800";
-//       case "PENDING":
-//         return "bg-yellow-100 text-yellow-800";
-//       default:
-//         return "bg-gray-100 text-gray-800";
-//     }
-//   };
-
-//   /* ================= UI ================= */
-//   return (
-//     <div className="p-6 bg-white rounded-lg shadow-md">
-
-//       {/* ================= ACTION BUTTON SECTION (ALWAYS VISIBLE) ================= */}
-//       <div className="flex justify-between items-center mb-4">
-//         <button className="bg-blue-600 text-white px-4 py-2 rounded">
-//           + New Leave
-//         </button>
-
-//         <div className="flex gap-2">
-//           <button
-//             className={view === "LIST" ? "bg-blue-100 px-3 py-2 rounded" : "px-3 py-2"}
-//             onClick={() => setView("LIST")}
-//           >
-//             📋
-//           </button>
-//           <button
-//             className={view === "CALENDAR" ? "bg-blue-100 px-3 py-2 rounded" : "px-3 py-2"}
-//             onClick={() => setView("CALENDAR")}
-//           >
-//             📅
-//           </button>
-//           <button
-//             className={view === "PROFILE" ? "bg-blue-100 px-3 py-2 rounded" : "px-3 py-2"}
-//             onClick={() => setView("PROFILE")}
-//           >
-//             👤
-//           </button>
-//         </div>
-//       </div>
-
-//       {/* ================= FILTER SECTION (ONLY LIST VIEW) ================= */}
-//       {view === "LIST" && (
-//         <div className="flex flex-wrap gap-3 mb-6 border-b pb-4">
-//           <input type="date" onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value }))} />
-//           <input type="date" onChange={e => setFilters(f => ({ ...f, toDate: e.target.value }))} />
-
-//           <select onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}>
-//             <option value="">Status</option>
-//             <option value="APPROVED">Approved</option>
-//             <option value="PENDING">Pending</option>
-//             <option value="REJECTED">Rejected</option>
-//           </select>
-
-//           <select onChange={e => setFilters(f => ({ ...f, leaveType: e.target.value }))}>
-//             <option value="">Leave Type</option>
-//             <option value="SICK">Sick</option>
-//             <option value="CASUAL">Casual</option>
-//             <option value="EARNED">Earned</option>
-//           </select>
-
-//           <select onChange={e => setFilters(f => ({ ...f, paid: e.target.value }))}>
-//             <option value="">Paid</option>
-//             <option value="true">Paid</option>
-//             <option value="false">Unpaid</option>
-//           </select>
-
-//           <button className="px-4 py-1 bg-blue-600 text-white rounded">
-//             Apply
-//           </button>
-
-//           <button
-//             className="px-4 py-1 border rounded"
-//             onClick={() =>
-//               setFilters({
-//                 fromDate: "",
-//                 toDate: "",
-//                 status: "",
-//                 leaveType: "",
-//                 paid: "",
-//               })
-//             }
-//           >
-//             Clear
-//           </button>
-//         </div>
-//       )}
-
-//       {/* ================= TABLE (ONLY LIST VIEW, UNCHANGED) ================= */}
-//       {view === "LIST" && (
-//         <div className="overflow-x-auto">
-//           {/* 👇 YOUR TABLE JSX – SAME AS BEFORE */}
-//           {/* using filteredLeaves instead of leaves */}
-//           {/* paste your table tbody exactly here */}
-//         </div>
-//       )}
-
-//       {/* ================= CALENDAR VIEW ================= */}
-//       {view === "CALENDAR" && (
-//         <div className="text-center py-20 text-gray-500">
-//           Calendar UI here (uses filteredLeaves)
-//         </div>
-//       )}
-
-//       {/* ================= PROFILE VIEW ================= */}
-//       {view === "PROFILE" && (
-//         <div className="overflow-x-auto">
-//           <table className="min-w-full border">
-//             <thead className="bg-gray-50">
-//               <tr>
-//                 <th className="p-3 text-left">Leave Type</th>
-//                 <th className="p-3">Total</th>
-//                 <th className="p-3">Monthly</th>
-//                 <th className="p-3">Taken</th>
-//                 <th className="p-3">Over</th>
-//                 <th className="p-3">Remaining</th>
-//               </tr>
-//             </thead>
-//             <tbody>
-//               {quota.map(q => (
-//                 <tr key={q.id} className="border-t">
-//                   <td className="p-3">{q.leaveType}</td>
-//                   <td className="p-3">{q.totalLeaves}</td>
-//                   <td className="p-3">{q.monthlyLimit}</td>
-//                   <td className="p-3">{q.totalTaken}</td>
-//                   <td className="p-3">{q.overUtilized}</td>
-//                   <td className="p-3">{q.remainingLeaves}</td>
-//                 </tr>
-//               ))}
-//             </tbody>
-//           </table>
-//         </div>
-//       )}
-//     </div>
-//   );
-// }
-
 
 
 
@@ -502,6 +244,9 @@
 
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import LeaveActionMenu from "./LeaveActionMenu";
+import { useRouter } from "next/navigation";
+import NewLeaveDrawer from "./NewLeaveDrawer";
 
 interface Leave {
   id: number;
@@ -543,6 +288,8 @@ export default function LeavesList() {
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [quota, setQuota] = useState<LeaveQuota[]>([]);
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const Router = useRouter();
+  const [openNewLeave, setOpenNewLeave] = useState(false);
 
   /* ================= FILTER STATE ================= */
   const [filters, setFilters] = useState({
@@ -682,24 +429,38 @@ export default function LeavesList() {
   const getStatusClass = (status: string) => {
     switch (status) {
       case "APPROVED":
-        return "bg-green-100 text-green-800";
+        return "text-green-700 flex items-center gap-2";
       case "REJECTED":
-        return "bg-red-100 text-red-800";
+        return "text-red-600 flex items-center gap-2";
       case "PENDING":
-        return "bg-yellow-100 text-yellow-800";
+        return "text-yellow-600 flex items-center gap-2";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "text-gray-600";
     }
   };
+
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
 
       {/* ================= ACTION BUTTONS (ALWAYS) ================= */}
       <div className="flex justify-between items-center mb-4">
-        <button className="bg-blue-600 text-white px-4 py-2 rounded">
+        {/* <button className="bg-blue-600 text-white px-4 py-2 rounded">
+          + New Leave
+        </button> */}
+
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+          onClick={() => setOpenNewLeave(true)}
+        >
           + New Leave
         </button>
+
+        <NewLeaveDrawer
+          open={openNewLeave}
+          onClose={() => setOpenNewLeave(false)}
+          onSuccess={fetchLeaves}
+        />
 
         <div className="flex gap-2">
           <button onClick={() => setView("LIST")}>📋</button>
@@ -710,25 +471,25 @@ export default function LeavesList() {
 
       {/* ================= FILTER (ONLY LIST) ================= */}
       {view === "LIST" && (
-        <div className="flex flex-wrap gap-3 mb-6 border-b pb-4">
-          <input type="date" onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value }))} />
-          <input type="date" onChange={e => setFilters(f => ({ ...f, toDate: e.target.value }))} />
+        <div className="flex flex-wrap gap-3 mb-6 pb-4">
+          <input type="date" className="border py-3 px-6 rounded-2xl" onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value }))} />
+          <input type="date" className="border py-3 px-6 rounded-2xl" onChange={e => setFilters(f => ({ ...f, toDate: e.target.value }))} />
 
-          <select onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}>
+          <select className="border py-3 px-6 rounded-2xl" onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}>
             <option value="">Status</option>
             <option value="APPROVED">Approved</option>
             <option value="PENDING">Pending</option>
             <option value="REJECTED">Rejected</option>
           </select>
 
-          <select onChange={e => setFilters(f => ({ ...f, leaveType: e.target.value }))}>
+          <select className="border py-3 px-6 rounded-2xl" onChange={e => setFilters(f => ({ ...f, leaveType: e.target.value }))}>
             <option value="">Leave Type</option>
             <option value="SICK">Sick</option>
             <option value="CASUAL">Casual</option>
             <option value="EARNED">Earned</option>
           </select>
 
-          <select onChange={e => setFilters(f => ({ ...f, paid: e.target.value }))}>
+          <select className="border py-3 px-6 rounded-2xl" onChange={e => setFilters(f => ({ ...f, paid: e.target.value }))}>
             <option value="">Paid</option>
             <option value="true">Paid</option>
             <option value="false">Unpaid</option>
@@ -760,33 +521,43 @@ export default function LeavesList() {
                   <td className="px-6 py-4">{getDisplayDates(leave)}</td>
                   <td className="px-6 py-4 max-w-xs truncate">{leave.reason}</td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusClass(leave.status)}`}>
+                    <span className={getStatusClass(leave.status)}>
+                      <span
+                        className={`w-2 h-2 rounded-full ${leave.status === "APPROVED"
+                          ? "bg-green-600"
+                          : leave.status === "REJECTED"
+                            ? "bg-red-600"
+                            : "bg-yellow-500"
+                          }`}
+                      />
                       {leave.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    {leave.status === "PENDING" && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => approveLeave(leave.id)}
-                          disabled={loadingId === leave.id}
-                          className="bg-green-600 text-white px-3 py-1 rounded"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => {
-                            const r = prompt("Enter rejection reason:");
-                            if (r) rejectLeave(leave.id, r);
-                          }}
-                          disabled={loadingId === leave.id}
-                          className="bg-red-600 text-white px-3 py-1 rounded"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    )}
+
+                  <td className="px-6 py-4 text-right">
+                    <LeaveActionMenu
+                      status={leave.status}
+                      loading={loadingId === leave.id}
+                      onView={() => {
+                        alert(`View Leave ID: ${leave.id}`);
+                        // open modal if you have one
+
+                        Router.push(`/hr/leave/admin/${leave.id}`);
+                      }}
+                      onApprove={() => approveLeave(leave.id)}
+                      onReject={() => {
+                        const reason = prompt("Enter rejection reason");
+                        if (reason) rejectLeave(leave.id, reason);
+                      }}
+                      onDelete={() => {
+                        if (confirm("Delete this leave?")) {
+                          // 👉 add delete API here if needed
+                          console.log("delete", leave.id);
+                        }
+                      }}
+                    />
                   </td>
+
                 </tr>
               ))}
             </tbody>

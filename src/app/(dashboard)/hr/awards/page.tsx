@@ -11,6 +11,7 @@ import {
   Filter,
   Loader2,
   MoreHorizontal,
+  Trophy,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -188,6 +189,21 @@ export default function AwardsPage() {
             Add Award
           </Button>
         </Link>
+        <div className="gap-8">
+
+          <Link href="/hr/appreciation">
+            <Button>
+              <Trophy className="h-4 w-4 mr-2" />
+
+            </Button>
+          </Link>
+          <Link href="/hr/awards">
+            <Button>
+              <Award className="h-4 w-4 mr-2" />
+
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Filters + Search */}
