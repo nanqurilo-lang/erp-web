@@ -1145,14 +1145,8 @@ export default function LeavesList() {
           </>
         )}
 
-        <div className="flex gap-2">
-          <List onClick={() => setView("LIST")} />
-          <Calendar onClick={() => setView("CALENDAR")} />
-          <User onClick={() => setView("PROFILE")} />
-        </div>
-      </div>
 
-      {/* ================= PROFILE HEADER ================= */}
+         {/* ================= PROFILE HEADER ================= */}
       {view === "PROFILE" && employee && (
         <div className="flex gap-6 mb-6">
           <div className="flex items-center gap-4 border rounded-xl p-4 w-1/2">
@@ -1179,6 +1173,16 @@ export default function LeavesList() {
           </div>
         </div>
       )}
+
+
+        <div className="flex gap-2">
+          <List onClick={() => setView("LIST")} />
+          <Calendar onClick={() => setView("CALENDAR")} />
+          <User onClick={() => setView("PROFILE")} />
+        </div>
+      </div>
+
+     
 
 
  {/* ================= LEAVE QUOTA TABLE (RESTORED) ================= */}
