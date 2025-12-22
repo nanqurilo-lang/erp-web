@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 
-import { MoreVertical, Eye, Pencil, Trash, List } from "lucide-react";
+import { MoreVertical, Eye, Pencil, Trash, List, Trophy } from "lucide-react";
 import { Award, Calendar, Search, User, Plus } from "lucide-react";
 import Link from "next/link";
 
@@ -199,22 +199,26 @@ export default function AppreciationPage() {
               Celebrating outstanding achievements
             </p>
           </div>
+          <div className="gap-8">
 
-          {/* <Link href="/hr/appreciation/new"> */}
-            
+            <Link href="/employees/hr/appreciation">
 
-            <div>
+
+
               <Button>
-              <List className="h-4 w-4 mr-2" />
-            
-            </Button>
-              
-              
-              
-                <Button>
-              <List className="h-4 w-4 mr-2" />
-            
-            </Button></div>
+                <Trophy className="h-4 w-4 mr-2" />
+
+              </Button>
+            </Link>
+
+
+            <Link href="/employees/hr/awards" className="ml-2">
+              <Button>
+                <Award className="h-4 w-4 mr-2" />
+
+              </Button>
+            </Link>
+          </div>
           {/* </Link> */}
         </div>
 
@@ -388,11 +392,11 @@ export default function AppreciationPage() {
                   <TableCell>
                     <DropdownMenu>
                       {/* <DropdownMenuTrigger asChild> */}
-                        <Button onClick={() => handleView(a.id)}  variant="ghost" size="icon">
-                           <Eye className="h-4 w-4 mr-2" />
-                          {/* <MoreVertical className="h-4 w-4" /> */}
-                        </Button>
-                    
+                      <Button onClick={() => handleView(a.id)} variant="ghost" size="icon">
+                        <Eye className="h-4 w-4 mr-2" />
+                        {/* <MoreVertical className="h-4 w-4" /> */}
+                      </Button>
+
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
