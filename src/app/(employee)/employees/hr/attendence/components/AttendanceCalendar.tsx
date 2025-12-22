@@ -281,12 +281,12 @@ export default function AttendanceCalendar() {
         <div className="bg-white border rounded-lg p-4 space-y-4">
             {/* ================= HEADER ================= */}
             <div className="flex items-center justify-between">
-                <button
+                {/* <button
                     onClick={() => setOpen(true)}
                     className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
                 >
                     + Mark Attendance
-                </button>
+                </button> */}
 
                 <div className="flex items-center gap-2 text-sm">
                     <select
@@ -402,7 +402,7 @@ export default function AttendanceCalendar() {
             </div>
 
             {/* ================= MODALS ================= */}
-            <MarkAttendanceModal open={open} onClose={() => setOpen(false)} />
+            {/* <MarkAttendanceModal open={open} onClose={() => setOpen(false)} /> */}
 
             <AttendanceDetailModal
                 open={openDetail}
