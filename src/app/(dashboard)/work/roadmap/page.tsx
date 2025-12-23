@@ -45,7 +45,7 @@ import {
 } from "lucide-react";
 import ProjectCalendarMonth from "./ProjectCalendarMonth";
 
-const MAIN = process.env.NEXT_PUBLIC_MAIN || "https://6jnqmj85-80.inc1.devtunnels.ms";
+const MAIN = process.env.NEXT_PUBLIC_MAIN ;
 const projectsFromApi = `${MAIN}/api/projects`;
 const STATUS_OPTIONS = [
   "IN_PROGRESS",

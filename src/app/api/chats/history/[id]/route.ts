@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BASE_URL = "https://6jnqmj85-80.inc1.devtunnels.ms/api/chat/history";
+const BASE_URL =  `${process.env.NEXT_PUBLIC_MAIN}/api/chat/history`;
 
 export async function GET(
   request: NextRequest,

@@ -65,12 +65,16 @@ export const CommonNavbar: React.FC = () => {
     const token = localStorage.getItem("accessToken");
     if (!empId || !token) return;
 
-    const res = await fetch(`${BASE_URL}/employee/${empId}`, {
+    const res = await fetch(`${BASE_URL}/employee/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     setEmployee(await res.json());
   };
 console.log(employee);
+
+  useEffect(() => {
+    fetchEmployee();
+  }, []);
   const handleLogout = async () => {
     // show confirmation popup first
     const confirmed = window.confirm("Are you sure you want to logout?")
@@ -145,7 +149,7 @@ console.log(employee);
             className="h-9 w-9 rounded-full overflow-hidden ring-2 ring-gray-100 cursor-pointer"
           >
             <img
-              src={"/mnt/data/Screenshot 2025-11-24 174249.png"}
+               src={employee?.profilePictureUrl || "/avatar.png"}
               alt="avatar"
               className="h-full w-full object-cover"
             />

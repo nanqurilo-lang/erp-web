@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const API_URL = "https://6jnqmj85-80.inc1.devtunnels.ms/employee/company";
+const API_URL = `${process.env.NEXT_PUBLIC_MAIN}/employee/company`;
 
 export async function POST(req: NextRequest) {
   try {

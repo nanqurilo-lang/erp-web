@@ -21,7 +21,7 @@ import {
 /* =======================
    Types & constants
    ======================= */
-const BASE = "https://6jnqmj85-80.inc1.devtunnels.ms";
+const BASE =  `${process.env.NEXT_PUBLIC_MAIN}`;
 
 type EmployeeMeta = {
   employeeId: string;

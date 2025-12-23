@@ -23,7 +23,7 @@ export default function ChatInput({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   // BASE_URL for file uploads (from your message)
-  const BASE_URL = "https://6jnqmj85-80.inc1.devtunnels.ms"
+  const BASE_URL =  `${process.env.NEXT_PUBLIC_MAIN}`
 
   // Helper: detect images
   const isImageFilename = (name?: string | null) => {

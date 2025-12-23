@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-// const API_URL = "https://6jnqmj85-80.inc1.devtunnels.ms/employee/appreciations"
 const API_URL = process.env.NEXT_PUBLIC_MAIN;
 
 // Helper to normalize Authorization header

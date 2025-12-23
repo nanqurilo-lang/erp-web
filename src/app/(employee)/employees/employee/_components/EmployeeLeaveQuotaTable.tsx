@@ -12,7 +12,7 @@ type LeaveQuota = {
   overUtilized: number;
 };
 
-const BASE_URL = "https://6jnqmj85-80.inc1.devtunnels.ms";
+const BASE_URL =  `${process.env.NEXT_PUBLIC_MAIN}`;
 
 export default function EmployeeLeaveQuotaTable() {
   const [data, setData] = useState<LeaveQuota[]>([]);

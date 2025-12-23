@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
-const API_BASE = "https://6jnqmj85-80.inc1.devtunnels.ms";
+const API_BASE =  `${process.env.NEXT_PUBLIC_MAIN}`;
 
 export type EmergencyContact = {
   id?: number;

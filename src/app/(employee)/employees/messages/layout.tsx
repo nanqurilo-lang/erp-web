@@ -33,7 +33,7 @@ export default function MessagesLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const BASE_URL = "https://6jnqmj85-80.inc1.devtunnels.ms";
+  const BASE_URL =  `${process.env.NEXT_PUBLIC_MAIN}`;
   const API_PATH = "/employee/all";
 
   const [employees, setEmployees] = useState<Employee[]>([]);

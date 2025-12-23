@@ -45,7 +45,7 @@ export default function CreateDealPage() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [newCategoryInput, setNewCategoryInput] = useState("");
 
-  const API_BASE = "https://6jnqmj85-80.inc1.devtunnels.ms";
+  const API_BASE =  `${process.env.NEXT_PUBLIC_MAIN}`;
 
   // Fetch employees, stages and leads
   useEffect(() => {

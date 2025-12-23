@@ -17,8 +17,7 @@ export type ProjectFile = {
 };
 
 const BASE_URL =
-    process.env.NEXT_PUBLIC_MAIN ||
-    "https://6jnqmj85-80.inc1.devtunnels.ms";
+    process.env.NEXT_PUBLIC_MAIN ;
 
 export default function ProjectDocuments({
     employeeId,

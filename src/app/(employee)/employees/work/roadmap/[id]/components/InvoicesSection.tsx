@@ -38,9 +38,7 @@ import ViewPaymentsModal from "@/app/(dashboard)/finance/invoices/components/Vie
 import CreateCreditNoteDrawer from "@/app/(dashboard)/finance/invoices/components/CreateCreditNoteDrawer";
 import ViewCreditNotesDrawer from "@/app/(dashboard)/finance/invoices/components/ViewCreditNotesDrawer";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_MAIN ||
-  "https://6jnqmj85-80.inc1.devtunnels.ms";
+const BASE_URL = `${process.env.NEXT_PUBLIC_MAIN}`;
 
 export default function InvoicesSection({
   projectId,

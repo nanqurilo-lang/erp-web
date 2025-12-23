@@ -1,15 +1,3 @@
-// "use client";
-
-// export default function PaymentsSection({ projectId }: { projectId: number }) {
-//     return (
-//         <div>
-//             <h3 className="text-lg font-medium mb-4">Payments</h3>
-//             <div className="border rounded-md p-4 text-gray-400 text-center">
-//                 No payments recorded
-//             </div>
-//         </div>
-//     );
-// }
 
 
 // src/components/ClientPaymentsTable.tsx
@@ -60,7 +48,7 @@ type Payment = {
   receiptFileUrl?: string | null;
 };
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE || "https://6jnqmj85-80.inc1.devtunnels.ms";
+const BASE_URL =  `${process.env.NEXT_PUBLIC_MAIN}`;
 
 export default  function PaymentsSection({ 
   projectId,

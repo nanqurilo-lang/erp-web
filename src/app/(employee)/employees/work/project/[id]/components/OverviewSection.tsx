@@ -83,7 +83,7 @@ type TaskItem = {
     // other fields not needed for counting
 };
 
-const MAIN = process.env.NEXT_PUBLIC_MAIN || "https://6jnqmj85-80.inc1.devtunnels.ms";
+const MAIN = process.env.NEXT_PUBLIC_MAIN 
 
 /**
  * Small helper: convert hex-like labelColor from backend to usable CSS color

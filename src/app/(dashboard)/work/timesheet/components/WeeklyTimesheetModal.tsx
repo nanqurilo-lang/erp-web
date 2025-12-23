@@ -13,7 +13,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-const DEFAULT_API_BASE = "https://6jnqmj85-80.inc1.devtunnels.ms";
+const DEFAULT_API_BASE =  `${process.env.NEXT_PUBLIC_MAIN}`;
 const ENDPOINT = "/timesheets/weekly";
 const API_TIMEOUT_MS = 15000;
 

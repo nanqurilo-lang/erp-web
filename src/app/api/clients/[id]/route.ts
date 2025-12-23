@@ -12,7 +12,7 @@ export async function GET(
     }
     const accessToken = authHeader.split(" ")[1];
     const response = await fetch(
-      `https://6jnqmj85-80.inc1.devtunnels.ms/clients/${id}`,
+       `${process.env.NEXT_PUBLIC_MAIN}/clients/${id}`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,

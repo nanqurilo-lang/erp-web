@@ -5,7 +5,7 @@ import axios from "axios";
 const DEFAULT_TOKEN = process.env.SWIFTANDGO_TOKEN || null;
 
 const apiClient = axios.create({
-  baseURL: "https://6jnqmj85-80.inc1.devtunnels.ms",
+  baseURL:  `${process.env.NEXT_PUBLIC_MAIN}`,
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",

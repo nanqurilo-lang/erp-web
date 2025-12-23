@@ -15,7 +15,7 @@ export async function GET(
     const accessToken = authHeader.split(" ")[1];
 
     const response = await fetch(
-      `https://6jnqmj85-80.inc1.devtunnels.ms/clients/${id}/notes`,
+      `${process.env.NEXT_PUBLIC_MAIN}/clients/${id}/notes`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -66,7 +66,7 @@ export async function POST(
     const accessToken = authHeader.split(" ")[1];
 
     const response = await fetch(
-      `https://6jnqmj85-80.inc1.devtunnels.ms/clients/${id}/notes`,
+      `${process.env.NEXT_PUBLIC_MAIN}/clients/${id}/notes`,
       {
         method: "POST",
         headers: {
@@ -119,7 +119,7 @@ export async function DELETE(
     const accessToken = authHeader.split(" ")[1];
 
     const response = await fetch(
-      `https://6jnqmj85-80.inc1.devtunnels.ms/clients/${id}/notes/${noteId}`,
+      `${process.env.NEXT_PUBLIC_MAIN}/clients/${id}/notes/${noteId}`,
       {
         method: "DELETE",
         headers: { Authorization: `Bearer ${accessToken}` },

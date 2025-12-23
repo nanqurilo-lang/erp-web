@@ -24,7 +24,7 @@ import EditCreditNoteModal, {
   CreditNoteShape,
 } from "../credit-notes/components/EditCreditNoteModal";
 
-const API_BASE = "https://6jnqmj85-80.inc1.devtunnels.ms";
+const API_BASE =  `${process.env.NEXT_PUBLIC_MAIN}`;
 
 type Company = {
   companyName?: string;

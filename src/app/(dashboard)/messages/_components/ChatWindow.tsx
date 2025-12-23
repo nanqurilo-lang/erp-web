@@ -47,7 +47,7 @@ interface ChatWindowProps {
 }
 
 // === Update this constant if the base URL changes ===
-const BASE_URL = "https://6jnqmj85-80.inc1.devtunnels.ms";
+const BASE_URL =  `${process.env.NEXT_PUBLIC_MAIN}`;
 
 const fetcher = async (url: string) => {
   try {

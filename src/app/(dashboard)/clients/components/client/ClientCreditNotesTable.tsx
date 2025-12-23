@@ -46,7 +46,7 @@ type CreditNote = {
   createdAt?: string | null;
 };
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE ||  "https://6jnqmj85-80.inc1.devtunnels.ms"; // provided base url
+const BASE_URL = process.env.NEXT_PUBLIC_MAIN ; // provided base url
 
 export default function ClientCreditNotesTable({ clientId }: { clientId?: string | number | null }) {
   const router = useRouter();

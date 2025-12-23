@@ -14,11 +14,11 @@ export type NoteItem = {
 };
 
 // primary fallback base (kept for backward compatibility)
-const FALLBACK_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://6jnqmj85-80.inc1.devtunnels.ms";
+const FALLBACK_BASE =  `${process.env.NEXT_PUBLIC_MAIN}`;
 // POST should use Gateway (if provided)
-const POST_BASE = process.env.NEXT_PUBLIC_API_GATEWAY || FALLBACK_BASE;
+const POST_BASE =  `${process.env.NEXT_PUBLIC_MAIN}`;
 // DELETE should use main (if provided)
-const DELETE_BASE = process.env.NEXT_PUBLIC_API_MAIN || FALLBACK_BASE;
+const DELETE_BASE =  `${process.env.NEXT_PUBLIC_MAIN}`;
 
 // helper: try convert various clientId shapes -> numeric
 function resolveClientIdToNumber(clientId: any): number | null {

@@ -57,7 +57,7 @@ type StatusItem = {
     createdBy?: string;
 };
 
-const MAIN = process.env.NEXT_PUBLIC_MAIN || "https://6jnqmj85-80.inc1.devtunnels.ms";
+const MAIN = process.env.NEXT_PUBLIC_MAIN ;
 
 export default function TasksTable({ employeeId, }: { employeeId: string }) {
     const [tasks, setTasks] = useState<Task[]>([]);

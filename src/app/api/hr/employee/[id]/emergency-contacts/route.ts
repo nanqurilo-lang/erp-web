@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-// const API_BASE = "https://6jnqmj85-80.inc1.devtunnels.ms/employee"
 const API_BASE = process.env.NEXT_PUBLIC_MAIN;
 
 // Proxy: GET /api/hr/employee/[id]/emergency-contacts -> external /employee/{id}/emergency-contacts

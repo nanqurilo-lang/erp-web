@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-const BASE_URL = "https://6jnqmj85-80.inc1.devtunnels.ms";
+const BASE_URL =  `${process.env.NEXT_PUBLIC_MAIN}`;
 
 export default function InvoiceReceiptModal({ open, onClose, invoice }) {
   if (!invoice) return null;

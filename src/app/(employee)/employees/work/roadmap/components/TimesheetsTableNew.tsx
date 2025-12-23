@@ -27,7 +27,7 @@ type Timesheet = {
   createdAt?: string; // ISO
 };
 
-const DEFAULT_MAIN = process.env.NEXT_PUBLIC_MAIN || "https://6jnqmj85-80.inc1.devtunnels.ms";
+const DEFAULT_MAIN = process.env.NEXT_PUBLIC_MAIN 
 
 // *** default token (from your message). For prod DO NOT hardcode.
 const PROVIDED_TOKEN = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;

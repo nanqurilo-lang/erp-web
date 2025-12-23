@@ -37,7 +37,7 @@ type ProjectData = {
   addedBy?: string | null
 }
 
-const GATEWAY = "https://6jnqmj85-80.inc1.devtunnels.ms"
+const GATEWAY =  `${process.env.NEXT_PUBLIC_MAIN}`
 
 /* -------------------------
    ProjectCategoryModal (unchanged)

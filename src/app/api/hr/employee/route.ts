@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// const API_URL = 'https://6jnqmj85-80.inc1.devtunnels.ms/employee?page=0&size=20';
 const API_URL = process.env.NEXT_PUBLIC_MAIN;
 
 export async function GET(request: NextRequest) {

@@ -4,9 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
 
-const MAIN =
-    process.env.NEXT_PUBLIC_MAIN ||
-    "https://6jnqmj85-80.inc1.devtunnels.ms";
+const MAIN = `${process.env.NEXT_PUBLIC_MAIN}`;
 
 type StatusItem = {
     id: number;

@@ -22,7 +22,7 @@ import {
   CloudUpload,
 } from "lucide-react";
 
-const API_BASE = "https://6jnqmj85-80.inc1.devtunnels.ms";
+const API_BASE =  `${process.env.NEXT_PUBLIC_MAIN}`;
 
 const tryParseResponse = async (res: Response) => {
   try { return { parsed: await res.clone().json(), raw: null }; }

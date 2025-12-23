@@ -21,9 +21,7 @@ import {
 import ViewPaymentDrawer from "./ViewPaymentDrawer";
 import EditPaymentDrawer from "./EditPaymentDrawer";
 
-const BASE_URL =
-    process.env.NEXT_PUBLIC_API_BASE ||
-    "https://6jnqmj85-80.inc1.devtunnels.ms";
+const BASE_URL = `${process.env.NEXT_PUBLIC_MAIN}`;
 
 export default function ViewPaymentsDrawer({
     open,

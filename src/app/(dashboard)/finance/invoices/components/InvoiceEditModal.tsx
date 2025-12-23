@@ -7,7 +7,7 @@ import Modal from "./Modal";
 import Card from "./Card";
 
 
- const BASE_URL = "https://6jnqmj85-80.inc1.devtunnels.ms";
+ const BASE_URL =  `${process.env.NEXT_PUBLIC_MAIN}`;
 
 export default function InvoiceEditModal({
     open,

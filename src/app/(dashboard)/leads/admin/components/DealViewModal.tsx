@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import DealTabs from "./DealTabs"; // ⭐ ADD THIS
 
-const BASE = "https://6jnqmj85-80.inc1.devtunnels.ms";
+const BASE =  `${process.env.NEXT_PUBLIC_MAIN}`;
 
 export default function DealViewModal({
     deal,
