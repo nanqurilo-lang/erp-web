@@ -75,13 +75,13 @@ export const CommonNavbar: React.FC = () => {
 
         {/* Search */}
         <div className="flex-1 max-w-xl mx-4 hidden md:block">
-          <div className="relative">
+          {/* <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
               placeholder="Search..."
               className="pl-10 bg-gray-100 border border-gray-200 rounded-md h-9 text-sm"
             />
-          </div>
+          </div> */}
         </div>
 
         {/* Right side */}

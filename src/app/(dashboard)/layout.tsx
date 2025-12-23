@@ -18,6 +18,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Page Content */}
           <main className="flex-1 p-6 pt-20">{children}</main>
+      
         </SidebarInset>
       </div>
     </SidebarProvider>
