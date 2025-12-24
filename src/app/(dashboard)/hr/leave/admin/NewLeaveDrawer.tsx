@@ -25,6 +25,8 @@ export default function NewLeaveDrawer({ open, onClose, onSuccess }: Props) {
     const [employees, setEmployees] = useState<any[]>([]);
     const [files, setFiles] = useState<File[]>([]);
     const [loading, setLoading] = useState(false);
+    const [employeeOpen, setEmployeeOpen] = useState(false);
+
 
     const [form, setForm] = useState({
         employeeIds: [] as string[],
@@ -205,47 +207,94 @@ export default function NewLeaveDrawer({ open, onClose, onSuccess }: Props) {
                             <div>
                                 <label className="text-sm font-medium">Choose Member *</label>
 
-                                <div className="mt-1 border rounded-lg max-h-56 overflow-y-auto">
-                                    {employees.map((emp) => {
-                                        const checked = form.employeeIds.includes(emp.employeeId);
+                                {/* EMPLOYEE DROPDOWN */}
+                                <div className="relative">
+                                    <label className="text-sm font-medium">Choose Member *</label>
 
-                                        return (
-                                            <label
-                                                key={emp.employeeId}
-                                                className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={checked}
-                                                    onChange={() => {
-                                                        setForm((prev) => ({
-                                                            ...prev,
-                                                            employeeIds: checked
-                                                                ? prev.employeeIds.filter((id) => id !== emp.employeeId)
-                                                                : [...prev.employeeIds, emp.employeeId],
-                                                        }));
-                                                    }}
-                                                />
+                                    {/* Selected Employees */}
+                                    <div className="mt-1 flex flex-wrap gap-2">
+                                        {form.employeeIds.map((id) => {
+                                            const emp = employees.find(e => e.employeeId === id);
+                                            if (!emp) return null;
 
-                                                {emp.profilePictureUrl ? (
-                                                    <img
-                                                        src={emp.profilePictureUrl}
-                                                        className="w-8 h-8 rounded-full object-cover"
-                                                    />
-                                                ) : (
-                                                    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs">
-                                                        {emp.name.charAt(0)}
-                                                    </div>
-                                                )}
+                                            return (
+                                                <span
+                                                    key={id}
+                                                    className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs"
+                                                >
+                                                    {emp.name}
+                                                    <button
+                                                        onClick={() =>
+                                                            setForm(prev => ({
+                                                                ...prev,
+                                                                employeeIds: prev.employeeIds.filter(eid => eid !== id),
+                                                            }))
+                                                        }
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
 
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-medium">{emp.name}</span>
-                                                    <span className="text-xs text-gray-500">{emp.role}</span>
-                                                </div>
-                                            </label>
-                                        );
-                                    })}
+                                    {/* Dropdown Button */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setEmployeeOpen(!employeeOpen)}
+                                        className="w-full mt-2 border rounded px-3 py-2 text-left bg-white"
+                                    >
+                                        {form.employeeIds.length
+                                            ? `${form.employeeIds.length} employee selected`
+                                            : "Select employees"}
+                                    </button>
+
+                                    {/* Dropdown List */}
+                                    {employeeOpen && (
+                                        <div className="absolute z-50 mt-2 w-full border rounded-lg bg-white shadow max-h-60 overflow-y-auto">
+                                            {employees.map((emp) => {
+                                                const checked = form.employeeIds.includes(emp.employeeId);
+
+                                                return (
+                                                    <label
+                                                        key={emp.employeeId}
+                                                        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={checked}
+                                                            onChange={() => {
+                                                                setForm(prev => ({
+                                                                    ...prev,
+                                                                    employeeIds: checked
+                                                                        ? prev.employeeIds.filter(id => id !== emp.employeeId)
+                                                                        : [...prev.employeeIds, emp.employeeId],
+                                                                }));
+                                                            }}
+                                                        />
+
+                                                        {emp.profilePictureUrl ? (
+                                                            <img
+                                                                src={emp.profilePictureUrl}
+                                                                className="w-7 h-7 rounded-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center text-xs">
+                                                                {emp.name.charAt(0)}
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm">{emp.name}</span>
+                                                            <span className="text-xs text-gray-500">{emp.role}</span>
+                                                        </div>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
+
                             </div>
 
 

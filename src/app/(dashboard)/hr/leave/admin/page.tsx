@@ -220,6 +220,44 @@ export default function LeavesList() {
     setLoadingId(null);
   };
 
+
+  const deleteLeave = async (id: number) => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    const ok = confirm("Are you sure you want to delete this leave?");
+    if (!ok) return;
+
+    try {
+      setLoadingId(id);
+
+      const res = await fetch(
+        `${BASE_URL}/employee/api/leaves/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) {
+        alert("Failed to delete leave");
+        return;
+      }
+
+      // 🔥 Optimistic update (fast UI)
+      setLeaves(prev => prev.filter(l => l.id !== id));
+
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Something went wrong");
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
 
@@ -287,11 +325,11 @@ export default function LeavesList() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="p-3 text-left">Leave Type</th>
-                <th className="p-3">Total</th>
-                <th className="p-3">Monthly</th>
-                <th className="p-3">Taken</th>
-                <th className="p-3">Over</th>
-                <th className="p-3">Remaining</th>
+                <th className="p-3 text-left">Total</th>
+                <th className="p-3 text-left">Monthly</th>
+                <th className="p-3 text-left">Taken</th>
+                <th className="p-3 text-left">Over</th>
+                <th className="p-3 text-left">Remaining</th>
               </tr>
             </thead>
             <tbody>
@@ -394,7 +432,7 @@ export default function LeavesList() {
                           const reason = prompt("Enter rejection reason");
                           if (reason) rejectLeave(leave.id, reason);
                         }}
-                        onDelete={() => confirm("Delete this leave?")}
+                        onDelete={() => deleteLeave(leave.id)}
                       />
                     </td>
                   </tr>
