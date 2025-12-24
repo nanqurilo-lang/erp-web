@@ -1,176 +1,3 @@
-// 'use client';
-
-// import { useState } from 'react';
-// import { useRouter } from 'next/navigation';
-
-
-
-// const BASE_URL = process.env.NEXT_PUBLIC_MAIN;
-// export default function AddEmployeePage() {
-//     const router = useRouter();
-//     const [loading, setLoading] = useState(false);
-
-//     const [form, setForm] = useState({
-//         employeeId: '',
-//         name: '',
-//         email: '',
-//         password: '',
-//         gender: 'Male',
-//         birthday: '',
-//         bloodGroup: '',
-//         joiningDate: '',
-//         language: '',
-//         country: '',
-//         mobile: '',
-//         address: '',
-//         about: '',
-//         departmentId: '',
-//         designationId: '',
-//         reportingToId: '',
-//         role: 'ROLE_EMPLOYEE',
-//         loginAllowed: true,
-//         receiveEmailNotification: false,
-//         hourlyRate: '',
-//         slackMemberId: '',
-//         skills: '',
-//         probationEndDate: '',
-//         noticePeriodStartDate: '',
-//         noticePeriodEndDate: '',
-//         employmentType: '',
-//         maritalStatus: '',
-//         businessAddress: '',
-//         officeShift: '',
-//     });
-
-//     const [file, setFile] = useState<File | null>(null);
-
-//     // ================= HANDLE CHANGE =================
-//     const handleChange = (e: any) => {
-//         const { name, value, type, checked } = e.target;
-//         setForm((p) => ({
-//             ...p,
-//             [name]: type === 'checkbox' ? checked : value,
-//         }));
-//     };
-
-//     // ================= SUBMIT =================
-//     const handleSubmit = async (e: any) => {
-//         e.preventDefault();
-//         setLoading(true);
-
-//         try {
-//             const token = localStorage.getItem('accessToken');
-//             if (!token) throw new Error('No token');
-
-//             // 🔹 Build employee object
-//             const employeePayload = {
-//                 ...form,
-//                 departmentId: Number(form.departmentId),
-//                 designationId: Number(form.designationId),
-//                 hourlyRate: Number(form.hourlyRate),
-//                 skills: form.skills.split(',').map((s) => s.trim()),
-//             };
-
-//             // 🔹 FormData (ONLY 2 FIELDS)
-//             const fd = new FormData();
-//             fd.append('employee', JSON.stringify(employeePayload));
-//             if (file) fd.append('file', file);
-
-//             const res = await fetch(`${BASE_URL}/employee`, {
-//                 method: 'POST',
-//                 headers: {
-//                     Authorization: `Bearer ${token}`,
-//                 },
-//                 body: fd,
-//             });
-
-//             if (!res.ok) throw new Error('Failed to create employee');
-
-//             await res.json();
-//             router.push('/hr/employee');
-//         } catch (err: any) {
-//             alert(err.message);
-//         } finally {
-//             setLoading(false);
-//         }
-//     };
-
-//     return (
-//         <div className="max-w-5xl mx-auto p-6 bg-white rounded-lg border">
-//             <h1 className="text-xl font-semibold mb-6">Add Employee</h1>
-
-//             <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
-
-//                 <input name="employeeId" placeholder="Employee ID" onChange={handleChange} required className="border p-2 rounded" />
-//                 <input name="name" placeholder="Name" onChange={handleChange} required className="border p-2 rounded" />
-//                 <input name="email" placeholder="Email" onChange={handleChange} required className="border p-2 rounded" />
-//                 <input name="password" placeholder="Password" type="password" onChange={handleChange} required className="border p-2 rounded" />
-
-//                 <select name="gender" onChange={handleChange} className="border p-2 rounded">
-//                     <option>Male</option>
-//                     <option>Female</option>
-//                 </select>
-
-//                 <input type="date" name="birthday" onChange={handleChange} className="border p-2 rounded" />
-//                 <input name="bloodGroup" placeholder="Blood Group" onChange={handleChange} className="border p-2 rounded" />
-//                 <input type="date" name="joiningDate" onChange={handleChange} className="border p-2 rounded" />
-
-//                 <input name="language" placeholder="Language" onChange={handleChange} className="border p-2 rounded" />
-//                 <input name="country" placeholder="Country" onChange={handleChange} className="border p-2 rounded" />
-//                 <input name="mobile" placeholder="Mobile" onChange={handleChange} className="border p-2 rounded" />
-//                 <input name="address" placeholder="Address" onChange={handleChange} className="border p-2 rounded" />
-
-//                 <input name="departmentId" placeholder="Department ID" onChange={handleChange} className="border p-2 rounded" />
-//                 <input name="designationId" placeholder="Designation ID" onChange={handleChange} className="border p-2 rounded" />
-//                 <input name="reportingToId" placeholder="Reporting To (EMP-001)" onChange={handleChange} className="border p-2 rounded" />
-
-//                 <input name="role" placeholder="ROLE_ADMIN" onChange={handleChange} className="border p-2 rounded" />
-//                 <input name="hourlyRate" placeholder="Hourly Rate" onChange={handleChange} className="border p-2 rounded" />
-//                 <input name="slackMemberId" placeholder="Slack ID" onChange={handleChange} className="border p-2 rounded" />
-
-//                 <input name="skills" placeholder="Skills (comma separated)" onChange={handleChange} className="border p-2 rounded col-span-2" />
-
-//                 <input type="date" name="probationEndDate" onChange={handleChange} className="border p-2 rounded" />
-//                 <input type="date" name="noticePeriodStartDate" onChange={handleChange} className="border p-2 rounded" />
-//                 <input type="date" name="noticePeriodEndDate" onChange={handleChange} className="border p-2 rounded" />
-
-//                 <input name="employmentType" placeholder="Employment Type" onChange={handleChange} className="border p-2 rounded" />
-//                 <input name="maritalStatus" placeholder="Marital Status" onChange={handleChange} className="border p-2 rounded" />
-//                 <input name="businessAddress" placeholder="Business Address" onChange={handleChange} className="border p-2 rounded" />
-//                 <input name="officeShift" placeholder="Office Shift" onChange={handleChange} className="border p-2 rounded" />
-
-//                 {/* FILE */}
-//                 <div className="col-span-2">
-//                     <label className="block mb-1 text-sm">Profile Picture</label>
-//                     <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-//                 </div>
-
-//                 <div className="col-span-2 flex justify-end gap-3 mt-4">
-//                     <button
-//                         type="button"
-//                         onClick={() => router.back()}
-//                         className="px-4 py-2 border rounded"
-//                     >
-//                         Cancel
-//                     </button>
-//                     <button
-//                         type="submit"
-//                         disabled={loading}
-//                         className="px-6 py-2 bg-blue-600 text-white rounded"
-//                     >
-//                         {loading ? 'Saving...' : 'Save Employee'}
-//                     </button>
-//                 </div>
-//             </form>
-//         </div>
-//     );
-// }
-
-
-
-
-
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -255,7 +82,7 @@ export default function AddEmployeePage() {
 
     useEffect(() => {
         const token = localStorage.getItem('accessToken');
-        if (!token) return;
+        // if (!token) return;
 
         const headers = { Authorization: `Bearer ${token}` };
 
@@ -276,7 +103,7 @@ export default function AddEmployeePage() {
             .then(res => res.json())
             .then(data =>
                 setEmployees(
-                    data.content.map((e: any) => ({
+                    data.map((e: any) => ({
                         employeeId: e.employeeId,
                         name: e.name,
                     }))
@@ -508,7 +335,7 @@ export default function AddEmployeePage() {
                     </Field>
 
                     <Field label="About">
-                        <textarea name="about" onChange={handleChange} className="input h-24" />
+                        <textarea name="about" onChange={handleChange} className="border rounded-lg input h-24" />
                     </Field>
                 </form>
             </div>

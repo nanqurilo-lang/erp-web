@@ -75,7 +75,7 @@ export default function InvoiceDetail() {
 
   async function fetchInvoice() {
     try {
-      const res = await fetch(`/api/finance/invoices/${invoiceNumber}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/api/invoices/${invoiceNumber}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
         },
@@ -273,7 +273,7 @@ export default function InvoiceDetail() {
                   <p className="font-medium">{invoice.client?.address}, {invoice.client?.country}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">GST/VAT No</p>
+                  <p className="text-sm text-gray-500">Tax No</p>
                   <p className="font-medium">{invoice.client?.company.gstVatNo}</p>
                 </div>
               </div>

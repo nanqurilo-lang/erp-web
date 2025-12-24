@@ -97,7 +97,7 @@ function InvoicePaymentsListInner() {
     }
 
     try {
-      const res = await fetch(`/api/finance/invoices/${invoiceNumber}/payments`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/api/invoices/${invoiceNumber}/payments`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
         },

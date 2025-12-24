@@ -34,7 +34,7 @@ export default function ClientDocumentUploader() {
     setUploading(true);
 
     try {
-      const res = await fetch(`/api/clients/${id}/documents`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/clients/${id}/documents`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

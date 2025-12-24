@@ -77,7 +77,7 @@ function InvoiceCreditNotesListInner() {
 
     try {
       const res = await fetch(
-        `/api/finance/invoices/${invoiceNumber}/credit-notes`,
+        `${process.env.NEXT_PUBLIC_MAIN}/api/invoices/${invoiceNumber}/credit-notes`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
@@ -215,7 +215,7 @@ function InvoiceCreditNotesListInner() {
                 </p>
               </div>
 
-         
+
             </div>
           ))
         )}

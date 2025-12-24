@@ -28,7 +28,7 @@ export default function ClientDocumentsPage() {
 
     setLoading(true)
     try {
-      const res = await fetch(`/api/clients/${id}/documents`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/clients/${id}/documents`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
         },
@@ -48,27 +48,27 @@ export default function ClientDocumentsPage() {
 
   const handleDelete = async (docId: number) => {
     if (!id) return;
-  
+
     const confirmed = confirm("Are you sure you want to delete this document?");
     if (!confirmed) return;
-  
+
     // Optimistically remove document from UI
     setDocuments((prev) => prev.filter((doc) => doc.id !== docId));
-  
+
     try {
-      const res = await fetch(`/api/clients/${id}/documents`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/clients/${id}/documents/${docId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
           "Document-Id": docId.toString(),
         },
       });
-  
+
       if (!res.ok) {
         const errData = await res.json();
         throw new Error(errData.error || "Failed to delete document");
       }
-  
+
       //console.log("Document deleted successfully");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong"
@@ -77,7 +77,7 @@ export default function ClientDocumentsPage() {
       await fetchDocuments();
     }
   };
-  
+
 
   useEffect(() => {
     fetchDocuments()

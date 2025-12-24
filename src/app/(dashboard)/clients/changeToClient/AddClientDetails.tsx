@@ -1,14 +1,18 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+
 import { X, CheckCircle, AlertCircle, ArrowRight } from "lucide-react"
 import ClientDetailPage from "../[id]/page"
 
-const API_BASE = `${process.env.NEXT_PUBLIC_MAIN}`
+const API_BASE = "https"
 
 export default function AddClientDetails() {
   const router = useRouter()
+  const searchParams = useSearchParams();
+  const leadId = searchParams.get("leadId");
+
 
   // Personal
   const [name, setName] = useState("")
@@ -77,10 +81,41 @@ export default function AddClientDetails() {
     return () => found.forEach(({ el, original }) => ((el as HTMLElement).style.display = original ?? ""))
   }, [])
 
+  useEffect(() => {
+    if (!leadId) return;
 
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
 
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/leads/${leadId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to load lead");
+        const lead = await res.json();
 
+        // Prefill basic details
+        setName(lead.name || "");
+        setEmail(lead.email || "");
+        setMobile(lead.mobileNumber || "");
+        setCountry(lead.country || "");
+        setCompanyName(lead.companyName || "");
+        setWebsite(lead.officialWebsite || "");
+        setOfficePhone(lead.officePhone || "");
+        setAddress(lead.companyAddress || "");
+        setCity(lead.city || "");
+        setStateVal(lead.state || "");
+        setPostalCode(lead.postalCode || "");
 
+        // If your lead has these fields:
+        if (lead.clientCategory) setCategory(lead.clientCategory);
+        if (lead.subCategory) setSubCategory(lead.subCategory);
+      } catch (err) {
+        console.error("Failed to prefill from lead", err);
+      }
+    })();
+  }, [leadId]);
 
 
   const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` })
@@ -253,10 +288,11 @@ export default function AddClientDetails() {
   const handleClose = () => router.push("/clients")
 
   return (
+
     <div className="min-h-screen  bg-slate-50 flex items-start justify-center mb-5 py-12">
       <div className="w-full max-w-4xl bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
         <div className="flex items-center justify-between px-6 py-3 border-b  bg-gray-50">
-          <h3 className="text-lg font-medium text-slate-900">Add Client Details</h3>
+          <h3 className="text-lg font-medium text-slate-900">Change to clients</h3>
           <button onClick={handleClose} className="text-slate-500 hover:text-slate-700"><X /></button>
         </div>
 
@@ -534,12 +570,3 @@ export default function AddClientDetails() {
     </div>
   )
 }
-
-
-
-
-
-
-
-
-

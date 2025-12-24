@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { X, CheckCircle, AlertCircle, ArrowRight } from "lucide-react";
 
-const API_BASE = "https://erp.skavosystem.com";
+const API_BASE = `${process.env.NEXT_PUBLIC_MAIN}`;
 
 export default function EditClientDetails() {
   const router = useRouter();
@@ -193,94 +193,94 @@ export default function EditClientDetails() {
     setMessageType("");
   };
 
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  clearMessage();
-  if (!validateForm()) {
-    setMessage("Please fix errors");
-    setMessageType("error");
-    return;
-  }
-  if (!id) {
-    setMessage("Missing client id");
-    setMessageType("error");
-    return;
-  }
-  setIsSubmitting(true);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearMessage();
+    if (!validateForm()) {
+      setMessage("Please fix errors");
+      setMessageType("error");
+      return;
+    }
+    if (!id) {
+      setMessage("Missing client id");
+      setMessageType("error");
+      return;
+    }
+    setIsSubmitting(true);
 
-  // Adjusted payload keys to match API response shape you provided
-  const clientPayload = {
-    name,
-    email,
-    mobile,
-    country,
-    gender,
-    category,
-    subCategory,
-    language,
-    // backend expects receiveEmail
-    receiveEmail,
-    skype,
-    linkedIn,
-    twitter,
-    facebook,
-    company: {
-      companyName,
-      website,
-      officePhone,
-      taxName,
-      gstVatNo,
-      address,
-      city,
-      state: stateVal,
-      postalCode,
-      shippingAddress,
-    },
-  };
-
-  const fd = new FormData();
-  fd.append("client", JSON.stringify(clientPayload));
-  if (profileFile) fd.append("profilePicture", profileFile);
-  if (logoFile) fd.append("companyLogo", logoFile);
-
-  try {
-    const res = await fetch(`${API_BASE}/clients/${id}`, {
-      method: "PUT", // change to PATCH if your backend prefers
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
-        // NOTE: do NOT set Content-Type for FormData
+    // Adjusted payload keys to match API response shape you provided
+    const clientPayload = {
+      name,
+      email,
+      mobile,
+      country,
+      gender,
+      category,
+      subCategory,
+      language,
+      // backend expects receiveEmail
+      receiveEmail,
+      skype,
+      linkedIn,
+      twitter,
+      facebook,
+      company: {
+        companyName,
+        website,
+        officePhone,
+        taxName,
+        gstVatNo,
+        address,
+        city,
+        state: stateVal,
+        postalCode,
+        shippingAddress,
       },
-      body: fd,
-    });
+    };
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error((data && (data.error || data.message)) || `Failed (${res.status})`);
-    }
+    const fd = new FormData();
+    fd.append("client", JSON.stringify(clientPayload));
+    if (profileFile) fd.append("profilePicture", profileFile);
+    if (logoFile) fd.append("companyLogo", logoFile);
 
-    setMessage("Client updated successfully");
-    setMessageType("success");
-
-    // --- NEW: signal Clients list to refresh, then navigate back to /clients ---
     try {
-      localStorage.setItem("clients:refresh", String(Date.now()));
-    } catch (e) {
-      // ignore storage errors
+      const res = await fetch(`${API_BASE}/clients/${id}`, {
+        method: "PUT", // change to PATCH if your backend prefers
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
+          // NOTE: do NOT set Content-Type for FormData
+        },
+        body: fd,
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data && (data.error || data.message)) || `Failed (${res.status})`);
+      }
+
+      setMessage("Client updated successfully");
+      setMessageType("success");
+
+      // --- NEW: signal Clients list to refresh, then navigate back to /clients ---
+      try {
+        localStorage.setItem("clients:refresh", String(Date.now()));
+      } catch (e) {
+        // ignore storage errors
+      }
+      // fire same-tab event so ClientsPage listeners pick it up immediately
+      try { window.dispatchEvent(new Event("clients:refresh")); } catch (e) { }
+
+      // navigate back to clients list (so updated row is visible in the table)
+      setTimeout(() => router.push("/clients"), 500);
+      // ------------------------------------------------------------------------
+
+    } catch (err: unknown) {
+      setMessage(err instanceof Error ? err.message : "Request failed");
+      setMessageType("error");
+    } finally {
+      setIsSubmitting(false);
     }
-    // fire same-tab event so ClientsPage listeners pick it up immediately
-    try { window.dispatchEvent(new Event("clients:refresh")); } catch (e) {}
-
-    // navigate back to clients list (so updated row is visible in the table)
-    setTimeout(() => router.push("/clients"), 500);
-    // ------------------------------------------------------------------------
-
-  } catch (err: unknown) {
-    setMessage(err instanceof Error ? err.message : "Request failed");
-    setMessageType("error");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
 
   const resetForm = () => {
@@ -531,8 +531,8 @@ export default function EditClientDetails() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mt-4">
-              <div><label className="text-xs">Tax Name</label><input value={taxName} onChange={(e) => setTaxName(e.target.value)} className={inputClass()} placeholder="e.g. GST" /></div>
-              <div><label className="text-xs">GST/VAT No.</label><input value={gstVatNo} onChange={(e) => setGstVatNo(e.target.value)} className={inputClass()} placeholder="--" /></div>
+              <div><label className="text-xs">Tax Name</label><input value={taxName} onChange={(e) => setTaxName(e.target.value)} className={inputClass()} placeholder="e.g. Tax" /></div>
+              <div><label className="text-xs">Tax No.</label><input value={gstVatNo} onChange={(e) => setGstVatNo(e.target.value)} className={inputClass()} placeholder="--" /></div>
               <div><label className="text-xs">City</label><input value={city} onChange={(e) => setCity(e.target.value)} className={inputClass()} placeholder="--" /></div>
               <div><label className="text-xs">State</label><input value={stateVal} onChange={(e) => setStateVal(e.target.value)} className={inputClass()} placeholder="--" /></div>
               <div className="md:col-span-2"><label className="text-xs">Postal Code</label><input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={inputClass()} placeholder="--" /></div>

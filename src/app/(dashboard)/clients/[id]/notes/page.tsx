@@ -29,7 +29,7 @@ export default function ClientNotesPage() {
 
     setLoading(true)
     try {
-      const res = await fetch(`/api/clients/${id}/notes`, {
+      const res = await fetch(`{process.env.NEXT_PUBLIC_MAIN}/clients/${id}/notes`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
         },
@@ -50,7 +50,7 @@ export default function ClientNotesPage() {
     if (!id) return
 
     try {
-      const res = await fetch(`/api/clients/${id}/notes`, {
+      const res = await fetch(`{process.env.NEXT_PUBLIC_MAIN}/clients/${id}/notes`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
@@ -88,7 +88,7 @@ export default function ClientNotesPage() {
   if (error) {
     return (
 
-        
+
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-3 text-center max-w-md">
           <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
@@ -115,52 +115,52 @@ export default function ClientNotesPage() {
 
   return (
     <div className="space-y-6">
-    <div className="flex items-center justify-between">
-      <h2 className="text-2xl font-semibold">Notes</h2>
-      <Button asChild>
-        <Link href={`/clients/${id}/notes/new`}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Note
-        </Link>
-      </Button>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold">Notes</h2>
+        <Button asChild>
+          <Link href={`/clients/${id}/notes/new`}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Note
+          </Link>
+        </Button>
+      </div>
+      <div className="space-y-3">
+        {notes.map((note) => (
+          <Card key={note.id} className="border-border bg-card hover:bg-card/80 transition-colors">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-4">
+                <CardTitle className="text-lg font-semibold leading-tight text-balance">{note.title}</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDelete(note.id)}
+                  className="shrink-0 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Delete note</span>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm leading-relaxed text-foreground/90">{note.detail}</p>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5" />
+                  <span className="font-mono">{note.type}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5" />
+                  <span>{note.createdBy}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>{new Date(note.createdAt).toLocaleString()}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
-    <div className="space-y-3">
-      {notes.map((note) => (
-        <Card key={note.id} className="border-border bg-card hover:bg-card/80 transition-colors">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-4">
-              <CardTitle className="text-lg font-semibold leading-tight text-balance">{note.title}</CardTitle>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleDelete(note.id)}
-                className="shrink-0 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span className="sr-only">Delete note</span>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm leading-relaxed text-foreground/90">{note.detail}</p>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <FileText className="h-3.5 w-3.5" />
-                <span className="font-mono">{note.type}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5" />
-                <span>{note.createdBy}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                <span>{new Date(note.createdAt).toLocaleString()}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  </div>
-)
+  )
 }
