@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Upload, Award, Loader2, FileImage } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export default function AwardPage() {
   const [title, setTitle] = useState("")
@@ -15,6 +16,7 @@ export default function AwardPage() {
   const [preview, setPreview] = useState<string | null>(null)
   const [response, setResponse] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   const handleCreateAward = async () => {
     if (!title || !summary || !iconFile) {
@@ -51,6 +53,7 @@ export default function AwardPage() {
       setIconFile(null)
       setPreview(null)
       alert("Award created successfully!")
+      router.push(`/hr/awards`);
     } catch (err: any) {
       setResponse({ error: err.message })
     } finally {

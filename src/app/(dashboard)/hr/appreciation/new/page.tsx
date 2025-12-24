@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { useRouter } from "next/navigation";
 
 interface AwardType {
   id: number;
@@ -27,6 +28,7 @@ export default function AppreciationForm() {
   const [summary, setSummary] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const router = useRouter()
 
   useEffect(() => {
     const fetchAwards = async () => {
@@ -54,13 +56,13 @@ export default function AppreciationForm() {
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/employee/appreciations`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/employee/all`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!res.ok) throw new Error("Failed to fetch employees");
         const data = await res.json();
-        setEmployees(data.content || []);
+        setEmployees(data || []);
       } catch (err) {
         console.error(err);
       }
@@ -84,7 +86,7 @@ export default function AppreciationForm() {
       const token = localStorage.getItem("accessToken");
       if (!token) throw new Error("No token found");
 
-      const res = await fetch("/api/hr/appreciations", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/employee/appreciations`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -100,6 +102,7 @@ export default function AppreciationForm() {
       setPhotoFile(null);
 
       alert("Appreciation added successfully!");
+      router.push("/hr/appreciation");
     } catch (err: any) {
       console.error(err);
       alert(err.message || "Error submitting appreciation");
