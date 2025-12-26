@@ -97,8 +97,8 @@ export default function ChatRoomsList({
         // Attempt to fetch profile and rooms; if these endpoints are proxied via /api in your Next app,
         // they should work in dev and production.
         const [profileRes, roomsRes] = await Promise.all([
-          fetch("/api/profile", { headers }),
-          fetch("/api/chats/rooms", { headers, cache: "no-store" })
+          fetch(`${process.env.NEXT_PUBLIC_MAIN}/employee/me`, { headers }),
+          fetch(`${process.env.NEXT_PUBLIC_MAIN}/api/chat/rooms`, { headers, cache: "no-store" })
         ])
 
         if (!profileRes.ok) {

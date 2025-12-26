@@ -47,7 +47,7 @@ interface ChatWindowProps {
 }
 
 // === Update this constant if the base URL changes ===
-const BASE_URL =  `${process.env.NEXT_PUBLIC_MAIN}`;
+const BASE_URL = `${process.env.NEXT_PUBLIC_MAIN}`;
 
 const fetcher = async (url: string) => {
   try {
@@ -86,7 +86,7 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
     }
   }, [employeeid]);
 
-  const historyUrl = receiverId ? `/api/chats/history/${encodeURIComponent(receiverId)}` : null;
+  const historyUrl = receiverId ? `${process.env.NEXT_PUBLIC_MAIN}/api/chat/history/${encodeURIComponent(receiverId)}` : null;
 
   const { data, error, isLoading, mutate } = useSWR<Message[]>(
     historyUrl,
@@ -100,8 +100,8 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
   const receiverDetails =
     messages.length > 0
       ? messages.find((m) => m.receiverDetails?.employeeId === receiverId)?.receiverDetails ||
-        messages[0]?.senderDetails ||
-        null
+      messages[0]?.senderDetails ||
+      null
       : null;
 
   // Auto-scroll on new messages (including when STOMP pushes new items)
@@ -159,7 +159,7 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
               console.error("Error parsing topic message", e);
             }
           });
-        } catch (e) {}
+        } catch (e) { }
 
         try {
           client.subscribe(`/user/queue/messages`, (msg: IMessage) => {
@@ -180,7 +180,7 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
               console.error("Error parsing user queue message", e);
             }
           });
-        } catch (e) {}
+        } catch (e) { }
 
         try {
           client.subscribe(`/topic/chat.${chatRoomId}.deleted`, (msg: IMessage) => {
@@ -194,7 +194,7 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
               console.error("Error parsing deleted event", e);
             }
           });
-        } catch (e) {}
+        } catch (e) { }
       },
       onStompError: (frame) => {
         console.error("Broker reported error: " + frame.headers["message"]);
@@ -211,7 +211,7 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
           stompClientRef.current.deactivate();
           stompClientRef.current = null;
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [receiverId, chatRoomId, mutate]);
@@ -226,15 +226,15 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
       (prev) =>
         prev
           ? prev.map((m) =>
-              m.id === messageId ? { ...m, deletedForCurrentUser: true } : m
-            )
+            m.id === messageId ? { ...m, deletedForCurrentUser: true } : m
+          )
           : prev,
       false
     );
 
     try {
-      const url = `${BASE_URL}/api/chat/message/${encodeURIComponent(String(messageId))}`; 
-      
+      const url = `${BASE_URL}/api/chat/message/${encodeURIComponent(String(messageId))}`;
+
       const res = await fetch(url, {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -276,11 +276,11 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
     if (image) {
       return (
         <a
-          href={attachment.fileUrl } download={attachment.fileName}
+          href={attachment.fileUrl} download={attachment.fileName}
           target="_blank"
           rel="noopener noreferrer"
           className="block relative w-30  mt-2 rounded-md overflow-hidden border border-border"
-          
+
         >
           {/* next/image requires width/height; using fixed height and letting width auto via css */}
           <div className="relative w-full h-48">
@@ -300,9 +300,8 @@ export default function ChatWindow({ chatRoomId, employeeid, receiverId }: ChatW
     // non-image file card
     return (
       <div
-        className={`mt-2 flex items-center gap-3 p-3 rounded-md border ${
-          isMine ? "bg-primary/5 border-primary/40" : "bg-white border-border"
-        }`}
+        className={`mt-2 flex items-center gap-3 p-3 rounded-md border ${isMine ? "bg-primary/5 border-primary/40" : "bg-white border-border"
+          }`}
       >
         <div className="flex-none w-10 h-10 rounded-md flex items-center justify-center bg-muted">
           {/* simple paperclip/file icon */}

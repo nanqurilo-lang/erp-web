@@ -23,7 +23,7 @@ export default function ChatInput({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   // BASE_URL for file uploads (from your message)
-  const BASE_URL =  `${process.env.NEXT_PUBLIC_MAIN}`
+  const BASE_URL = `${process.env.NEXT_PUBLIC_MAIN}`
 
   // Helper: detect images
   const isImageFilename = (name?: string | null) => {
@@ -62,7 +62,7 @@ export default function ChatInput({
     if (previewUrl) {
       try {
         URL.revokeObjectURL(previewUrl)
-      } catch {}
+      } catch { }
       setPreviewUrl(null)
     }
     setFile(null)

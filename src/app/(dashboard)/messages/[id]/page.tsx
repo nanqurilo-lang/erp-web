@@ -29,7 +29,7 @@ export default function ChatPage({
           throw new Error("No access token found")
         }
 
-        const res = await fetch("/api/profile", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/employee/me`, {
           headers: { Authorization: `Bearer ${token}` },
         })
 
