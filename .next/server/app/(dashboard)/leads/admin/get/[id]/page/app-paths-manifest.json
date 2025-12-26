@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/leads/admin/get/[id]/page": "app/(dashboard)/leads/admin/get/[id]/page.js"
+}

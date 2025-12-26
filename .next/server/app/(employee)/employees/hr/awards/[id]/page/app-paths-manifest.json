@@ -1,0 +1,3 @@
+{
+  "/(employee)/employees/hr/awards/[id]/page": "app/(employee)/employees/hr/awards/[id]/page.js"
+}

@@ -1,0 +1,3 @@
+{
+  "/api/finance/invoices/[invoiceNumber]/credit-notes/route": "app/api/finance/invoices/[invoiceNumber]/credit-notes/route.js"
+}

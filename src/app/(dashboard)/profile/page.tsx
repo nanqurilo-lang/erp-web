@@ -73,7 +73,7 @@ export default function ProfilePage() {
           throw new Error("No access token found")
         }
 
-        const response = await fetch("/api/profile", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/employee/me`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -131,55 +131,55 @@ export default function ProfilePage() {
     <div className="flex flex-col max-w-9xl w-full p-0 justify-center">
       {/* Header Section */}
       <Card className="mb-6 w-[800px] mx-auto">
-  <CardContent className="pt-6">
-    <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-      <Avatar className="w-24 h-24">
-        <AvatarImage
-          src={employee.profilePictureUrl || "/placeholder.svg"}
-          alt={employee.name}
-        />
-        <AvatarFallback className="text-2xl">
-          {employee.name
-            .split(" ")
-            .map((n) => n[0])
-            .join("")}
-        </AvatarFallback>
-      </Avatar>
+        <CardContent className="pt-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+            <Avatar className="w-24 h-24">
+              <AvatarImage
+                src={employee.profilePictureUrl || "/placeholder.svg"}
+                alt={employee.name}
+              />
+              <AvatarFallback className="text-2xl">
+                {employee.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")}
+              </AvatarFallback>
+            </Avatar>
 
-      <div className="flex-1">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">{employee.name}</h1>
-            <p className="text-lg text-muted-foreground">{employee.designationName}</p>
-            <div className="flex items-center gap-2 mt-2">
-              <Building className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">{employee.departmentName}</span>
+            <div className="flex-1">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground">{employee.name}</h1>
+                  <p className="text-lg text-muted-foreground">{employee.designationName}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Building className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">{employee.departmentName}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Badge variant={employee.active ? "default" : "secondary"}>
+                      {employee.active ? "Active" : "Inactive"}
+                    </Badge>
+                    <Badge variant="outline">{employee.employmentType}</Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="gap-2">
+                      <Edit className="w-4 h-4" />
+                      Edit Profile
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-2 bg-transparent">
+                      <Download className="w-4 h-4" />
+                      Export
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-
-          <div className="flex flex-col gap-2">
-            <div className="flex gap-2">
-              <Badge variant={employee.active ? "default" : "secondary"}>
-                {employee.active ? "Active" : "Inactive"}
-              </Badge>
-              <Badge variant="outline">{employee.employmentType}</Badge>
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" className="gap-2">
-                <Edit className="w-4 h-4" />
-                Edit Profile
-              </Button>
-              <Button size="sm" variant="outline" className="gap-2 bg-transparent">
-                <Download className="w-4 h-4" />
-                Export
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </CardContent>
-</Card>
+        </CardContent>
+      </Card>
 
 
       {/* Main Content Tabs */}

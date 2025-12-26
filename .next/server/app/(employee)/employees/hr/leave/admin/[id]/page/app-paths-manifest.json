@@ -1,0 +1,3 @@
+{
+  "/(employee)/employees/hr/leave/admin/[id]/page": "app/(employee)/employees/hr/leave/admin/[id]/page.js"
+}
