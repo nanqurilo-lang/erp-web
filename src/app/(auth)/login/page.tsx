@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { setStorage } from "../../../lib/storage/storege";
 import { User, Lock } from "lucide-react";
+import axios from "axios";
 
 export default function LoginPage() {
   const [role] = useState<"employee" | "admin">("employee");
@@ -23,7 +24,13 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const resp = await postAPI("/auth/login", { employeeId, password });
+      const resp = await axios.post(
+        `${process.env.NEXT_PUBLIC_MAIN}/auth/login`,
+        {
+          employeeId,
+          password,
+        }
+      );
       const data = resp.data;
 
       setAuthToken(data.accessToken);
