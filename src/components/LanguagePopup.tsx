@@ -86,7 +86,7 @@ export default function LanguagePopup() {
         <div className="lang-popup">
           {languages.map((l) => (
             <button key={l.code} onClick={() => changeLanguage(l.code)}>
-              {l.label}
+              {l.label} 
             </button>
           ))}
         </div>
