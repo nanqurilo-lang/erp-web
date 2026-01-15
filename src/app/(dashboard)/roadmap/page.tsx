@@ -68,7 +68,6 @@
 //     setPublicFilter("All");
 //     };
 
-
 //   // Filtering
 //   const filtered = projects.filter((p) => {
 //     const matchesSearch =
@@ -294,7 +293,7 @@
 //                                 <option>Deadline</option>
 //                                 <option>Start Date</option>
 //                             </select>
-                        
+
 //                 </div>
 //               <div>
 //                 <label className="block text-sm font-medium mb-1">
@@ -380,7 +379,7 @@
 //                 >
 //                   <option>All</option>
 //                   <option>Public</option>
-                  
+
 //                 </select>
 //               </div>
 //             </div>
@@ -725,15 +724,17 @@
 // }
 //------------------------------------------------------------------------------------------
 
-
-
-
-
-
 "use client";
 
 import { useState } from "react";
-import { Search, Eye, ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
+import {
+  Search,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 
 type Project = {
@@ -766,14 +767,12 @@ const projects: Project[] = Array.from({ length: 20 }, (_, i) => ({
   deadline: i % 5 === 0 ? "22/08/2025" : "02/10/2025",
   client: {
     name: "John Doe",
-    company: "Qurilo LLC",
+    company: "Skavo LLC",
     avatar: "https://i.pravatar.cc/40?img=4",
   },
   status: "In Progress",
   progress: 66,
 }));
-
-
 
 export default function RoadmapPage() {
   const router = useRouter();
@@ -915,7 +914,9 @@ export default function RoadmapPage() {
                 <td className="p-3">{p.startDate}</td>
                 <td
                   className={`p-3 ${
-                    p.deadline === "22/08/2025" ? "text-red-500 font-semibold" : ""
+                    p.deadline === "22/08/2025"
+                      ? "text-red-500 font-semibold"
+                      : ""
                   }`}
                 >
                   {p.deadline}
@@ -928,7 +929,9 @@ export default function RoadmapPage() {
                   />
                   <div>
                     <div className="font-medium">{p.client.name}</div>
-                    <div className="text-xs text-gray-500">{p.client.company}</div>
+                    <div className="text-xs text-gray-500">
+                      {p.client.company}
+                    </div>
                   </div>
                 </td>
                 <td className="p-3">
