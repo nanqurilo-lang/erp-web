@@ -21,7 +21,9 @@ export default function GoogleTranslate() {
       new window.google.translate.TranslateElement(
         {
           pageLanguage: "en",
-          includedLanguages: "en,hi,mr,ta,te,ur,bn,gu,pa",
+          // includedLanguages: "en,hi,mr,ta,te,ur,bn,gu,pa",
+          includedLanguages: "en,pl,ru,lt",
+
           autoDisplay: false,
         },
         "google_translate_element"
