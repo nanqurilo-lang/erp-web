@@ -22,7 +22,8 @@ export default function GoogleTranslate() {
         {
           pageLanguage: "en",
           // includedLanguages: "en,hi,mr,ta,te,ur,bn,gu,pa",
-          includedLanguages: "en,pl,ru,lt",
+        includedLanguages: "en,pl,ru,lt,de,nl",
+
 
           autoDisplay: false,
         },

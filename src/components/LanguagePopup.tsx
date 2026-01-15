@@ -50,12 +50,15 @@
 
 import { useState } from "react";
 
-const languages = [
-  { code: "en", label: "English" },        // English
-  { code: "pl", label: "Polski" },         // Polish
-  { code: "ru", label: "Русский" },        // Russian
-  { code: "lt", label: "Lietuvių" },       // Lithuanian
+const LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "pl", label: "Polski" },      // Polish
+  { code: "ru", label: "Русский" },     // Russian
+  { code: "lt", label: "Lietuvių" },    // Lithuanian
+  { code: "de", label: "Deutsch" },     // German
+  { code: "nl", label: "Nederlands" },  // Dutch
 ];
+
 
 export default function LanguagePopup() {
   const [open, setOpen] = useState(false);

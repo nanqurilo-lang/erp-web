@@ -240,10 +240,13 @@ interface EmployeeProfile {
 
 const LANGUAGES = [
   { code: "en", label: "English" },
-  { code: "pl", label: "Polski" },
-  { code: "ru", label: "Русский" },
-  { code: "lt", label: "Lietuvių" },
+  { code: "pl", label: "Polski" },      // Polish
+  { code: "ru", label: "Русский" },     // Russian
+  { code: "lt", label: "Lietuvių" },    // Lithuanian
+  { code: "de", label: "Deutsch" },     // German
+  { code: "nl", label: "Nederlands" },  // Dutch
 ];
+
 
 export const CommonNavbar: React.FC = () => {
   const pathname = usePathname();
