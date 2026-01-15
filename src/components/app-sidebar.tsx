@@ -51,7 +51,7 @@ export function AppSidebar() {
       <Sidebar className="#211C52">
         <SidebarHeader>
           <div className="flex items-center justify-center  px-1 py-6">
-            {/* <h1 className="text-2xl font-bold text-sidebar-primary">Qurilo</h1> */}
+            {/* <h1 className="text-2xl font-bold text-sidebar-primary">Skavo</h1> */}
           </div>
         </SidebarHeader>
 
@@ -63,7 +63,7 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild>
                   <Link href="/dashboard">
                     <LayoutDashboard className="size-5" />
-                    <span >Dashboard</span>
+                    <span>Dashboard</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -82,7 +82,9 @@ export function AppSidebar() {
               tabIndex={0}
               aria-expanded={!!openGroups.leads}
             >
-              <SidebarGroupLabel className=" text-white">Leads</SidebarGroupLabel>
+              <SidebarGroupLabel className=" text-white">
+                Leads
+              </SidebarGroupLabel>
               <Chevron open={!!openGroups.leads} />
             </div>
 
@@ -120,7 +122,9 @@ export function AppSidebar() {
               tabIndex={0}
               aria-expanded={!!openGroups.client}
             >
-              <SidebarGroupLabel className=" text-white">Client</SidebarGroupLabel>
+              <SidebarGroupLabel className=" text-white">
+                Client
+              </SidebarGroupLabel>
               <Chevron open={!!openGroups.client} />
             </div>
 
@@ -150,7 +154,9 @@ export function AppSidebar() {
               tabIndex={0}
               aria-expanded={!!openGroups.work}
             >
-              <SidebarGroupLabel className=" text-white">Work</SidebarGroupLabel>
+              <SidebarGroupLabel className=" text-white">
+                Work
+              </SidebarGroupLabel>
               <Chevron open={!!openGroups.work} />
             </div>
 
@@ -210,9 +216,6 @@ export function AppSidebar() {
 
             {openGroups.hr ? (
               <SidebarMenu>
-
-
-
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <Link href="/hr/employee">
@@ -222,7 +225,7 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
- <SidebarMenuItem>
+                <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <Link href="/hr/attendence">
                       <Award className="size-5" />
@@ -230,7 +233,6 @@ export function AppSidebar() {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
@@ -240,7 +242,6 @@ export function AppSidebar() {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
@@ -269,12 +270,6 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-
-               
-
-
-
-
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <Link href="/hr/appreciation">
@@ -299,7 +294,9 @@ export function AppSidebar() {
               tabIndex={0}
               aria-expanded={!!openGroups.finance}
             >
-              <SidebarGroupLabel className=" text-white">Finance</SidebarGroupLabel>
+              <SidebarGroupLabel className=" text-white">
+                Finance
+              </SidebarGroupLabel>
               <Chevron open={!!openGroups.finance} />
             </div>
 
@@ -352,7 +349,9 @@ export function AppSidebar() {
               tabIndex={0}
               aria-expanded={!!openGroups.settings}
             >
-              <SidebarGroupLabel className=" text-white">Settings</SidebarGroupLabel>
+              <SidebarGroupLabel className=" text-white">
+                Settings
+              </SidebarGroupLabel>
               <Chevron open={!!openGroups.settings} />
             </div>
 
@@ -382,7 +381,7 @@ export function AppSidebar() {
 
         <SidebarFooter className="bg-[#15173a] text-white">
           <div className="p-4 text-xs text-white text-sidebar-foreground/60 text-center border-t border-sidebar-border">
-            © 2025 Qurilo
+            © 2025 Skavo
           </div>
         </SidebarFooter>
       </Sidebar>

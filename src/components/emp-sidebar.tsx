@@ -53,7 +53,7 @@ export function EAppSidebar() {
       <Sidebar className="#211C52">
         <SidebarHeader>
           <div className="flex items-center justify-center  px-1 py-6">
-            {/* <h1 className="text-2xl font-bold text-sidebar-primary">Qurilo</h1> */}
+            <h1 className="text-2xl font-bold text-sidebar-primary">Skavo</h1>
           </div>
         </SidebarHeader>
 
@@ -65,7 +65,7 @@ export function EAppSidebar() {
                 <SidebarMenuButton asChild>
                   <Link href="/employees/employee">
                     <LayoutDashboard className="size-5" />
-                    <span >Dashboard</span>
+                    <span>Dashboard</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -110,8 +110,6 @@ export function EAppSidebar() {
           {/* //   ) : null} */}
           {/* // </SidebarGroup> */}
 
-
-
           {/* Work (collapsible) */}
           <SidebarGroup>
             <div
@@ -124,7 +122,9 @@ export function EAppSidebar() {
               tabIndex={0}
               aria-expanded={!!openGroups.work}
             >
-              <SidebarGroupLabel className=" text-white">Work</SidebarGroupLabel>
+              <SidebarGroupLabel className=" text-white">
+                Work
+              </SidebarGroupLabel>
               <Chevron open={!!openGroups.work} />
             </div>
 
@@ -184,7 +184,6 @@ export function EAppSidebar() {
 
             {openGroups.hr ? (
               <SidebarMenu>
-
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <Link href="/employees/hr/attendence">
@@ -193,7 +192,6 @@ export function EAppSidebar() {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-
 
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
@@ -226,7 +224,6 @@ export function EAppSidebar() {
 
           {/* Finance (collapsible) */}
 
-
           {/* Messages */}
           <SidebarGroup>
             <SidebarMenu>
@@ -240,7 +237,6 @@ export function EAppSidebar() {
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroup>
-
 
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
@@ -257,7 +253,7 @@ export function EAppSidebar() {
 
         <SidebarFooter className="bg-[#15173a] text-white">
           <div className="p-4 text-xs text-white text-sidebar-foreground/60 text-center border-t border-sidebar-border">
-            © 2025 Qurilo
+            © 2025 skavo
           </div>
         </SidebarFooter>
       </Sidebar>
