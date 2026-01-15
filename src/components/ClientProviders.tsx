@@ -1,21 +1,21 @@
-"use client";
+// "use client";
 
-import GoogleTranslate from "./GoogleTranslate";
-import LanguagePopup from "./LanguagePopup";
+// import GoogleTranslate from "./GoogleTranslate";
+// import LanguagePopup from "./LanguagePopup";
 
-export default function ClientProviders({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <>
-      <GoogleTranslate />
-      <LanguagePopup />
-      {children}
-    </>
-  );
-}
+// export default function ClientProviders({
+//   children,
+// }: {
+//   children: React.ReactNode;
+// }) {
+//   return (
+//     <>
+//       <GoogleTranslate />
+//       <LanguagePopup />
+//       {children}
+//     </>
+//   );
+// }
 
 // "use client";
 
@@ -36,7 +36,7 @@ export default function ClientProviders({
 //   );
 // }
 
-("use client");
+"use client";
 
 import GoogleTranslate from "./GoogleTranslate";
 

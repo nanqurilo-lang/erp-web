@@ -52,7 +52,7 @@ export function EAppSidebar() {
     <div className="min-h-screen bg-[#15173a]  text-white">
       <Sidebar className="#211C52">
         <SidebarHeader>
-          <div className="flex items-center justify-center  px-1 py-6">
+          <div className="flex items-center justify-center  px-1 ">
             <h1 className="text-2xl font-bold text-sidebar-primary">Skavo</h1>
           </div>
         </SidebarHeader>

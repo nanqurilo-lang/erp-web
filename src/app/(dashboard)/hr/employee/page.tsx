@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState } from "react";
+import Link from "next/link";
 
 interface Employee {
   employeeId: string;
@@ -21,25 +21,24 @@ export default function EmployeePage() {
   const [loading, setLoading] = useState(true);
 
   // filters
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('all');
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
 
   // pagination
-  const PAGE_SIZE = 9;
-  const [page, setPage] = useState(0);
+  // const PAGE_SIZE = 5;
+  // const [page, setPage] = useState(0);
 
   // invite modal
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteMessage, setInviteMessage] = useState('');
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteMessage, setInviteMessage] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-
 
   /* ================= FETCH EMPLOYEES ================= */
   useEffect(() => {
     const fetchEmployees = async () => {
-      const token = localStorage.getItem('accessToken');
+      const token = localStorage.getItem("accessToken");
       const res = await fetch(`${BASE_URL}/employee?page=0&size=200`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -53,18 +52,18 @@ export default function EmployeePage() {
   /* ================= INVITE API ================= */
   const sendInvite = async () => {
     if (!inviteEmail) {
-      alert('Email is required');
+      alert("Email is required");
       return;
     }
 
     setInviteLoading(true);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = localStorage.getItem("accessToken");
 
       const res = await fetch(`${BASE_URL}/employee/invite`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
@@ -73,12 +72,12 @@ export default function EmployeePage() {
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to send invite');
+      if (!res.ok) throw new Error("Failed to send invite");
 
       setInviteOpen(false);
-      setInviteEmail('');
-      setInviteMessage('');
-      alert('Invitation sent successfully');
+      setInviteEmail("");
+      setInviteMessage("");
+      alert("Invitation sent successfully");
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -94,40 +93,38 @@ export default function EmployeePage() {
       e.employeeId.toLowerCase().includes(search.toLowerCase());
 
     const matchStatus =
-      status === 'all' ||
-      (status === 'active' && e.active) ||
-      (status === 'inactive' && !e.active);
+      status === "all" ||
+      (status === "active" && e.active) ||
+      (status === "inactive" && !e.active);
 
     return matchSearch && matchStatus;
   });
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const data = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  // const data = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const data = filtered;
 
   if (loading) return <div className="p-6">Loading...</div>;
-
 
   const deleteEmployee = async (id: string) => {
     // if (!confirm('Are you sure you want to delete this employee?')) return;
 
     try {
       //("gggggggkkkk")
-      const token = localStorage.getItem('accessToken');
+      const token = localStorage.getItem("accessToken");
       await fetch(`${BASE_URL}/employee/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
+        method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
 
       setEmployees((prev) => prev.filter((e) => e.employeeId !== id));
     } catch {
-      alert('Failed to delete employee');
+      alert("Failed to delete employee");
     }
   };
 
-
   return (
     <div className="p-6 space-y-6">
-
       {/* ================= FILTER ================= */}
       <div className="bg-white rounded-lg border p-4 flex gap-4">
         <input
@@ -136,7 +133,7 @@ export default function EmployeePage() {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setPage(0);
+            // setPage(0);
           }}
         />
 
@@ -145,7 +142,7 @@ export default function EmployeePage() {
           value={status}
           onChange={(e) => {
             setStatus(e.target.value);
-            setPage(0);
+            // setPage(0);
           }}
         >
           <option value="all">All Status</option>
@@ -196,12 +193,18 @@ export default function EmployeePage() {
                 <td className="p-3">{e.employeeId}</td>
                 <td className="p-3">{e.name}</td>
                 <td className="p-3">{e.email}</td>
-                <td className="p-3">{e.departmentName || '—'}</td>
-                <td className="p-3">{e.designationName || '—'}</td>
+                <td className="p-3">{e.departmentName || "—"}</td>
+                <td className="p-3">{e.designationName || "—"}</td>
                 <td className="p-3">{e.role}</td>
                 <td className="p-3">
-                  <span className={`px-2 py-1 text-xs rounded ${e.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {e.active ? 'Active' : 'Inactive'}
+                  <span
+                    className={`px-2 py-1 text-xs rounded ${
+                      e.active
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {e.active ? "Active" : "Inactive"}
                   </span>
                 </td>
                 <td className="p-3 relative">
@@ -254,7 +257,6 @@ export default function EmployeePage() {
                     </div>
                   )}
                 </td>
-
               </tr>
             ))}
           </tbody>
@@ -275,7 +277,8 @@ export default function EmployeePage() {
             <h2 className="text-xl font-semibold mb-3">Invite Employee</h2>
 
             <div className="border rounded p-3 text-sm text-gray-600 mb-4">
-              Employees will receive an email to log in and update their profile through the self-service portal.
+              Employees will receive an email to log in and update their profile
+              through the self-service portal.
             </div>
 
             <div className="space-y-4">
@@ -305,7 +308,7 @@ export default function EmployeePage() {
                   onClick={sendInvite}
                   className="bg-blue-600 text-white px-8 py-2 rounded-lg"
                 >
-                  {inviteLoading ? 'Sending...' : 'Send Invite'}
+                  {inviteLoading ? "Sending..." : "Send Invite"}
                 </button>
               </div>
             </div>
