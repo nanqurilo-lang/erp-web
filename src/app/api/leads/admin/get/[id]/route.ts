@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
   try {
     const { id } = await context.params; // Await params to resolve the id
     const authHeader = request.headers.get("Authorization");
@@ -11,18 +14,24 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     }
 
     const accessToken = authHeader.split(" ")[1];
-    const upstream = await fetch(`${process.env.NEXT_PUBLIC_MAIN}/leads/${id}`, {
-      cache: "no-store",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
+    const upstream = await fetch(
+      `${process.env.NEXT_PUBLIC_MAIN}/leads/${id}`,
+      {
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json",
+        },
       },
-    });
+    );
 
     if (!upstream.ok) {
       const text = await upstream.text().catch(() => "");
       return NextResponse.json(
-        { error: "Failed to fetch lead details", details: text || upstream.statusText },
+        {
+          error: "Failed to fetch lead details",
+          details: text || upstream.statusText,
+        },
         { status: upstream.status },
       );
     }
@@ -31,7 +40,10 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     return NextResponse.json(data, { status: 200 });
   } catch (err: any) {
     return NextResponse.json(
-      { error: "Unexpected error fetching lead details", details: err?.message || "Unknown error" },
+      {
+        error: "Unexpected error fetching lead details",
+        details: err?.message || "Unknown error",
+      },
       { status: 500 },
     );
   }
